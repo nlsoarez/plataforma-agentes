@@ -26,3 +26,14 @@ export async function resolverProjetoPorNumero(
   const r = await pool.query('select tenant_id, projeto_id from resolver_projeto($1)', [phoneNumberId]);
   return r.rows[0] ?? null;
 }
+
+// Resolve o tenant pelo domínio da agência (white-label). tenants não tem RLS.
+export async function resolverTenantPorDominio(
+  dominio: string,
+): Promise<{ id: string } | null> {
+  const r = await pool.query(
+    `select id from tenants where dominio=$1 and status <> 'suspended' limit 1`,
+    [dominio],
+  );
+  return r.rows[0] ?? null;
+}
