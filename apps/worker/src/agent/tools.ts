@@ -1,5 +1,6 @@
 import type { QueryFn } from '@plataforma/db';
 import { logarAcao } from '../repos';
+import { publicar } from '@plataforma/bus';
 
 // Contexto que todo executor recebe.
 export interface ToolCtx {
@@ -32,6 +33,7 @@ const executores: Record<string, Executor> = {
     const r = await ctx.q(`select id from etapas_pipeline where projeto_id=$1 and lower(nome)=lower($2) limit 1`, [ctx.projetoId, etapa]);
     if (!r.rows[0]) return { ok: false, motivo: 'etapa nao encontrada' };
     await ctx.q(`update contatos set etapa_pipeline=$1 where id=$2`, [r.rows[0].id, ctx.contatoId]);
+    await publicar(ctx.tenantId, { tipo: 'card', contatoId: ctx.contatoId, etapaId: r.rows[0].id });
     return { ok: true, etapa };
   },
   async taguear(ctx, { tags }) {
