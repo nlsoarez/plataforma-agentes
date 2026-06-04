@@ -2,8 +2,13 @@ import { Pool } from 'pg';
 
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// Executa uma query JÁ no escopo de um tenant (ativa o RLS).
-export async function comTenant<T>(tenantId: string, fn: (q: (sql: string, params?: unknown[]) => Promise<any>) => Promise<T>): Promise<T> {
+export type QueryFn = (sql: string, params?: unknown[]) => Promise<any>;
+
+// Executa queries JÁ no escopo de um tenant (ativa o RLS via app.tenant_id).
+export async function comTenant<T>(
+  tenantId: string,
+  fn: (q: QueryFn) => Promise<T>,
+): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query("select set_config('app.tenant_id', $1, true)", [tenantId]);
@@ -11,4 +16,13 @@ export async function comTenant<T>(tenantId: string, fn: (q: (sql: string, param
   } finally {
     client.release();
   }
+}
+
+// Roteamento: descobre tenant + projeto pelo número que recebeu a mensagem.
+// Usa a função SECURITY DEFINER (ignora RLS só pra esta leitura de roteamento).
+export async function resolverProjetoPorNumero(
+  phoneNumberId: string,
+): Promise<{ tenant_id: string; projeto_id: string } | null> {
+  const r = await pool.query('select tenant_id, projeto_id from resolver_projeto($1)', [phoneNumberId]);
+  return r.rows[0] ?? null;
 }

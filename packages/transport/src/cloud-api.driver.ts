@@ -1,10 +1,13 @@
 import type { EventoNormalizado, TemplateRef, MidiaRef } from '@plataforma/shared';
 import type { TransportDriver } from './index';
 
+export type ResolverToken = (phoneNumberId: string) => Promise<string>;
+
 // Driver OFICIAL (produção). Usa a Graph API da Meta.
-// TODO: o token de acesso de cada projeto vem do cofre, resolvido por phoneNumberId.
+// O token de acesso de cada projeto vem do cofre, resolvido por phoneNumberId.
 export class CloudApiDriver implements TransportDriver {
   constructor(
+    private readonly resolverToken: ResolverToken,
     private readonly graphVersion = process.env.META_GRAPH_VERSION ?? 'v21.0',
   ) {}
 
@@ -18,6 +21,7 @@ export class CloudApiDriver implements TransportDriver {
         body: JSON.stringify({ messaging_product: 'whatsapp', ...(body as object) }),
       },
     );
+    if (!res.ok) throw new Error(`cloud api ${res.status}: ${await res.text()}`);
     const data = (await res.json()) as { messages?: { id: string }[] };
     return { messageId: data.messages?.[0]?.id ?? '' };
   }
@@ -28,18 +32,13 @@ export class CloudApiDriver implements TransportDriver {
 
   enviarTemplate(phoneNumberId: string, para: string, t: TemplateRef) {
     return this.post(phoneNumberId, {
-      to: para,
-      type: 'template',
+      to: para, type: 'template',
       template: { name: t.nome, language: { code: t.idioma } },
     });
   }
 
   enviarMidia(phoneNumberId: string, para: string, m: MidiaRef) {
-    return this.post(phoneNumberId, {
-      to: para,
-      type: m.tipo,
-      [m.tipo]: { link: m.url, caption: m.legenda },
-    });
+    return this.post(phoneNumberId, { to: para, type: m.tipo, [m.tipo]: { link: m.url, caption: m.legenda } });
   }
 
   async marcarComoLida(phoneNumberId: string, messageId: string) {
@@ -54,27 +53,14 @@ export class CloudApiDriver implements TransportDriver {
         const v = change.value ?? {};
         const phoneNumberId = v.metadata?.phone_number_id;
         for (const msg of v.messages ?? []) {
-          eventos.push({
-            tipo: 'mensagem_recebida',
-            phoneNumberId,
-            de: msg.from,
-            conteudo: msg.text?.body ?? '',
-            metaId: msg.id,
-          });
+          eventos.push({ tipo: 'mensagem_recebida', phoneNumberId, de: msg.from, conteudo: msg.text?.body ?? '', metaId: msg.id });
         }
         for (const st of v.statuses ?? []) {
-          const map: Record<string, 'entregue' | 'lida' | 'falha'> = {
-            delivered: 'entregue', read: 'lida', failed: 'falha',
-          };
+          const map: Record<string, 'entregue' | 'lida' | 'falha'> = { delivered: 'entregue', read: 'lida', failed: 'falha' };
           if (map[st.status]) eventos.push({ tipo: 'status_entrega', metaId: st.id, status: map[st.status] });
         }
       }
     }
     return eventos;
-  }
-
-  private async resolverToken(_phoneNumberId: string): Promise<string> {
-    // TODO: buscar no cofre o token do projeto dono deste phoneNumberId.
-    throw new Error('resolverToken: integrar com o cofre de segredos');
   }
 }

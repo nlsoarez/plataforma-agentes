@@ -23,3 +23,5 @@ export interface MidiaRef {
   url: string;
   legenda?: string;
 }
+
+export { resolverSegredo } from './secrets';
