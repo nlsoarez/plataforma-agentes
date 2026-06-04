@@ -42,7 +42,7 @@ export default function Campanhas() {
     <main style={{ fontFamily: 'sans-serif', padding: 24, maxWidth: 760 }}>
       <h1>Campanhas</h1>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <input placeholder="mensagem a enviar" value={texto} onChange={(e) => setTexto(e.target.value)} style={{ flex: 1, padding: 8 }} />
+        <input placeholder="mensagem (use spintax: {Oi|Olá} {fulano|amigo}!)" value={texto} onChange={(e) => setTexto(e.target.value)} style={{ flex: 1, padding: 8 }} />
         <input placeholder="tags (opcional, vírgula)" value={tags} onChange={(e) => setTags(e.target.value)} style={{ flex: 1, padding: 8 }} />
         <button onClick={enviar}>Disparar</button>
       </div>
