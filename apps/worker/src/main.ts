@@ -1,19 +1,15 @@
 import { Worker } from 'bullmq';
 import type { EventoNormalizado } from '@plataforma/shared';
 import { tratarMensagemRecebida } from './handlers/mensagem-recebida';
+import { tratarStatusEntrega } from './handlers/status-entrega';
 
 const worker = new Worker(
   'eventos-whatsapp',
   async (job) => {
     const ev = job.data as EventoNormalizado;
     switch (ev.tipo) {
-      case 'mensagem_recebida':
-        await tratarMensagemRecebida(ev);
-        break;
-      case 'status_entrega':
-        // TODO: atualizar status_entrega da mensagem pelo meta_message_id.
-        console.log('[status]', ev.metaId, ev.status);
-        break;
+      case 'mensagem_recebida': await tratarMensagemRecebida(ev); break;
+      case 'status_entrega':    await tratarStatusEntrega(ev); break;
       case 'ctwa':
         // TODO: marcar origem do contato + devolver conversao pro Meta Ads.
         console.log('[ctwa]', ev.de, ev.campanhaMetaId);

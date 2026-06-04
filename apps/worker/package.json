@@ -11,7 +11,12 @@
     "@plataforma/transport": "workspace:*",
     "@plataforma/db": "workspace:*",
     "bullmq": "^5.7.0",
-    "ioredis": "^5.4.0"
+    "ioredis": "^5.4.0",
+    "@plataforma/bus": "workspace:*"
   },
-  "devDependencies": { "tsx": "^4.7.0", "typescript": "^5.4.0", "@types/node": "^20.0.0" }
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
 }

@@ -2,7 +2,6 @@ import { Controller, Get, Post, Query, Body, Req, Res, HttpStatus } from '@nestj
 import * as crypto from 'crypto';
 import { Queue } from 'bullmq';
 import { CloudApiDriver } from '@plataforma/transport';
-import { resolverSegredo } from '@plataforma/shared';
 
 const fila = new Queue('eventos-whatsapp', { connection: { url: process.env.REDIS_URL } as any });
 

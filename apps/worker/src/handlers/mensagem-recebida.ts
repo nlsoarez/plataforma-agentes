@@ -1,13 +1,13 @@
 import { comTenant, resolverProjetoPorNumero } from '@plataforma/db';
 import { CloudApiDriver } from '@plataforma/transport';
 import { resolverSegredo } from '@plataforma/shared';
+import { publicar } from '@plataforma/bus';
 import {
   upsertContato, acharOuCriarConversa, gravarMensagem,
   carregarAgente, carregarHistorico,
 } from '../repos';
 import { rodarAgente } from '../agent/agente';
 
-// Resolve o token da WABA por numero (dev: env; prod: cofre).
 const driver = new CloudApiDriver(async (phoneNumberId) => {
   try { return await resolverSegredo(`WABA_TOKEN_${phoneNumberId}`); }
   catch { return await resolverSegredo('META_ACCESS_TOKEN'); }
@@ -27,18 +27,16 @@ export async function tratarMensagemRecebida(ev: {
     await gravarMensagem(q, tenantId, conversa.id, {
       direcao: 'inbound', autor: 'contato', conteudo: ev.conteudo, metaMessageId: ev.metaId,
     });
+    await publicar(tenantId, { tipo: 'mensagem', conversaId: conversa.id, autor: 'contato', conteudo: ev.conteudo });
 
-    // IA pausada => humano cuida. Nao responde.
-    if (conversa.ia_pausada) return;
+    if (conversa.ia_pausada) return; // humano cuida
 
     const agente = await carregarAgente(q, projetoId);
     if (!agente) { console.warn('[agente] nenhum agente ativo no projeto', projetoId); return; }
 
     const historico = await carregarHistorico(q, conversa.id);
-
     const resultado = await rodarAgente({
-      agente,
-      historico,
+      agente, historico,
       ctx: { q, tenantId, projetoId, conversaId: conversa.id, contatoId },
     });
 
@@ -48,6 +46,11 @@ export async function tratarMensagemRecebida(ev: {
         direcao: 'outbound', autor: 'ia', conteudo: resultado.texto,
         metaMessageId: messageId, tokensIn: resultado.tokensIn, tokensOut: resultado.tokensOut,
       });
+      await publicar(tenantId, { tipo: 'mensagem', conversaId: conversa.id, autor: 'ia', conteudo: resultado.texto });
+    }
+
+    if (resultado.handoff) {
+      await publicar(tenantId, { tipo: 'handoff', conversaId: conversa.id });
     }
   });
 }

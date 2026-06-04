@@ -57,7 +57,7 @@ export class CloudApiDriver implements TransportDriver {
         }
         for (const st of v.statuses ?? []) {
           const map: Record<string, 'entregue' | 'lida' | 'falha'> = { delivered: 'entregue', read: 'lida', failed: 'falha' };
-          if (map[st.status]) eventos.push({ tipo: 'status_entrega', metaId: st.id, status: map[st.status] });
+          if (map[st.status]) eventos.push({ tipo: 'status_entrega', phoneNumberId, metaId: st.id, status: map[st.status] });
         }
       }
     }
