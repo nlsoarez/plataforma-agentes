@@ -16,10 +16,11 @@ Monorepo (pnpm + Turborepo):
 ## Rodar local
 
 ```bash
-cp .env.example .env        # preencha os valores
-docker compose up -d        # sobe Postgres + Redis
-psql "$DATABASE_URL" -f packages/db/migrations/001_init.sql
+cp .env.example .env            # preencha os valores
+docker compose up -d            # sobe Postgres + Redis
 pnpm install
+pnpm --filter @plataforma/db migrate   # aplica as migrations (sem psql)
+pnpm --filter @plataforma/api seed     # cria agencia/projeto demo (opcional)
 pnpm dev
 ```
 

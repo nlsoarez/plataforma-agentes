@@ -3,5 +3,14 @@
   "version": "0.0.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
-  "dependencies": { "pg": "^8.11.0" }
+  "dependencies": {
+    "pg": "^8.11.0",
+    "dotenv": "^16.4.0"
+  },
+  "scripts": {
+    "migrate": "tsx migrate.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
+  }
 }
