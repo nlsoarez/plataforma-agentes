@@ -1,0 +1,7 @@
+{
+  "name": "@plataforma/db",
+  "version": "0.0.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": { "pg": "^8.11.0" }
+}

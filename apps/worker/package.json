@@ -1,0 +1,17 @@
+{
+  "name": "@plataforma/worker",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@plataforma/shared": "workspace:*",
+    "@plataforma/transport": "workspace:*",
+    "@plataforma/db": "workspace:*",
+    "bullmq": "^5.7.0",
+    "ioredis": "^5.4.0"
+  },
+  "devDependencies": { "tsx": "^4.7.0", "typescript": "^5.4.0", "@types/node": "^20.0.0" }
+}

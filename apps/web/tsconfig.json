@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "es2021", "lib": ["dom", "es2021"], "jsx": "preserve",
+    "module": "esnext", "moduleResolution": "bundler", "esModuleInterop": true,
+    "skipLibCheck": true, "strict": true, "plugins": [{ "name": "next" }]
+  },
+  "include": ["src", "next-env.d.ts"]
+}
