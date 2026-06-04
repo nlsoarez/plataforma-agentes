@@ -7,6 +7,7 @@ export default function Home() {
       <a style={link} href="/login">Login</a>
       <a style={link} href="/inbox">Inbox ao vivo</a>
       <a style={link} href="/pipeline">Pipeline (Kanban)</a>
+      <a style={link} href="/campanhas">Campanhas</a>
       <a style={link} href="/onboarding">Conectar WhatsApp</a>
     </main>
   );

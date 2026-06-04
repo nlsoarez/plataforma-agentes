@@ -15,6 +15,7 @@ const driver = new CloudApiDriver(async (phoneNumberId) => {
 
 export async function tratarMensagemRecebida(ev: {
   phoneNumberId: string; de: string; conteudo: string; metaId: string;
+  referral?: { ctwaClid?: string; sourceId?: string };
 }) {
   const rota = await resolverProjetoPorNumero(ev.phoneNumberId);
   if (!rota) { console.warn('[rota] projeto ativo nao encontrado para', ev.phoneNumberId); return; }
@@ -22,6 +23,9 @@ export async function tratarMensagemRecebida(ev: {
 
   await comTenant(tenantId, async (q) => {
     const contatoId = await upsertContato(q, tenantId, projetoId, ev.de);
+    if (ev.referral?.ctwaClid) {
+      await q(`update contatos set ctwa_clid=$1, origem='ctwa' where id=$2`, [ev.referral.ctwaClid, contatoId]);
+    }
     const conversa = await acharOuCriarConversa(q, tenantId, projetoId, contatoId);
 
     await gravarMensagem(q, tenantId, conversa.id, {

@@ -13,6 +13,8 @@ export async function tratarStatusEntrega(ev: {
       [ev.status, ev.metaId],
     );
     const conversaId = r.rows[0]?.conversa_id;
+    // reflete o status tambem no envio de campanha (se a mensagem for de uma campanha)
+    await q(`update campanha_envios set status=$1 where meta_message_id=$2`, [ev.status, ev.metaId]);
     if (conversaId) {
       await publicar(rota.tenant_id, { tipo: 'status', conversaId, metaId: ev.metaId, status: ev.status });
     }

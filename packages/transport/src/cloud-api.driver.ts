@@ -53,7 +53,11 @@ export class CloudApiDriver implements TransportDriver {
         const v = change.value ?? {};
         const phoneNumberId = v.metadata?.phone_number_id;
         for (const msg of v.messages ?? []) {
-          eventos.push({ tipo: 'mensagem_recebida', phoneNumberId, de: msg.from, conteudo: msg.text?.body ?? '', metaId: msg.id });
+          eventos.push({
+            tipo: 'mensagem_recebida', phoneNumberId, de: msg.from,
+            conteudo: msg.text?.body ?? '', metaId: msg.id,
+            referral: msg.referral ? { ctwaClid: msg.referral.ctwa_clid, sourceId: msg.referral.source_id } : undefined,
+          });
         }
         for (const st of v.statuses ?? []) {
           const map: Record<string, 'entregue' | 'lida' | 'falha'> = { delivered: 'entregue', read: 'lida', failed: 'falha' };

@@ -1,6 +1,7 @@
 import type { QueryFn } from '@plataforma/db';
 import { logarAcao } from '../repos';
 import { publicar } from '@plataforma/bus';
+import { enviarConversao } from './conversoes';
 
 // Contexto que todo executor recebe.
 export interface ToolCtx {
@@ -24,6 +25,8 @@ export const TOOLS_SCHEMA = [
       parameters: { type: 'object', properties: { consulta: { type: 'string' } }, required: ['consulta'] } } },
   { type: 'function', function: { name: 'handoff_humano', description: 'Transfere a conversa para um atendente humano e pausa a IA.',
       parameters: { type: 'object', properties: { motivo: { type: 'string' } }, required: ['motivo'] } } },
+  { type: 'function', function: { name: 'registrar_conversao', description: 'Registra uma conversao do lead (ex: Lead, Agendamento, Compra) de volta no Meta Ads.',
+      parameters: { type: 'object', properties: { evento: { type: 'string' }, valor: { type: 'number' }, moeda: { type: 'string' } }, required: ['evento'] } } },
 ] as const;
 
 type Executor = (ctx: ToolCtx, args: any) => Promise<unknown>;
@@ -54,8 +57,14 @@ const executores: Record<string, Executor> = {
   async handoff_humano(ctx, { motivo }) {
     await ctx.q(`update conversas set ia_pausada=true, status='aguardando' where id=$1`, [ctx.conversaId]);
     ctx.handoff = true;
-    // TODO: notificar o departamento via pub/sub pro inbox ao vivo.
     return { ok: true, motivo };
+  },
+  async registrar_conversao(ctx, { evento, valor, moeda }) {
+    const r = await ctx.q(`select ctwa_clid from contatos where id=$1`, [ctx.contatoId]);
+    const clid = r.rows[0]?.ctwa_clid;
+    if (!clid) return { ok: false, motivo: 'contato nao veio de anuncio (sem ctwa_clid)' };
+    try { await enviarConversao({ ctwaClid: clid, eventName: evento, valor, moeda }); return { ok: true, evento }; }
+    catch (e: any) { return { ok: false, motivo: e.message }; }
   },
 };
 
