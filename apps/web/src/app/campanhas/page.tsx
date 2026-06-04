@@ -9,7 +9,7 @@ export default function Campanhas() {
   const [token, setToken] = useState<string | null>(null);
   const [projetoId, setProjetoId] = useState<string | null>(null);
   const [lista, setLista] = useState<Campanha[]>([]);
-  const [template, setTemplate] = useState('');
+  const [texto, setTexto] = useState('');
   const [tags, setTags] = useState('');
   const [msg, setMsg] = useState('');
 
@@ -28,12 +28,12 @@ export default function Campanhas() {
   }
 
   async function enviar() {
-    if (!token || !projetoId || !template.trim()) return;
+    if (!token || !projetoId || !texto.trim()) return;
     const segmento = tags.trim() ? { tags: tags.split(',').map(s => s.trim()) } : undefined;
-    const r = await fetch(`${API}/campanhas`, { method: 'POST', headers: auth(token), body: JSON.stringify({ projetoId, templateNome: template, segmento }) });
+    const r = await fetch(`${API}/campanhas`, { method: 'POST', headers: auth(token), body: JSON.stringify({ projetoId, texto, segmento }) });
     const d = await r.json();
     setMsg(d.ok ? `enfileirado: ${d.total} envios` : JSON.stringify(d));
-    setTemplate(''); setTags(''); carregar();
+    setTexto(''); setTags(''); carregar();
   }
 
   if (!token) return <main style={{ padding: 40, fontFamily: 'sans-serif' }}>Faça login em <a href="/login">/login</a>.</main>;
@@ -42,14 +42,14 @@ export default function Campanhas() {
     <main style={{ fontFamily: 'sans-serif', padding: 24, maxWidth: 760 }}>
       <h1>Campanhas</h1>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <input placeholder="nome do template aprovado" value={template} onChange={(e) => setTemplate(e.target.value)} style={{ flex: 1, padding: 8 }} />
+        <input placeholder="mensagem a enviar" value={texto} onChange={(e) => setTexto(e.target.value)} style={{ flex: 1, padding: 8 }} />
         <input placeholder="tags (opcional, vírgula)" value={tags} onChange={(e) => setTags(e.target.value)} style={{ flex: 1, padding: 8 }} />
         <button onClick={enviar}>Disparar</button>
       </div>
       <p style={{ color: '#666' }}>{msg}</p>
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
         <thead><tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
-          <th>Template</th><th>Status</th><th>Total</th><th>Enviados</th><th>Entregues</th><th>Lidas</th><th>Falhas</th>
+          <th>Mensagem</th><th>Status</th><th>Total</th><th>Enviados</th><th>Entregues</th><th>Lidas</th><th>Falhas</th>
         </tr></thead>
         <tbody>
           {lista.map((c) => (

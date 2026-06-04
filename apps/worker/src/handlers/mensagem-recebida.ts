@@ -1,6 +1,5 @@
 import { comTenant, resolverProjetoPorNumero } from '@plataforma/db';
-import { CloudApiDriver } from '@plataforma/transport';
-import { resolverSegredo } from '@plataforma/shared';
+import { criarDriver } from '@plataforma/transport';
 import { publicar } from '@plataforma/bus';
 import {
   upsertContato, acharOuCriarConversa, gravarMensagem,
@@ -8,10 +7,7 @@ import {
 } from '../repos';
 import { rodarAgente } from '../agent/agente';
 
-const driver = new CloudApiDriver(async (phoneNumberId) => {
-  try { return await resolverSegredo(`WABA_TOKEN_${phoneNumberId}`); }
-  catch { return await resolverSegredo('META_ACCESS_TOKEN'); }
-});
+const driver = criarDriver();
 
 export async function tratarMensagemRecebida(ev: {
   phoneNumberId: string; de: string; conteudo: string; metaId: string;

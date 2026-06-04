@@ -1,15 +1,31 @@
 import type { EventoNormalizado, TemplateRef, MidiaRef } from '@plataforma/shared';
+import { resolverSegredo } from '@plataforma/shared';
 
-// Contrato único de transporte. A lógica de negócio fala SÓ com esta interface,
-// nunca com a Cloud API ou Evolution diretamente. Trocar de driver não toca no núcleo.
+// Contrato único de transporte. A lógica de negócio fala SÓ com esta interface.
+// Trocar Evolution <-> Cloud API oficial não toca no núcleo.
 export interface TransportDriver {
-  enviarTexto(phoneNumberId: string, para: string, texto: string): Promise<{ messageId: string }>;
-  enviarTemplate(phoneNumberId: string, para: string, t: TemplateRef): Promise<{ messageId: string }>;
-  enviarMidia(phoneNumberId: string, para: string, m: MidiaRef): Promise<{ messageId: string }>;
-  marcarComoLida(phoneNumberId: string, messageId: string): Promise<void>;
-  // Traduz o payload bruto do webhook para eventos normalizados.
+  enviarTexto(rota: string, para: string, texto: string): Promise<{ messageId: string }>;
+  enviarTemplate(rota: string, para: string, t: TemplateRef): Promise<{ messageId: string }>;
+  enviarMidia(rota: string, para: string, m: MidiaRef): Promise<{ messageId: string }>;
+  marcarComoLida(rota: string, messageId: string): Promise<void>;
   parseWebhook(payload: unknown): EventoNormalizado[];
 }
 
 export { CloudApiDriver } from './cloud-api.driver';
 export { EvolutionDriver } from './evolution.driver';
+
+import { CloudApiDriver } from './cloud-api.driver';
+import { EvolutionDriver } from './evolution.driver';
+
+// Fábrica: escolhe o transporte por env. Fase 1 = evolution; Fase 2 = cloud_api.
+// 'rota' é a chave de roteamento: instância (Evolution) ou phone_number_id (Cloud API).
+export function criarDriver(): TransportDriver {
+  const tipo = process.env.TRANSPORTE_DRIVER ?? 'evolution';
+  if (tipo === 'cloud_api') {
+    return new CloudApiDriver(async (rota) => {
+      try { return await resolverSegredo(`WABA_TOKEN_${rota}`); }
+      catch { return await resolverSegredo('META_ACCESS_TOKEN'); }
+    });
+  }
+  return new EvolutionDriver();
+}

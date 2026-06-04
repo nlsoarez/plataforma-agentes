@@ -8,7 +8,7 @@ export class CampanhasController {
   constructor(private readonly svc: CampanhasService) {}
 
   @Post()
-  criar(@Body() body: { projetoId: string; templateNome: string; idioma?: string; segmento?: { tags?: string[] } }, @Req() req: any) {
+  criar(@Body() body: { projetoId: string; texto: string; segmento?: { tags?: string[] } }, @Req() req: any) {
     return this.svc.criar(req.user.tenantId, body);
   }
 

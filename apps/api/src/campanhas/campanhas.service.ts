@@ -7,17 +7,16 @@ export class CampanhasService {
   private fila = new Queue('campanhas-envio', { connection: { url: process.env.REDIS_URL } as any });
 
   // Cria a campanha e enfileira um envio por contato do segmento.
-  async criar(tenantId: string, dto: { projetoId: string; templateNome: string; idioma?: string; segmento?: { tags?: string[] } }) {
+  async criar(tenantId: string, dto: { projetoId: string; texto: string; segmento?: { tags?: string[] } }) {
     return comTenant(tenantId, async (q) => {
       const proj = await q(`select phone_number_id from projetos where id=$1`, [dto.projetoId]);
       if (!proj.rows[0]) throw new NotFoundException('projeto nao encontrado');
       const phoneNumberId = proj.rows[0].phone_number_id;
-      const idioma = dto.idioma ?? 'pt_BR';
 
       const camp = await q(
-        `insert into campanhas (tenant_id, projeto_id, template_nome, idioma, segmento, status)
-         values ($1,$2,$3,$4,$5,'enviando') returning id`,
-        [tenantId, dto.projetoId, dto.templateNome, idioma, JSON.stringify(dto.segmento ?? {})]);
+        `insert into campanhas (tenant_id, projeto_id, template_nome, segmento, status)
+         values ($1,$2,$3,$4,'enviando') returning id`,
+        [tenantId, dto.projetoId, dto.texto, JSON.stringify(dto.segmento ?? {})]);
       const campanhaId = camp.rows[0].id;
 
       const tags = dto.segmento?.tags;
@@ -33,7 +32,7 @@ export class CampanhasService {
           [tenantId, campanhaId, c.id]);
         await this.fila.add('envio', {
           tenantId, campanhaId, envioId: env.rows[0].id, projetoId: dto.projetoId,
-          contatoId: c.id, telefone: c.telefone, phoneNumberId, templateNome: dto.templateNome, idioma,
+          contatoId: c.id, telefone: c.telefone, phoneNumberId, texto: dto.texto,
         });
       }
       return { ok: true, campanhaId, total: contatos.length };

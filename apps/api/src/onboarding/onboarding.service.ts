@@ -1,61 +1,55 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
-import { guardarSegredo } from '@plataforma/shared';
-
-const GRAPH = () => `https://graph.facebook.com/${process.env.META_GRAPH_VERSION ?? 'v21.0'}`;
 
 @Injectable()
 export class OnboardingService {
-  // Recebe o que o Embedded Signup devolve no front e finaliza o onboarding do número.
-  async conectarWhatsapp(tenantId: string, dados: { code: string; wabaId: string; phoneNumberId: string }) {
-    const { code, wabaId, phoneNumberId } = dados;
-    if (!code || !wabaId || !phoneNumberId) throw new BadRequestException('code, wabaId e phoneNumberId obrigatorios');
+  private base = process.env.EVOLUTION_API_URL ?? '';
+  private apikey = process.env.EVOLUTION_API_KEY ?? '';
+  private headers() { return { apikey: this.apikey, 'Content-Type': 'application/json' }; }
 
-    // 1. Troca o code pelo token de acesso (credenciais do SEU app Meta).
-    const token = await this.trocarCodePorToken(code);
+  // Cria uma instância no Evolution (nome único por tenant) e o projeto.
+  async criarInstancia(tenantId: string, nome: string) {
+    const instancia = `t${tenantId.slice(0, 8)}_${nome}`.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 60);
+    const r = await fetch(`${this.base}/instance/create`, {
+      method: 'POST', headers: this.headers(),
+      body: JSON.stringify({
+        instanceName: instancia,
+        integration: 'WHATSAPP-BAILEYS',
+        qrcode: true,
+        webhook: {
+          url: `${process.env.API_PUBLIC_URL ?? ''}/webhook/evolution`,
+          base64: true,
+          events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE'],
+        },
+      }),
+    });
+    if (!r.ok) throw new BadRequestException(`criar instancia falhou: ${await r.text()}`);
+    const data = (await r.json()) as any;
 
-    // 2. Assina seu app aos webhooks da WABA do cliente.
-    await this.assinarApp(wabaId, token);
-
-    // 3. Registra o número na Cloud API.
-    await this.registrarNumero(phoneNumberId, token);
-
-    // 4. Guarda o token no cofre (NUNCA no banco). Ref previsível por número.
-    await guardarSegredo(`WABA_TOKEN_${phoneNumberId}`, token);
-
-    // 5. Cria o projeto no tenant da agência logada.
     await comTenant(tenantId, (q) =>
-      q(`insert into projetos (tenant_id, nome, waba_id, phone_number_id, status, transporte_driver)
-         values ($1,$2,$3,$4,'ativo','cloud_api')`,
-        [tenantId, 'WhatsApp', wabaId, phoneNumberId]),
-    );
+      q(`insert into projetos (tenant_id, nome, phone_number_id, status, transporte_driver)
+         values ($1,$2,$3,'onboarding','evolution')
+         on conflict (phone_number_id) do update set nome=excluded.nome`,
+        [tenantId, nome, instancia]));
 
-    return { ok: true, phoneNumberId, wabaId };
+    return { instancia, qr: data?.qrcode?.base64 ?? null };
   }
 
-  private async trocarCodePorToken(code: string): Promise<string> {
-    const url = `${GRAPH()}/oauth/access_token`
-      + `?client_id=${process.env.META_APP_ID}`
-      + `&client_secret=${process.env.META_APP_SECRET}`
-      + `&code=${encodeURIComponent(code)}`;
-    const r = await fetch(url);
-    if (!r.ok) throw new BadRequestException(`troca de code falhou: ${await r.text()}`);
-    return ((await r.json()) as any).access_token;
+  // Recupera/renova o QR de conexão.
+  async qr(instancia: string) {
+    const r = await fetch(`${this.base}/instance/connect/${instancia}`, { headers: this.headers() });
+    const d = (await r.json()) as any;
+    return { qr: d?.base64 ?? d?.qrcode?.base64 ?? null };
   }
 
-  private async assinarApp(wabaId: string, token: string): Promise<void> {
-    const r = await fetch(`${GRAPH()}/${wabaId}/subscribed_apps`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!r.ok) throw new BadRequestException(`assinar app falhou: ${await r.text()}`);
-  }
-
-  private async registrarNumero(phoneNumberId: string, token: string): Promise<void> {
-    const r = await fetch(`${GRAPH()}/${phoneNumberId}/register`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product: 'whatsapp', pin: process.env.META_REGISTER_PIN ?? '000000' }),
-    });
-    if (!r.ok) throw new BadRequestException(`registrar numero falhou: ${await r.text()}`);
+  // Estado da conexão; ao conectar ('open'), ativa o projeto.
+  async status(tenantId: string, instancia: string) {
+    const r = await fetch(`${this.base}/instance/connectionState/${instancia}`, { headers: this.headers() });
+    const d = (await r.json()) as any;
+    const state = d?.instance?.state ?? d?.state ?? 'unknown';
+    if (state === 'open') {
+      await comTenant(tenantId, (q) => q(`update projetos set status='ativo' where phone_number_id=$1`, [instancia]));
+    }
+    return { state };
   }
 }

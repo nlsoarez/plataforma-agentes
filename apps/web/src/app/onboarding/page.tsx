@@ -1,58 +1,57 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-declare global { interface Window { FB: any; fbAsyncInit: any; } }
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function Onboarding() {
-  const [status, setStatus] = useState('');
+  const [token, setToken] = useState<string | null>(null);
+  const [nome, setNome] = useState('');
+  const [instancia, setInstancia] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [estado, setEstado] = useState('');
+  const timer = useRef<any>(null);
 
-  useEffect(() => {
-    window.fbAsyncInit = function () {
-      window.FB.init({
-        appId: process.env.NEXT_PUBLIC_META_APP_ID,
-        autoLogAppEvents: true, xfbml: false,
-        version: process.env.NEXT_PUBLIC_META_GRAPH_VERSION || 'v21.0',
-      });
-    };
-    const s = document.createElement('script');
-    s.src = 'https://connect.facebook.net/en_US/sdk.js'; s.async = true;
-    document.body.appendChild(s);
+  const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
+  useEffect(() => { setToken(localStorage.getItem('token')); }, []);
 
-    // O Embedded Signup devolve waba_id e phone_number_id via postMessage.
-    const onMsg = (e: MessageEvent) => {
-      try {
-        const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (d?.type === 'WA_EMBEDDED_SIGNUP') (window as any).__es = d.data;
-      } catch { /* ignora */ }
-    };
-    window.addEventListener('message', onMsg);
-    return () => window.removeEventListener('message', onMsg);
-  }, []);
-
-  function conectar() {
-    window.FB.login(
-      async (resp: any) => {
-        const code = resp?.authResponse?.code;
-        const es = (window as any).__es || {};
-        if (!code) { setStatus('cancelado pelo usuario'); return; }
-        const token = localStorage.getItem('token'); // sessao da agencia
-        const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/onboarding/whatsapp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ code, wabaId: es.waba_id, phoneNumberId: es.phone_number_id }),
-        });
-        setStatus(JSON.stringify(await r.json()));
-      },
-      { config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID, response_type: 'code', override_default_response_type: true, extras: { setup: {} } },
-    );
+  async function criar() {
+    if (!token || !nome.trim()) return;
+    const r = await fetch(`${API}/onboarding/instancia`, { method: 'POST', headers: auth(token), body: JSON.stringify({ nome }) });
+    const d = await r.json();
+    setInstancia(d.instancia); setQr(d.qr); setEstado('aguardando leitura do QR');
+    iniciarPolling(d.instancia);
   }
 
+  function iniciarPolling(inst: string) {
+    clearInterval(timer.current);
+    timer.current = setInterval(async () => {
+      if (!token) return;
+      const s = await (await fetch(`${API}/onboarding/instancia/${inst}/status`, { headers: auth(token) })).json();
+      setEstado(s.state);
+      if (s.state === 'open') { clearInterval(timer.current); setQr(null); }
+      else {
+        const q = await (await fetch(`${API}/onboarding/instancia/${inst}/qr`, { headers: auth(token) })).json();
+        if (q.qr) setQr(q.qr);
+      }
+    }, 4000);
+  }
+  useEffect(() => () => clearInterval(timer.current), []);
+
+  if (!token) return <main style={{ padding: 40, fontFamily: 'sans-serif' }}>Faça login em <a href="/login">/login</a>.</main>;
+
   return (
-    <main style={{ fontFamily: 'sans-serif', padding: 40 }}>
+    <main style={{ fontFamily: 'sans-serif', padding: 40, maxWidth: 480 }}>
       <h1>Conectar WhatsApp</h1>
-      <p>Setup em 5 minutos. O cliente conecta o número dele sem sair daqui.</p>
-      <button onClick={conectar}>Conectar com o Facebook</button>
-      <pre>{status}</pre>
+      <p>Crie a instância e escaneie o QR com o WhatsApp do cliente (Aparelhos conectados).</p>
+      {!instancia && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input placeholder="nome (ex: clinica-x)" value={nome} onChange={(e) => setNome(e.target.value)} style={{ flex: 1, padding: 8 }} />
+          <button onClick={criar}>Criar e gerar QR</button>
+        </div>
+      )}
+      {estado && <p>Status: <strong>{estado}</strong></p>}
+      {qr && <img alt="QR code" src={qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`} style={{ width: 280, height: 280 }} />}
+      {estado === 'open' && <p style={{ color: 'green' }}>Conectado! O número está ativo.</p>}
     </main>
   );
 }

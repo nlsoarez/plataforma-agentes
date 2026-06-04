@@ -1,15 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
-import { CloudApiDriver } from '@plataforma/transport';
-import { resolverSegredo } from '@plataforma/shared';
+import { criarDriver } from '@plataforma/transport';
 import { publicar } from '@plataforma/bus';
 
 @Injectable()
 export class ConversasService {
-  private driver = new CloudApiDriver(async (pid) => {
-    try { return await resolverSegredo(`WABA_TOKEN_${pid}`); }
-    catch { return await resolverSegredo('META_ACCESS_TOKEN'); }
-  });
+  private driver = criarDriver();
 
   listar(tenantId: string, projetoId: string) {
     return comTenant(tenantId, async (q) => {

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { OnboardingService } from './onboarding.service';
 
@@ -7,9 +7,18 @@ import { OnboardingService } from './onboarding.service';
 export class OnboardingController {
   constructor(private readonly svc: OnboardingService) {}
 
-  // Chamado pelo front após o popup do Embedded Signup. Protegido: a agência precisa estar logada.
-  @Post('whatsapp')
-  conectar(@Body() body: { code: string; wabaId: string; phoneNumberId: string }, @Req() req: any) {
-    return this.svc.conectarWhatsapp(req.user.tenantId, body);
+  @Post('instancia')
+  criar(@Body() body: { nome: string }, @Req() req: any) {
+    return this.svc.criarInstancia(req.user.tenantId, body.nome);
+  }
+
+  @Get('instancia/:instancia/qr')
+  qr(@Param('instancia') instancia: string) {
+    return this.svc.qr(instancia);
+  }
+
+  @Get('instancia/:instancia/status')
+  status(@Param('instancia') instancia: string, @Req() req: any) {
+    return this.svc.status(req.user.tenantId, instancia);
   }
 }
