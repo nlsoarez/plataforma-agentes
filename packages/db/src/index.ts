@@ -37,3 +37,19 @@ export async function resolverTenantPorDominio(
   );
   return r.rows[0] ?? null;
 }
+
+// Billing: resolve assinatura pelo id do provider (sem tenant, via SECURITY DEFINER).
+export async function resolverAssinatura(subId: string): Promise<{ id: string; tenant_id: string } | null> {
+  const r = await pool.query('select id, tenant_id from resolver_assinatura($1)', [subId]);
+  return r.rows[0] ?? null;
+}
+
+// Status do tenant (tenants não tem RLS).
+export async function statusTenant(tenantId: string): Promise<string | null> {
+  const r = await pool.query('select status from tenants where id=$1', [tenantId]);
+  return r.rows[0]?.status ?? null;
+}
+
+export async function definirStatusTenant(tenantId: string, status: string): Promise<void> {
+  await pool.query('update tenants set status=$1 where id=$2', [status, tenantId]);
+}

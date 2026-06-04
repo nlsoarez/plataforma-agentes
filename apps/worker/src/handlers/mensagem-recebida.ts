@@ -1,4 +1,4 @@
-import { comTenant, resolverProjetoPorNumero } from '@plataforma/db';
+import { comTenant, resolverProjetoPorNumero, statusTenant } from '@plataforma/db';
 import { criarDriver } from '@plataforma/transport';
 import { publicar } from '@plataforma/bus';
 import {
@@ -16,6 +16,11 @@ export async function tratarMensagemRecebida(ev: {
   const rota = await resolverProjetoPorNumero(ev.phoneNumberId);
   if (!rota) { console.warn('[rota] projeto ativo nao encontrado para', ev.phoneNumberId); return; }
   const { tenant_id: tenantId, projeto_id: projetoId } = rota;
+
+  if ((await statusTenant(tenantId)) === 'suspended') {
+    console.warn('[billing] tenant suspenso, ignorando atendimento', tenantId);
+    return;
+  }
 
   await comTenant(tenantId, async (q) => {
     const contatoId = await upsertContato(q, tenantId, projetoId, ev.de);
