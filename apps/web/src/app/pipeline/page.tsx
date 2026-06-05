@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Shell from '../../components/Shell';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -11,10 +12,10 @@ export default function Pipeline() {
   const [projetoId, setProjetoId] = useState<string | null>(null);
   const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
+  const [sobre, setSobre] = useState<string | null>(null);
   const arrastando = useRef<string | null>(null);
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
-
   useEffect(() => { setToken(localStorage.getItem('token')); }, []);
 
   useEffect(() => {
@@ -35,33 +36,52 @@ export default function Pipeline() {
 
   async function soltar(etapaId: string) {
     const contatoId = arrastando.current;
+    setSobre(null);
     if (!token || !contatoId) return;
-    setCards((cs) => cs.map((c) => (c.id === contatoId ? { ...c, etapa_pipeline: etapaId } : c))); // otimista
+    setCards((cs) => cs.map((c) => (c.id === contatoId ? { ...c, etapa_pipeline: etapaId } : c)));
     await fetch(`${API}/pipeline/mover`, { method: 'POST', headers: auth(token), body: JSON.stringify({ contatoId, etapaId }) });
     arrastando.current = null;
   }
 
-  if (!token) return <main style={{ padding: 40, fontFamily: 'sans-serif' }}>Faça login em <a href="/login">/login</a>.</main>;
+  if (!token) return <NaoLogado />;
 
   return (
-    <main style={{ fontFamily: 'sans-serif', padding: 16 }}>
-      <h1>Pipeline</h1>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', overflowX: 'auto' }}>
-        {etapas.map((e) => (
-          <div key={e.id}
-            onDragOver={(ev) => ev.preventDefault()}
-            onDrop={() => soltar(e.id)}
-            style={{ minWidth: 220, background: '#f6f7f9', borderRadius: 10, padding: 10 }}>
-            <h3 style={{ margin: '4px 8px 10px' }}>{e.nome}</h3>
-            {cards.filter((c) => c.etapa_pipeline === e.id).map((c) => (
-              <div key={c.id} draggable onDragStart={() => (arrastando.current = c.id)}
-                style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 10, marginBottom: 8, cursor: 'grab' }}>
-                <strong>{c.nome || c.telefone}</strong>
-                <div style={{ fontSize: 12, color: '#666' }}>{c.telefone}</div>
+    <Shell title="Pipeline">
+      <div className="nl-board">
+        {etapas.map((e) => {
+          const lista = cards.filter((c) => c.etapa_pipeline === e.id);
+          return (
+            <div key={e.id}
+              className="nl-col"
+              onDragOver={(ev) => { ev.preventDefault(); setSobre(e.id); }}
+              onDragLeave={() => setSobre((s) => (s === e.id ? null : s))}
+              onDrop={() => soltar(e.id)}
+              style={sobre === e.id ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 3px rgba(109,61,245,0.12)' } : undefined}>
+              <div className="nl-col__head">
+                <h3>{e.nome}</h3>
+                <span className="nl-col__count">{lista.length}</span>
               </div>
-            ))}
-          </div>
-        ))}
+              {lista.map((c) => (
+                <div key={c.id} className="nl-cardlet" draggable onDragStart={() => (arrastando.current = c.id)}>
+                  <b>{c.nome || c.telefone}</b>
+                  <div className="tel">{c.telefone}</div>
+                </div>
+              ))}
+              {lista.length === 0 && <div className="faint" style={{ fontSize: '0.8rem', padding: '8px 6px' }}>Vazio</div>}
+            </div>
+          );
+        })}
+      </div>
+    </Shell>
+  );
+}
+
+function NaoLogado() {
+  return (
+    <main style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', textAlign: 'center' }}>
+      <div>
+        <div className="display display-md" style={{ marginBottom: 10 }}>Sessão necessária</div>
+        <a className="nl-btn nl-btn--accent" href="/login">Ir para o login</a>
       </div>
     </main>
   );

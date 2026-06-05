@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Shell from '../../components/Shell';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -14,7 +15,6 @@ export default function Campanhas() {
   const [msg, setMsg] = useState('');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
-
   useEffect(() => { setToken(localStorage.getItem('token')); }, []);
   useEffect(() => {
     if (!token) return;
@@ -26,40 +26,58 @@ export default function Campanhas() {
     if (!token || !projetoId) return;
     fetch(`${API}/campanhas?projetoId=${projetoId}`, { headers: auth(token) }).then(r => r.json()).then(setLista);
   }
-
   async function enviar() {
     if (!token || !projetoId || !texto.trim()) return;
     const segmento = tags.trim() ? { tags: tags.split(',').map(s => s.trim()) } : undefined;
     const r = await fetch(`${API}/campanhas`, { method: 'POST', headers: auth(token), body: JSON.stringify({ projetoId, texto, segmento }) });
     const d = await r.json();
-    setMsg(d.ok ? `enfileirado: ${d.total} envios` : JSON.stringify(d));
+    setMsg(d.ok ? `Enfileirado: ${d.total} envios.` : JSON.stringify(d));
     setTexto(''); setTags(''); carregar();
   }
 
-  if (!token) return <main style={{ padding: 40, fontFamily: 'sans-serif' }}>Faça login em <a href="/login">/login</a>.</main>;
+  if (!token) return <NaoLogado />;
 
   return (
-    <main style={{ fontFamily: 'sans-serif', padding: 24, maxWidth: 760 }}>
-      <h1>Campanhas</h1>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <input placeholder="mensagem (use spintax: {Oi|Olá} {fulano|amigo}!)" value={texto} onChange={(e) => setTexto(e.target.value)} style={{ flex: 1, padding: 8 }} />
-        <input placeholder="tags (opcional, vírgula)" value={tags} onChange={(e) => setTags(e.target.value)} style={{ flex: 1, padding: 8 }} />
-        <button onClick={enviar}>Disparar</button>
+    <Shell title="Campanhas">
+      <div className="nl-card nl-card--pad" style={{ maxWidth: 820, marginBottom: 20 }}>
+        <div className="eyebrow" style={{ marginBottom: 14 }}>Novo disparo</div>
+        <label className="nl-label">Mensagem <span className="faint">(spintax: {'{Oi|Olá}'} {'{fulano|amigo}'}!)</span></label>
+        <input className="nl-input" value={texto} onChange={(e) => setTexto(e.target.value)}
+          placeholder="Escreva a mensagem…" style={{ marginBottom: 14 }} />
+        <div className="nl-row" style={{ alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <label className="nl-label">Tags <span className="faint">(opcional, separadas por vírgula)</span></label>
+            <input className="nl-input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="lead-quente, sp" />
+          </div>
+          <button className="nl-btn nl-btn--accent" onClick={enviar}>Disparar</button>
+        </div>
+        {msg && <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>{msg}</p>}
       </div>
-      <p style={{ color: '#666' }}>{msg}</p>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
-        <thead><tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
-          <th>Mensagem</th><th>Status</th><th>Total</th><th>Enviados</th><th>Entregues</th><th>Lidas</th><th>Falhas</th>
-        </tr></thead>
-        <tbody>
-          {lista.map((c) => (
-            <tr key={c.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-              <td>{c.template_nome}</td><td>{c.status}</td><td>{c.total}</td>
-              <td>{c.enviados}</td><td>{c.entregues}</td><td>{c.lidas}</td><td>{c.falhas}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      <div className="nl-card" style={{ maxWidth: 820, overflow: 'hidden' }}>
+        <table className="nl-table">
+          <thead><tr><th>Mensagem</th><th>Status</th><th>Total</th><th>Enviados</th><th>Entregues</th><th>Lidas</th><th>Falhas</th></tr></thead>
+          <tbody>
+            {lista.length === 0 && <tr><td colSpan={7} className="faint" style={{ padding: 28, textAlign: 'center' }}>Nenhuma campanha ainda.</td></tr>}
+            {lista.map((c) => (
+              <tr key={c.id}>
+                <td style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.template_nome}</td>
+                <td><span className="nl-badge">{c.status}</span></td>
+                <td>{c.total}</td><td>{c.enviados}</td><td>{c.entregues}</td><td>{c.lidas}</td><td>{c.falhas}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Shell>
+  );
+}
+
+function NaoLogado() {
+  return (
+    <main style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', textAlign: 'center' }}>
+      <div><div className="display display-md" style={{ marginBottom: 10 }}>Sessão necessária</div>
+      <a className="nl-btn nl-btn--accent" href="/login">Ir para o login</a></div>
     </main>
   );
 }

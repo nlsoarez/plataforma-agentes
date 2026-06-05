@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import type { Sessao } from '@plataforma/shared';
 
-const SEGREDO = () => process.env.JWT_SECRET ?? 'troque-isto-em-producao';
+const SEGREDO = () => process.env.JWT_SECRET || 'troque-isto-em-producao';
 
 export function assinarToken(s: Sessao): string {
   return jwt.sign(s, SEGREDO(), { expiresIn: '12h' });
