@@ -1,9 +1,19 @@
 -- Lead vindo de anúncio Click-to-WhatsApp guarda o clid pra devolver conversão.
 alter table contatos add column if not exists ctwa_clid text;
 
+-- Campanhas (ficou de fora da 001). Cria se não existir.
+create table if not exists campanhas (
+  id            uuid primary key default gen_random_uuid(),
+  tenant_id     uuid not null references tenants(id) on delete cascade,
+  projeto_id    uuid not null references projetos(id) on delete cascade,
+  template_nome text,
+  segmento      jsonb not null default '{}',
+  status        text not null default 'rascunho',
+  criada_em     timestamptz not null default now()
+);
 alter table campanhas add column if not exists idioma text not null default 'pt_BR';
 
--- Status por contato dentro de uma campanha (entregue/lido/respondido por destinatário).
+-- Status por contato dentro de uma campanha.
 create table if not exists campanha_envios (
   id              uuid primary key default gen_random_uuid(),
   tenant_id       uuid not null references tenants(id) on delete cascade,
@@ -15,7 +25,7 @@ create table if not exists campanha_envios (
 );
 create index if not exists idx_envios_meta on campanha_envios (meta_message_id);
 
--- Correção: campanhas e campanha_envios precisam de RLS (faltou na 001).
+-- RLS em campanhas e campanha_envios.
 alter table campanhas enable row level security;
 alter table campanha_envios enable row level security;
 do $$

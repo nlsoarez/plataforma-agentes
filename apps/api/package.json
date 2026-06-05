@@ -5,7 +5,7 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
-    "seed": "tsx src/seed.ts"
+    "seed": "dotenv -e ../../.env -- tsx src/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

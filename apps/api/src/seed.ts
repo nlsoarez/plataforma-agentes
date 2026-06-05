@@ -1,5 +1,7 @@
-import { pool, comTenant } from '@plataforma/db';
+import { pool, comTenant, carregarEnv } from '@plataforma/db';
 import { hashSenha } from './auth/senha';
+
+carregarEnv(); // carrega .env antes de conectar
 
 // Cria uma agência demo COMPLETA pra testar tudo localmente sem o fluxo da Meta.
 // Rode: pnpm --filter @plataforma/api seed

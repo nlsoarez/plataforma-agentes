@@ -1,3 +1,5 @@
+import { carregarEnv } from '@plataforma/db';
+carregarEnv();
 import { Worker } from 'bullmq';
 import type { EventoNormalizado } from '@plataforma/shared';
 import { tratarMensagemRecebida } from './handlers/mensagem-recebida';
