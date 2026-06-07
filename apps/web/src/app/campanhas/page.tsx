@@ -1,13 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Shell from '../../components/Shell';
+import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type Campanha = { id: string; template_nome: string; status: string; total: string; enviados: string; entregues: string; lidas: string; falhas: string };
 
 export default function Campanhas() {
-  const [token, setToken] = useState<string | null>(null);
+  const { token, ready } = useStoredToken();
   const [projetoId, setProjetoId] = useState<string | null>(null);
   const [lista, setLista] = useState<Campanha[]>([]);
   const [texto, setTexto] = useState('');
@@ -15,7 +16,6 @@ export default function Campanhas() {
   const [msg, setMsg] = useState('');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
-  useEffect(() => { setToken(localStorage.getItem('token')); }, []);
   useEffect(() => {
     if (!token) return;
     fetch(`${API}/projetos`, { headers: auth(token) }).then(r => r.json()).then((ps) => { if (ps[0]) setProjetoId(ps[0].id); });
@@ -35,7 +35,8 @@ export default function Campanhas() {
     setTexto(''); setTags(''); carregar();
   }
 
-  if (!token) return <NaoLogado />;
+  if (!ready) return <SessionLoading />;
+  if (!token) return <SessionRequired />;
 
   return (
     <Shell title="Campanhas">
@@ -70,14 +71,5 @@ export default function Campanhas() {
         </table>
       </div>
     </Shell>
-  );
-}
-
-function NaoLogado() {
-  return (
-    <main style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', textAlign: 'center' }}>
-      <div><div className="display display-md" style={{ marginBottom: 10 }}>Sessão necessária</div>
-      <a className="nl-btn nl-btn--accent" href="/login">Ir para o login</a></div>
-    </main>
   );
 }

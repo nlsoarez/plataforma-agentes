@@ -8,8 +8,8 @@ export class OnboardingController {
   constructor(private readonly svc: OnboardingService) {}
 
   @Post('instancia')
-  criar(@Body() body: { nome: string }, @Req() req: any) {
-    return this.svc.criarInstancia(req.user.tenantId, body.nome);
+  criar(@Body() body: { nome: string; projetoId?: string }, @Req() req: any) {
+    return this.svc.criarInstancia(req.user.tenantId, body.nome, body.projetoId);
   }
 
   @Get('instancia/:instancia/qr')

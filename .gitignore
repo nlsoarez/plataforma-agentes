@@ -8,14 +8,16 @@ dist/
 .turbo/
 *.tsbuildinfo
 
-# env / SEGREDOS — nunca commitar
+# env / segredos
 .env
 .env.*
 !.env.example
+credentials/
 
-# logs
+# logs e artefatos locais
 *.log
 npm-debug.log*
+output/
 
 # OS
 .DS_Store

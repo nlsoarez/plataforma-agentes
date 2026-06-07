@@ -1,24 +1,42 @@
 'use client';
+
 import { usePathname } from 'next/navigation';
 
 const NAV = [
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/sessoes', label: 'Sessoes' },
+  { href: '/agentes', label: 'Agentes' },
+  { href: '/templates', label: 'Templates' },
+  { href: '/ai-settings', label: 'IA e Custos' },
+  { href: '/leads', label: 'Leads' },
   { href: '/inbox', label: 'Inbox' },
   { href: '/pipeline', label: 'Pipeline' },
+  { href: '/agenda', label: 'Agenda' },
+  { href: '/knowledge', label: 'Conhecimento' },
+  { href: '/automacoes', label: 'Automacoes' },
   { href: '/campanhas', label: 'Campanhas' },
+  { href: '/integracoes', label: 'Integracoes' },
+  { href: '/api-docs', label: 'API Docs' },
+  { href: '/equipe', label: 'Equipe' },
+  { href: '/settings', label: 'Marca' },
   { href: '/billing', label: 'Assinatura' },
   { href: '/onboarding', label: 'Conectar WhatsApp' },
 ];
 
 export default function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   const path = usePathname();
-  function sair() { localStorage.removeItem('token'); window.location.href = '/login'; }
+
+  function sair() {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+  }
 
   return (
     <div className="nl-shell">
       <aside className="nl-sidebar">
         <a href="/" className="nl-brand">
           <img src="/neural-lab-mark.png" alt="Neural Lab" />
-          <b>Neural<span> Lab</span></b>
+          <b>Neural Lab</b>
         </a>
         <nav className="nl-nav">
           {NAV.map((n) => (

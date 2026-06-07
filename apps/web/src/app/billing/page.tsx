@@ -1,17 +1,17 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Shell from '../../components/Shell';
+import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function Billing() {
-  const [token, setToken] = useState<string | null>(null);
+  const { token, ready } = useStoredToken();
   const [info, setInfo] = useState<any>(null);
   const [form, setForm] = useState({ nome: '', cpfCnpj: '', email: '', billingType: 'PIX' });
   const [msg, setMsg] = useState('');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
-  useEffect(() => { setToken(localStorage.getItem('token')); }, []);
   useEffect(() => { if (token) carregar(); }, [token]);
 
   function carregar() {
@@ -26,7 +26,8 @@ export default function Billing() {
     else setMsg(JSON.stringify(d));
   }
 
-  if (!token) return <NaoLogado />;
+  if (!ready) return <SessionLoading />;
+  if (!token) return <SessionRequired />;
   const valor = info?.valor_por_projeto_centavos ? (info.valor_por_projeto_centavos / 100).toFixed(2) : '—';
   const status = info?.assinatura?.status ?? 'sem assinatura';
   const ativo = status === 'active' || status === 'CONFIRMED' || status === 'RECEIVED';
@@ -62,14 +63,5 @@ export default function Billing() {
         </div>
       </div>
     </Shell>
-  );
-}
-
-function NaoLogado() {
-  return (
-    <main style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', textAlign: 'center' }}>
-      <div><div className="display display-md" style={{ marginBottom: 10 }}>Sessão necessária</div>
-      <a className="nl-btn nl-btn--accent" href="/login">Ir para o login</a></div>
-    </main>
   );
 }
