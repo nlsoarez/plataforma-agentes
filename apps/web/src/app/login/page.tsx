@@ -24,7 +24,7 @@ export default function Login() {
         window.location.href = '/dashboard';
         return;
       }
-      setMsg('Credenciais invalidas.');
+      setMsg('Credenciais inválidas.');
     } catch {
       setMsg('Erro de conexão.');
     }
