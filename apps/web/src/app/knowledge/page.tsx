@@ -75,7 +75,7 @@ export default function KnowledgePage() {
     }
 
     if (file.type && !SUPPORTED.includes(file.type) && !/\.(txt|md|markdown|json|csv)$/i.test(file.name)) {
-      setMsg('Formato nao suportado. Use TXT, MD, JSON ou CSV.');
+      setMsg('Formato não suportado. Use TXT, MD, JSON ou CSV.');
       e.target.value = '';
       return;
     }

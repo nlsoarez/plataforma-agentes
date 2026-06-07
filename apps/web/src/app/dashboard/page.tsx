@@ -6,9 +6,9 @@ import { SessionLoading, SessionRequired, useStoredToken } from '../../component
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 declare global { interface Window { Chart?: any } }
 
-const PURPLE = '#5A2D91';
-const PURPLE2 = '#6D3DF5';
-const PURPLE3 = '#8a6dff';
+const GREEN = '#22C55E';
+const TEAL = '#14B8A6';
+const TEAL_LIGHT = '#5EEAD4';
 const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
 
 const DEMO = {
@@ -115,7 +115,7 @@ export default function Dashboard() {
       charts.current.forEach((chart) => chart?.destroy?.());
       charts.current = [];
 
-      Chart.defaults.font.family = "'Hanken Grotesk', sans-serif";
+      Chart.defaults.font.family = "'Sora', 'Inter', sans-serif";
       Chart.defaults.color = '#9a9a9e';
       Chart.defaults.font.size = 11;
 
@@ -128,7 +128,7 @@ export default function Dashboard() {
           data: {
             labels: DAYS,
             datasets: [
-              { label: 'IA', data: DEMO.linha.ia, borderColor: PURPLE2, backgroundColor: 'rgba(109,61,245,.10)', fill: true, tension: .4, borderWidth: 2, pointRadius: 0 },
+              { label: 'IA', data: DEMO.linha.ia, borderColor: GREEN, backgroundColor: 'rgba(34,197,94,.10)', fill: true, tension: .4, borderWidth: 2, pointRadius: 0 },
               { label: 'Humano', data: DEMO.linha.humano, borderColor: '#c9c4dd', borderDash: [5, 4], fill: false, tension: .4, borderWidth: 2, pointRadius: 0 },
             ],
           },
@@ -141,7 +141,7 @@ export default function Dashboard() {
           type: 'bar',
           data: {
             labels: data.funnel.map((f: any) => f.n),
-            datasets: [{ data: data.funnel.map((f: any) => f.v), backgroundColor: [PURPLE, PURPLE2, PURPLE3, '#b3a0ee'], borderRadius: 6 }],
+            datasets: [{ data: data.funnel.map((f: any) => f.v), backgroundColor: [GREEN, TEAL, TEAL_LIGHT, '#A7F3D0'], borderRadius: 6 }],
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: yAxis, x: xAxis } },
         }));
@@ -152,7 +152,7 @@ export default function Dashboard() {
           type: 'doughnut',
           data: {
             labels: ['Entregues', 'Lidas', 'Falhas'],
-            datasets: [{ data: data.donut, backgroundColor: [PURPLE, PURPLE2, '#d8d8dc'], borderWidth: 0 }],
+            datasets: [{ data: data.donut, backgroundColor: [GREEN, TEAL, '#d8d8dc'], borderWidth: 0 }],
           },
           options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false } } },
         }));
@@ -177,8 +177,8 @@ export default function Dashboard() {
     <Shell title="Dashboard">
       <div className="nl-page-head nl-rise">
         <div>
-          <h1>Command Center</h1>
-          <div className="sub">Neural Lab - visao geral - atualizado agora</div>
+          <h1>Dashboard</h1>
+          <div className="sub">Attende — visão geral — atualizado agora</div>
         </div>
         <div className="nl-filterbar" aria-label="Periodo">
           {['Hoje', '7 dias', '30 dias'].map((item) => (
@@ -227,8 +227,8 @@ export default function Dashboard() {
               <canvas ref={donutRef} role="img" aria-label="Status de entrega" />
             </div>
             <div className="nl-legend">
-              <div><i style={{ background: PURPLE }} />Entregues {deliveredPct}%</div>
-              <div><i style={{ background: PURPLE2 }} />Lidas</div>
+              <div><i style={{ background: GREEN }} />Entregues {deliveredPct}%</div>
+              <div><i style={{ background: TEAL }} />Lidas</div>
               <div><i style={{ background: '#d8d8dc' }} />Falhas</div>
             </div>
           </div>

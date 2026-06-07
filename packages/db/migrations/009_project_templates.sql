@@ -1,4 +1,4 @@
--- Templates de projeto estilo Zatten: JSON importavel/exportavel.
+-- Templates de projeto Attende: JSON importavel/exportavel.
 
 create table if not exists project_templates (
   id          uuid primary key default gen_random_uuid(),

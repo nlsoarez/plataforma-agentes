@@ -111,7 +111,7 @@ function QrCanvas({ text }: { text: string }) {
   }, [text]);
 
   if (failed) {
-    return <p className="muted" style={{ maxWidth: 280 }}>Nao consegui carregar o gerador visual de QR. Use o codigo de pareamento abaixo.</p>;
+    return <p className="muted" style={{ maxWidth: 280 }}>Não consegui carregar o gerador visual de QR. Use o código de pareamento abaixo.</p>;
   }
 
   return <div ref={boxRef} className="nl-qr-canvas" aria-label="QR code" />;
@@ -185,7 +185,7 @@ export default function Onboarding() {
       setEstado('aguardando QR');
       iniciarPolling(d.instancia);
     } catch (e: any) {
-      setErro(e?.message || 'Falha ao criar instancia');
+      setErro(e?.message || 'Falha ao criar instância');
     } finally {
       setLoading(false);
     }
@@ -232,9 +232,9 @@ export default function Onboarding() {
     <Shell title="Conectar WhatsApp">
       <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(280px, 380px) minmax(280px, 360px)', maxWidth: 800, alignItems: 'start' }}>
         <div className="nl-card nl-card--pad">
-          <div className="eyebrow" style={{ marginBottom: 12 }}>Nova conexao</div>
+          <div className="eyebrow" style={{ marginBottom: 12 }}>Nova conexão</div>
           <p className="muted" style={{ marginTop: 0 }}>
-            Crie a instancia e escaneie o QR no WhatsApp do cliente em <b>Aparelhos conectados</b>.
+            Crie a instância e escaneie o QR no WhatsApp do cliente em <b>Aparelhos conectados</b>.
           </p>
 
           {!instancia ? (
@@ -260,7 +260,7 @@ export default function Onboarding() {
                   </select>
                 </>
               )}
-              <label className="nl-label">Nome da instancia</label>
+              <label className="nl-label">Nome da instância</label>
               <input
                 className="nl-input"
                 value={nome}
@@ -275,7 +275,7 @@ export default function Onboarding() {
             </>
           ) : (
             <div className="nl-row" style={{ justifyContent: 'space-between' }}>
-              <span className="muted">Instancia <b>{instancia}</b></span>
+              <span className="muted">Instância <b>{instancia}</b></span>
               <span className={`nl-badge ${conectado ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{estado || '-'}</span>
             </div>
           )}
@@ -292,23 +292,23 @@ export default function Onboarding() {
                 src={qrImage.startsWith('data:image') ? qrImage : `data:image/png;base64,${qrImage}`}
                 className="nl-qr-image"
               />
-              <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 0 }}>Escaneie em ate 60s</p>
+              <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 0 }}>Escaneie em até 60s</p>
             </div>
           ) : qrText ? (
             <div>
               <QrCanvas text={qrText} />
-              <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 8 }}>Escaneie em ate 60s</p>
+              <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 8 }}>Escaneie em até 60s</p>
               {pairingCode && <PairingCode value={pairingCode} />}
             </div>
           ) : conectado ? (
             <div>
               <div className="display display-md" style={{ color: '#168c50' }}>Conectado</div>
-              <p className="muted" style={{ marginBottom: 0 }}>O numero esta ativo e pronto.</p>
+              <p className="muted" style={{ marginBottom: 0 }}>O número está ativo e pronto.</p>
             </div>
           ) : (
             <div className="nl-empty" style={{ padding: 20 }}>
               <div className="display display-md">QR</div>
-              <div>{instancia ? 'Evolution ainda nao retornou o QR.' : 'Aparece aqui apos criar a instancia.'}</div>
+              <div>{instancia ? 'Evolution ainda não retornou o QR.' : 'Aparece aqui após criar a instância.'}</div>
               {instancia && <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 0 }}>A tela tenta renovar automaticamente a cada 4s.</p>}
               {pairingCode && <PairingCode value={pairingCode} />}
             </div>
@@ -322,7 +322,7 @@ export default function Onboarding() {
 function PairingCode({ value }: { value: string }) {
   return (
     <div className="nl-pairing-code">
-      <span>Codigo de pareamento</span>
+      <span>Código de pareamento</span>
       <b>{value}</b>
     </div>
   );

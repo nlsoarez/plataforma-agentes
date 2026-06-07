@@ -57,7 +57,7 @@ export default function Pipeline() {
               onDragOver={(ev) => { ev.preventDefault(); setSobre(e.id); }}
               onDragLeave={() => setSobre((s) => (s === e.id ? null : s))}
               onDrop={() => soltar(e.id)}
-              style={sobre === e.id ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 3px rgba(109,61,245,0.12)' } : undefined}>
+              style={sobre === e.id ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 3px rgba(34,197,94,0.12)' } : undefined}>
               <div className="nl-col__head">
                 <h3>{e.nome}</h3>
                 <span className="nl-col__count">{lista.length}</span>

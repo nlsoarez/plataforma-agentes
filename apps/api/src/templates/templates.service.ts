@@ -104,7 +104,7 @@ export class TemplatesService {
           `insert into tags (tenant_id, nome, descricao, cor)
            values ($1,$2,$3,$4)
            on conflict (tenant_id, nome) do update set descricao=excluded.descricao, cor=excluded.cor`,
-          [tenantId, tag.nome, tag.descricao || null, tag.cor || '#6D3DF5'],
+          [tenantId, tag.nome, tag.descricao || null, tag.cor || '#22C55E'],
         );
       }
 
