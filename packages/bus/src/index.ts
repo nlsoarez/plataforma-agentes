@@ -12,7 +12,8 @@ export type EventoInbox =
   | { tipo: 'mensagem'; conversaId: string; autor: string; conteudo: string }
   | { tipo: 'status'; conversaId: string; metaId: string; status: string }
   | { tipo: 'handoff'; conversaId: string }
-  | { tipo: 'card'; contatoId: string; etapaId: string };
+  | { tipo: 'card'; contatoId: string; etapaId: string }
+  | { tipo: 'erro'; conversaId: string; mensagem: string };
 
 export async function publicar(tenantId: string, ev: EventoInbox): Promise<void> {
   await pubClient().publish(canal(tenantId), JSON.stringify(ev));

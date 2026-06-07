@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Neural Lab — Plataforma',
-  description: 'Agentes de IA no WhatsApp. Dê vida às suas ideias.',
+  title: 'Neural Lab - Plataforma',
+  description: 'Agentes de IA no WhatsApp para operacoes white-label.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Shell from '../../components/Shell';
+import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -8,7 +9,7 @@ type Etapa = { id: string; nome: string; ordem: number };
 type Card = { id: string; nome: string | null; telefone: string; etapa_pipeline: string | null };
 
 export default function Pipeline() {
-  const [token, setToken] = useState<string | null>(null);
+  const { token, ready } = useStoredToken();
   const [projetoId, setProjetoId] = useState<string | null>(null);
   const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
@@ -16,7 +17,6 @@ export default function Pipeline() {
   const arrastando = useRef<string | null>(null);
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
-  useEffect(() => { setToken(localStorage.getItem('token')); }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -43,7 +43,8 @@ export default function Pipeline() {
     arrastando.current = null;
   }
 
-  if (!token) return <NaoLogado />;
+  if (!ready) return <SessionLoading />;
+  if (!token) return <SessionRequired />;
 
   return (
     <Shell title="Pipeline">
@@ -73,16 +74,5 @@ export default function Pipeline() {
         })}
       </div>
     </Shell>
-  );
-}
-
-function NaoLogado() {
-  return (
-    <main style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', textAlign: 'center' }}>
-      <div>
-        <div className="display display-md" style={{ marginBottom: 10 }}>Sessão necessária</div>
-        <a className="nl-btn nl-btn--accent" href="/login">Ir para o login</a>
-      </div>
-    </main>
   );
 }

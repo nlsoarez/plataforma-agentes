@@ -1,28 +1,37 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Shell from '../../components/Shell';
+import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+type Projeto = { id: string; nome: string; status: string; connection_state?: string | null };
 type Conversa = { id: string; nome: string | null; telefone: string; ultima: string | null; ia_pausada: boolean };
 type Mensagem = { autor: string; direcao: string; conteudo: string; status_entrega: string | null; criada_em: string };
 
 export default function Inbox() {
-  const [token, setToken] = useState<string | null>(null);
+  const { token, ready } = useStoredToken();
+  const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [projetoId, setProjetoId] = useState<string | null>(null);
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [sel, setSel] = useState<Conversa | null>(null);
   const [msgs, setMsgs] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState('');
   const selRef = useRef<Conversa | null>(null);
+  const projetoIdRef = useRef<string | null>(null);
   selRef.current = sel;
+  projetoIdRef.current = projetoId;
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
-  useEffect(() => { setToken(localStorage.getItem('token')); }, []);
 
   useEffect(() => {
     if (!token) return;
-    fetch(`${API}/projetos`, { headers: auth(token) }).then(r => r.json()).then((ps) => { if (ps[0]) setProjetoId(ps[0].id); });
+    fetch(`${API}/projetos`, { headers: auth(token) }).then(r => r.json()).then((ps: Projeto[]) => {
+      const list = Array.isArray(ps) ? ps : [];
+      setProjetos(list);
+      const selected = list.find(p => p.connection_state === 'open' || p.status === 'ativo') ?? list[0];
+      if (selected) setProjetoId(selected.id);
+    });
     const es = new EventSource(`${API}/inbox/stream?token=${token}`);
     es.onmessage = (e) => {
       try {
@@ -37,8 +46,14 @@ export default function Inbox() {
   useEffect(() => { if (projetoId) carregarConversas(); }, [projetoId]);
 
   function carregarConversas() {
-    if (!token || !projetoId) return;
-    fetch(`${API}/conversas?projetoId=${projetoId}`, { headers: auth(token) }).then(r => r.json()).then(setConversas);
+    const currentProjectId = projetoIdRef.current;
+    if (!token || !currentProjectId) return;
+    fetch(`${API}/conversas?projetoId=${currentProjectId}`, { headers: auth(token) }).then(r => r.json()).then(setConversas);
+  }
+  function trocarProjeto(id: string) {
+    setProjetoId(id);
+    setSel(null);
+    setMsgs([]);
   }
   function abrir(c: Conversa) {
     setSel(c);
@@ -57,12 +72,22 @@ export default function Inbox() {
     setSel(novo); carregarConversas();
   }
 
-  if (!token) return <NaoLogado />;
+  if (!ready) return <SessionLoading />;
+  if (!token) return <SessionRequired />;
 
   return (
     <Shell title="Inbox">
       <div className="nl-inbox">
         <div className="nl-convos">
+          {projetos.length > 1 && (
+            <div style={{ padding: 12, borderBottom: '1px solid var(--border)' }}>
+              <select className="nl-input" value={projetoId ?? ''} onChange={(e) => trocarProjeto(e.target.value)}>
+                {projetos.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {conversas.length === 0 && <div className="faint" style={{ padding: 14, fontSize: '0.88rem' }}>Nenhuma conversa ainda.</div>}
           {conversas.map((c) => (
             <div key={c.id} className={`nl-convo ${sel?.id === c.id ? 'active' : ''}`} onClick={() => abrir(c)}>
@@ -113,14 +138,5 @@ export default function Inbox() {
         </div>
       </div>
     </Shell>
-  );
-}
-
-function NaoLogado() {
-  return (
-    <main style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', textAlign: 'center' }}>
-      <div><div className="display display-md" style={{ marginBottom: 10 }}>Sessão necessária</div>
-      <a className="nl-btn nl-btn--accent" href="/login">Ir para o login</a></div>
-    </main>
   );
 }

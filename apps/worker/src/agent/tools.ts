@@ -2,6 +2,8 @@ import type { QueryFn } from '@plataforma/db';
 import { logarAcao } from '../repos';
 import { publicar } from '@plataforma/bus';
 import { enviarConversao } from './conversoes';
+import { dispararWebhooks, leadPayload } from '../integrations/webhooks';
+import { buscarConhecimento } from './knowledge';
 
 // Contexto que todo executor recebe.
 export interface ToolCtx {
@@ -37,6 +39,8 @@ const executores: Record<string, Executor> = {
     if (!r.rows[0]) return { ok: false, motivo: 'etapa nao encontrada' };
     await ctx.q(`update contatos set etapa_pipeline=$1 where id=$2`, [r.rows[0].id, ctx.contatoId]);
     await publicar(ctx.tenantId, { tipo: 'card', contatoId: ctx.contatoId, etapaId: r.rows[0].id });
+    const payload = await leadPayload(ctx.q, ctx.contatoId);
+    if (payload) await dispararWebhooks(ctx.q, ctx.tenantId, 'LEAD_KANBAN_UPDATED', { ...payload, column: { id: r.rows[0].id, name: etapa } });
     return { ok: true, etapa };
   },
   async taguear(ctx, { tags }) {
@@ -44,15 +48,78 @@ const executores: Record<string, Executor> = {
       `update contatos set tags = array(select distinct unnest(tags || $1::text[])) where id=$2`,
       [tags, ctx.contatoId],
     );
+    const payload = await leadPayload(ctx.q, ctx.contatoId);
+    if (payload) await dispararWebhooks(ctx.q, ctx.tenantId, 'LEAD_TAG_ADDED', { ...payload, tags });
     return { ok: true, tags };
   },
-  async agendar(_ctx, { datetime, descricao }) {
-    // TODO: integrar Google Calendar via MCP. Por ora registra a intencao.
-    return { ok: true, agendado: datetime, descricao: descricao ?? null, nota: 'integracao Calendar pendente' };
+  async agendar(ctx, { datetime, descricao }) {
+    const inicio = new Date(datetime);
+    if (Number.isNaN(inicio.getTime())) return { ok: false, motivo: 'datetime invalido' };
+
+    const created = await ctx.q(
+      `insert into agendamentos (
+         tenant_id, projeto_id, conversa_id, contato_id, inicio_em, descricao, status, provider
+       )
+       values ($1,$2,$3,$4,$5,$6,'pendente',$7)
+       returning id, inicio_em, descricao, status`,
+      [
+        ctx.tenantId,
+        ctx.projetoId,
+        ctx.conversaId,
+        ctx.contatoId,
+        inicio.toISOString(),
+        descricao ?? null,
+        process.env.CALENDAR_WEBHOOK_URL ? 'webhook' : null,
+      ],
+    );
+
+    const agendamento = created.rows[0];
+    if (!process.env.CALENDAR_WEBHOOK_URL) {
+      return {
+        ok: true,
+        agendamento,
+        nota: 'agendamento salvo; configure CALENDAR_WEBHOOK_URL para sincronizar com Google Calendar ou outro calendario',
+      };
+    }
+
+    const payload = JSON.stringify({
+      type: 'APPOINTMENT_CREATED',
+      tenantId: ctx.tenantId,
+      projetoId: ctx.projetoId,
+      conversaId: ctx.conversaId,
+      contatoId: ctx.contatoId,
+      appointmentId: agendamento.id,
+      startsAt: agendamento.inicio_em,
+      description: agendamento.descricao,
+    });
+
+    try {
+      const response = await fetch(process.env.CALENDAR_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      });
+      const text = await response.text().catch(() => '');
+      await ctx.q(
+        `update agendamentos
+         set status=$2, provider_ref=$3, erro=$4, atualizado_em=now()
+         where id=$1`,
+        [agendamento.id, response.ok ? 'sincronizado' : 'falha', text.slice(0, 500) || null, response.ok ? null : `HTTP ${response.status}`],
+      );
+      return { ok: response.ok, agendamento: { ...agendamento, status: response.ok ? 'sincronizado' : 'falha' }, status: response.status };
+    } catch (e: any) {
+      await ctx.q(
+        `update agendamentos set status='falha', erro=$2, atualizado_em=now() where id=$1`,
+        [agendamento.id, e?.message || 'erro desconhecido'],
+      );
+      return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
+    }
   },
   async consultar_base(_ctx, { consulta }) {
-    // TODO: RAG real (embeddings + base de conhecimento). Stub honesto por enquanto.
-    return { ok: true, consulta, resultado: 'base de conhecimento ainda nao indexada' };
+    const query = String(consulta || '').trim();
+    if (!query) return { ok: false, motivo: 'consulta vazia' };
+    const resultados = await buscarConhecimento(_ctx.q, _ctx.projetoId, query, 5);
+    return { ok: true, consulta: query, resultados };
   },
   async handoff_humano(ctx, { motivo }) {
     await ctx.q(`update conversas set ia_pausada=true, status='aguardando' where id=$1`, [ctx.conversaId]);

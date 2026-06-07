@@ -1,43 +1,122 @@
 # Plataforma de Agentes de IA no WhatsApp
 
-Infraestrutura white-label multi-tenant para agências entregarem agentes no WhatsApp.
+Infraestrutura white-label multi-tenant para agencias entregarem agentes de IA no WhatsApp usando Evolution API.
 
 ## Arquitetura
 
-Monorepo (pnpm + Turborepo):
+- `apps/api`: NestJS, autenticacao, webhooks, sessoes, agentes, templates e API publica.
+- `apps/worker`: consumidores BullMQ, processamento de mensagens, IA, automacoes e envio.
+- `apps/web`: painel Next.js na porta `3001`.
+- `packages/db`: migrations, pool Postgres e RLS multi-tenant.
+- `packages/transport`: drivers de transporte. O fluxo principal usa Evolution API.
+- `packages/bus`: pub/sub Redis para atualizar o inbox em tempo real.
 
-- `apps/api` — NestJS: webhook, núcleo, motor de IA
-- `apps/worker` — consumidores da fila (BullMQ)
-- `apps/web` — Next.js: painel white-label (branding por domínio)
-- `packages/shared` — tipos compartilhados (EventoNormalizado, contratos)
-- `packages/transport` — TransportDriver (Cloud API oficial + Evolution só protótipo)
-- `packages/db` — schema, migrations e Row-Level Security multi-tenant
+## RAG com Pgvector
 
-## Rodar local
+O projeto usa `pgvector` quando a extensao esta disponivel. Em ambientes novos,
+o `docker-compose.yml` usa a imagem `pgvector/pgvector:pg16`.
+
+Se o banco nao tiver `pgvector`, a migration continua mesmo assim e o sistema usa
+fallback com embedding em JSONB + busca textual. Isso evita quebrar deploys antigos,
+mas para escala real use Postgres com `vector`.
+
+## Rodar Local
 
 ```bash
-cp .env.example .env            # preencha os valores
-docker compose up -d            # sobe Postgres + Redis
+cp .env.example .env
+docker compose up -d
 pnpm install
-pnpm --filter @plataforma/db migrate   # aplica as migrations (sem psql)
-pnpm --filter @plataforma/api seed     # cria agencia/projeto demo (opcional)
+pnpm --filter @plataforma/db migrate
+pnpm --filter @plataforma/api seed
 pnpm dev
 ```
 
-## Deploy (Railway)
+Login demo, se o seed foi aplicado:
 
-Crie um projeto no Railway e conecte este repo. Adicione os serviços apontando
-para o mesmo repositório com root directories distintos:
+```text
+admin@demo.com / senha123
+dominio: localhost:3001
+```
 
-- serviço `api`    → root `apps/api`
-- serviço `worker` → root `apps/worker`
-- serviço `web`    → root `apps/web`
-- plugin Postgres + plugin Redis
+## Fluxo Evolution
 
-Cada serviço já tem seu `railway.json`. Configure as variáveis de ambiente
-(do `.env.example`) no painel do Railway. **Segredos nunca vão pro repo.**
+Para o QR apenas conectar, `EVOLUTION_API_URL` e `EVOLUTION_API_KEY` bastam.
+Para mensagens reais chegarem ao sistema, `API_PUBLIC_URL` precisa apontar para a API publica:
 
-## Segurança
+```env
+API_PUBLIC_URL=https://sua-api-publica.com
+```
 
-- `.env` está no `.gitignore`. Chaves de IA dos clientes (BYOK) ficam no cofre, nunca no banco em claro.
-- Isolamento entre agências garantido por RLS no Postgres.
+O webhook configurado na Evolution sera:
+
+```text
+https://sua-api-publica.com/webhook/evolution
+```
+
+Sem isso, o WhatsApp pode aparecer como conectado, mas o worker nunca recebe mensagens.
+
+## Subir Servicos Separados
+
+```bash
+cd apps/api
+pnpm dev
+
+cd apps/web
+pnpm dev
+
+cd apps/worker
+pnpm dev
+```
+
+URLs locais:
+
+- Web: `http://localhost:3001`
+- API: `http://localhost:3000`
+- Diagnostico de sessoes: `http://localhost:3001/sessoes`
+
+## Checklist Minimo de Producao
+
+- `DATABASE_URL` com Postgres persistente.
+- `REDIS_URL` com Redis persistente.
+- `JWT_SECRET` forte.
+- `SECRETS_MASTER_KEY` forte, com 32+ caracteres.
+- `CORS_ORIGINS` com os dominios reais do painel, separados por virgula.
+- `EVOLUTION_API_URL` e `EVOLUTION_API_KEY`.
+- `API_PUBLIC_URL` publica, HTTPS, acessivel pela Evolution.
+- `PUBLIC_API_RATE_LIMIT_MAX` e `PUBLIC_API_RATE_LIMIT_WINDOW_MS` ajustados ao plano comercial.
+- `WEBHOOK_OUT_MAX_ATTEMPTS` configurado para retry de webhooks outbound.
+- Worker rodando continuamente.
+- Chave OpenAI configurada no painel em `/ai-settings`.
+- Logs recentes acompanhados em `/sessoes`.
+
+## Providers de IA
+
+`/ai-settings` permite configurar OpenAI, Anthropic e Google Gemini com chave
+BYOK criptografada.
+
+- OpenAI: suporta respostas e tools do agente.
+- Anthropic/Google: suportam resposta textual. Tools avancadas ainda dependem
+  do tradutor de function calling desses providers.
+
+## Agenda
+
+A tool `agendar` salva compromissos na tabela `agendamentos` e eles aparecem em
+`/agenda`. Para sincronizar com Google Calendar, n8n ou Make, configure:
+
+```env
+CALENDAR_WEBHOOK_URL=https://seu-webhook-de-agenda
+```
+
+Sem esse webhook, o compromisso fica salvo como pendente. Isso e melhor do que
+fingir integracao com Google Calendar sem OAuth configurado.
+
+## Deploy Railway
+
+Crie tres servicos apontando para o mesmo repositorio:
+
+- `api`: root `apps/api`
+- `worker`: root `apps/worker`
+- `web`: root `apps/web`
+
+Adicione Postgres e Redis. Configure as variaveis do `.env.example` no painel.
+Segredos nunca devem ir para o repositorio.
