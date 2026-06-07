@@ -1,4 +1,4 @@
--- Nucleo estilo Zatten com Evolution API:
+-- Nucleo Attende com Evolution API:
 -- sessoes, CRM enriquecido, API publica, webhooks outbound, conhecimento e automacoes.
 
 alter table projetos add column if not exists connection_state text not null default 'unknown';
@@ -31,7 +31,7 @@ create table if not exists tags (
   tenant_id   uuid not null references tenants(id) on delete cascade,
   nome        text not null,
   descricao   text,
-  cor         text not null default '#6D3DF5',
+  cor         text not null default '#22C55E',
   criado_em   timestamptz not null default now(),
   unique (tenant_id, nome)
 );

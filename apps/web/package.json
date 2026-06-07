@@ -7,14 +7,14 @@
     "start": "next start -p 3001"
   },
   "dependencies": {
+    "@plataforma/shared": "workspace:*",
     "next": "^14.2.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "@plataforma/shared": "workspace:*"
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
     "@types/react": "^18.3.0",
-    "@types/node": "^20.0.0"
+    "typescript": "^5.4.0"
   }
 }

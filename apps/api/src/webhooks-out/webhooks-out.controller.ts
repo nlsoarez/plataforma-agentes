@@ -45,7 +45,7 @@ export class WebhooksOutController {
       if (!sub) return { ok: false, message: 'Webhook nao encontrado' };
       const payload = JSON.stringify({ type: 'PING', timestamp: new Date().toISOString() });
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (sub.secret) headers['x-neural-signature'] = assinarWebhook(sub.secret, payload);
+      if (sub.secret) headers['x-attende-signature'] = assinarWebhook(sub.secret, payload);
       const res = await fetch(sub.url, { method: 'POST', headers, body: payload });
       return { ok: res.ok, status: res.status };
     });

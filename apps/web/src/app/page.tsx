@@ -1,42 +1,42 @@
 export default function Home() {
   const cards = [
-    { href: '/dashboard', t: 'Dashboard', d: 'Metricas, funil, campanhas e leitura rapida da operacao.' },
-    { href: '/sessoes', t: 'Sessoes', d: 'Estado das instancias Evolution conectadas.' },
-    { href: '/agentes', t: 'Agentes', d: 'Sessoes conectadas e prompt ativo por projeto.' },
+    { href: '/dashboard', t: 'Dashboard', d: 'Métricas, funil, campanhas e leitura rápida da operação.' },
+    { href: '/sessoes', t: 'Sessões', d: 'Estado das instâncias Evolution conectadas.' },
+    { href: '/agentes', t: 'Agentes', d: 'Sessões conectadas e prompt ativo por projeto.' },
     { href: '/templates', t: 'Templates', d: 'Importe JSON e crie projetos completos.' },
     { href: '/ai-settings', t: 'IA e Custos', d: 'Chave OpenAI do cliente e valores por token.' },
     { href: '/leads', t: 'Leads', d: 'CRM com notas, tags e propriedades.' },
     { href: '/inbox', t: 'Inbox', d: 'Conversas ao vivo com IA e atendimento humano.' },
     { href: '/pipeline', t: 'Pipeline', d: 'Funil visual para acompanhar e mover leads.' },
-    { href: '/agenda', t: 'Agenda', d: 'Compromissos criados pelos agentes e sincronizacao externa.' },
+    { href: '/agenda', t: 'Agenda', d: 'Compromissos criados pelos agentes e sincronização externa.' },
     { href: '/knowledge', t: 'Conhecimento', d: 'Base consultada pelos agentes.' },
-    { href: '/automacoes', t: 'Automacoes', d: 'Gatilhos e acoes para operar leads.' },
+    { href: '/automacoes', t: 'Automações', d: 'Gatilhos e ações para operar leads.' },
     { href: '/campanhas', t: 'Campanhas', d: 'Disparos segmentados com ritmo controlado.' },
-    { href: '/integracoes', t: 'Integracoes', d: 'API keys e webhooks outbound.' },
-    { href: '/api-docs', t: 'API Docs', d: 'Endpoints publicos para integrações externas.' },
-    { href: '/equipe', t: 'Equipe', d: 'Usuarios, papeis e departamentos.' },
-    { href: '/settings', t: 'Marca', d: 'White-label, dominio, logo e tema.' },
-    { href: '/onboarding', t: 'Conectar WhatsApp', d: 'Ative uma instancia via QR code.' },
-    { href: '/billing', t: 'Assinatura', d: 'Status de cobranca e quantidade de projetos.' },
+    { href: '/integracoes', t: 'Integrações', d: 'API keys e webhooks outbound.' },
+    { href: '/api-docs', t: 'API Docs', d: 'Endpoints públicos para integrações externas.' },
+    { href: '/equipe', t: 'Equipe', d: 'Usuários, papéis e departamentos.' },
+    { href: '/settings', t: 'Marca', d: 'White-label, domínio, logo e tema.' },
+    { href: '/onboarding', t: 'Conectar WhatsApp', d: 'Ative uma instância via QR code.' },
+    { href: '/billing', t: 'Assinatura', d: 'Status de cobrança e quantidade de projetos.' },
   ];
 
   return (
     <main style={{ minHeight: '100vh', padding: '28px', width: '100%', maxWidth: 1240, margin: '0 auto', overflowX: 'hidden' }}>
       <div className="nl-page-head nl-rise">
         <div>
-          <h1>Neural Lab</h1>
+          <img src="/brand/attende-logo-horizontal-dark.svg" alt="Attende" style={{ height: 56, marginBottom: 12 }} />
           <div className="sub">Plataforma white-label para agentes de IA no WhatsApp</div>
         </div>
         <div className="nl-filterbar">
           <a className="nl-pill active" href="/login">Entrar</a>
-          <a className="nl-pill" href="/dashboard">Command Center</a>
+          <a className="nl-pill" href="/dashboard">Painel</a>
         </div>
       </div>
 
       <section className="nl-card nl-card--pad nl-rise" style={{ marginBottom: 14 }}>
         <div className="nl-kpis" style={{ marginBottom: 0 }}>
           <div className="nl-kpi">
-            <div className="label">Operacao</div>
+            <div className="label">Operação</div>
             <div className="value">24/7</div>
             <div className="delta">IA + humano</div>
           </div>

@@ -26,7 +26,7 @@ export default function Login() {
       }
       setMsg('Credenciais invalidas.');
     } catch {
-      setMsg('Erro de conexao.');
+      setMsg('Erro de conexão.');
     }
     setCarregando(false);
   }
@@ -35,15 +35,14 @@ export default function Login() {
     <main className="nl-login">
       <section className="nl-login__brand">
         <div className="nl-brand" style={{ position: 'relative', zIndex: 1, padding: 0 }}>
-          <img src="/neural-lab-mark.png" alt="Neural Lab" />
-          <b>Neural Lab</b>
+          <img src="/brand/attende-logo-horizontal-light.svg" alt="Attende" style={{ height: 72, width: 'auto' }} />
         </div>
         <div className="nl-login__hero">
-          <h2>Command<br /><em>Center.</em></h2>
-          <p>Agentes de IA no WhatsApp, atendimento humano e funil comercial em uma operacao unica.</p>
+          <h2>Atendimento<br /><em>Inteligente.</em></h2>
+          <p>Agentes de IA no WhatsApp, atendimento humano e funil comercial em uma operação única.</p>
         </div>
         <div style={{ position: 'relative', zIndex: 1, color: 'rgba(255,255,255,0.42)', fontSize: '0.82rem' }}>
-          Plataforma white-label - Neural Lab
+          Plataforma white-label — Attende
         </div>
       </section>
 

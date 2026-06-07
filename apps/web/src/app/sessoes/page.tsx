@@ -88,22 +88,22 @@ export default function SessoesPage() {
   if (!token) return <SessionRequired />;
 
   return (
-    <Shell title="Sessoes">
+    <Shell title="Sessões">
       <div className="nl-page-head nl-rise">
         <div>
-          <h1>Sessoes Evolution</h1>
-          <div className="sub">Estado persistente das instancias conectadas</div>
+          <h1>Sessões Evolution</h1>
+          <div className="sub">Estado persistente das instâncias conectadas</div>
         </div>
-        <a className="nl-btn nl-btn--accent" href="/onboarding">Nova conexao</a>
+        <a className="nl-btn nl-btn--accent" href="/onboarding">Nova conexão</a>
       </div>
 
       {diagnostico && (
         <div className="nl-card nl-card--pad" style={{ maxWidth: 980, marginBottom: 16 }}>
           <div className="nl-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <b>Diagnostico do fluxo</b>
+              <b>Diagnóstico do fluxo</b>
               <div className="faint" style={{ marginTop: 4 }}>
-                Webhook esperado: {diagnostico.webhookUrl || 'API_PUBLIC_URL nao configurada'}
+                Webhook esperado: {diagnostico.webhookUrl || 'API_PUBLIC_URL não configurada'}
               </div>
             </div>
             <div className="nl-row">
@@ -115,7 +115,7 @@ export default function SessoesPage() {
           </div>
           {!diagnostico.apiPublicUrl && (
             <p className="nl-error" style={{ marginBottom: 0 }}>
-              Sem API_PUBLIC_URL publica, o QR pode conectar, mas as mensagens reais nao chegam no sistema.
+              Sem API_PUBLIC_URL pública, o QR pode conectar, mas as mensagens reais não chegam no sistema.
             </p>
           )}
         </div>

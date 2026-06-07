@@ -26,7 +26,7 @@ export function SessionLoading() {
   return (
     <main className="nl-session-state">
       <div className="nl-card nl-card--pad">
-        <div className="display display-md">Verificando sessao</div>
+        <div className="display display-md">Verificando sessão</div>
         <p className="muted">Aguarde enquanto validamos seu acesso.</p>
       </div>
     </main>
@@ -37,8 +37,8 @@ export function SessionRequired() {
   return (
     <main className="nl-session-state">
       <div className="nl-card nl-card--pad">
-        <div className="display display-md">Sessao necessaria</div>
-        <p className="muted">Entre novamente para acessar esta area.</p>
+        <div className="display display-md">Sessão necessária</div>
+        <p className="muted">Entre novamente para acessar esta área.</p>
         <a className="nl-btn nl-btn--accent" href="/login">Ir para o login</a>
       </div>
     </main>

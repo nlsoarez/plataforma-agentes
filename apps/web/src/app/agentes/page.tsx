@@ -26,7 +26,7 @@ const DEFAULT_PROMPT = `Voce e um atendente objetivo, educado e comercial.
 Responda em portugues do Brasil.
 Faca perguntas curtas para entender a necessidade do lead.
 Quando o cliente pedir atendimento humano, acione handoff.
-Nunca invente preco, prazo ou politica que nao esteja no contexto.`;
+Nunca invente preço, prazo ou política que não esteja no contexto.`;
 
 const PROVIDERS: Record<string, { label: string; model: string; keyPageLabel: string }> = {
   openai: { label: 'OpenAI', model: 'gpt-4o-mini', keyPageLabel: 'OpenAI' },
@@ -118,16 +118,16 @@ export default function AgentesPage() {
     <Shell title="Agentes">
       <div className="nl-page-head nl-rise">
         <div>
-          <h1>Agentes e sessoes</h1>
-          <div className="sub">Instancias conectadas, roteamento e configuracao do agente ativo</div>
+          <h1>Agentes e sessões</h1>
+          <div className="sub">Instâncias conectadas, roteamento e configuração do agente ativo</div>
         </div>
         <button className="nl-btn nl-btn--ghost" onClick={carregar} disabled={loading}>Atualizar</button>
       </div>
 
       {rows.length === 0 ? (
         <div className="nl-card nl-card--pad nl-empty" style={{ maxWidth: 520 }}>
-          <div className="display display-md">Nenhuma sessao</div>
-          <div>Conecte uma instancia em Conectar WhatsApp primeiro.</div>
+          <div className="display display-md">Nenhuma sessão</div>
+          <div>Conecte uma instância em Conectar WhatsApp primeiro.</div>
         </div>
       ) : (
         <div className="nl-agents-grid">
@@ -140,7 +140,7 @@ export default function AgentesPage() {
               >
                 <span>
                   <b>{row.projeto_nome}</b>
-                  <small>{row.phone_number_id || 'sem instancia'}</small>
+                  <small>{row.phone_number_id || 'sem instância'}</small>
                 </span>
                 <i className={row.projeto_status === 'ativo' ? 'ok' : ''}>{row.projeto_status}</i>
               </button>
@@ -163,7 +163,7 @@ export default function AgentesPage() {
 
                 {form.provider !== 'openai' && !selected.provider_key_last4 && !form.byok_key_ref && (
                   <div className="nl-error" style={{ marginBottom: 14 }}>
-                    Chave {PROVIDERS[form.provider]?.keyPageLabel || form.provider} ainda nao foi salva em IA e Custos.
+                    Chave {PROVIDERS[form.provider]?.keyPageLabel || form.provider} ainda não foi salva em IA e Custos.
                   </div>
                 )}
 
@@ -182,7 +182,7 @@ export default function AgentesPage() {
                   </div>
                 </div>
 
-                <div className="nl-card nl-card--pad" style={{ background: 'rgba(109,61,245,0.06)', marginBottom: 14 }}>
+                <div className="nl-card nl-card--pad" style={{ background: 'rgba(34,197,94,0.06)', marginBottom: 14 }}>
                   <b>Chave {PROVIDERS[form.provider]?.keyPageLabel || 'IA'}</b>
                   <p className="muted" style={{ margin: '6px 0 12px', fontSize: '0.9rem' }}>
                     Configure, teste e salve a chave em IA e Custos. Anthropic e Google respondem texto; tools avancadas ainda ficam no OpenAI.

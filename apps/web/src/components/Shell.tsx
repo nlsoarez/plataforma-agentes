@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/sessoes', label: 'Sessoes' },
+  { href: '/sessoes', label: 'Sessões' },
   { href: '/agentes', label: 'Agentes' },
   { href: '/templates', label: 'Templates' },
   { href: '/ai-settings', label: 'IA e Custos' },
@@ -13,9 +13,9 @@ const NAV = [
   { href: '/pipeline', label: 'Pipeline' },
   { href: '/agenda', label: 'Agenda' },
   { href: '/knowledge', label: 'Conhecimento' },
-  { href: '/automacoes', label: 'Automacoes' },
+  { href: '/automacoes', label: 'Automações' },
   { href: '/campanhas', label: 'Campanhas' },
-  { href: '/integracoes', label: 'Integracoes' },
+  { href: '/integracoes', label: 'Integrações' },
   { href: '/api-docs', label: 'API Docs' },
   { href: '/equipe', label: 'Equipe' },
   { href: '/settings', label: 'Marca' },
@@ -35,8 +35,7 @@ export default function Shell({ title, children }: { title: string; children: Re
     <div className="nl-shell">
       <aside className="nl-sidebar">
         <a href="/" className="nl-brand">
-          <img src="/neural-lab-mark.png" alt="Neural Lab" />
-          <b>Neural Lab</b>
+          <img src="/brand/attende-logo-horizontal-light.svg" alt="Attende" style={{ height: 32 }} />
         </a>
         <nav className="nl-nav">
           {NAV.map((n) => (

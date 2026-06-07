@@ -23,7 +23,7 @@ const EXEMPLO = `{
     { "nome": "Arquivado", "ordem": 4 }
   ],
   "tags": [
-    { "nome": "seguro-auto", "cor": "#6D3DF5" },
+    { "nome": "seguro-auto", "cor": "#22C55E" },
     { "nome": "lead-quente", "cor": "#168c50" }
   ],
   "propriedades": [
