@@ -38,6 +38,16 @@ admin@demo.com / senha123
 dominio: localhost:3001
 ```
 
+## Cadastro de Usuarios
+
+A tela `/login` tambem permite criar uma conta no tenant do dominio atual. O
+usuario e salvo na tabela `usuarios`, com senha protegida por PBKDF2, e recebe
+um JWT imediatamente apos o cadastro.
+
+Por seguranca, cadastro publico cria usuarios com papel `cliente_final`. Contas
+`owner`, `admin` e `atendente` devem ser criadas por um administrador em
+`/equipe`.
+
 ## Login com Google
 
 O login com Google usa OAuth Authorization Code + PKCE no backend e entrega o

@@ -411,6 +411,17 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   font-size: .82rem;
   margin-right: 8px;
 }
+.nl-login__switch {
+  width: 100%;
+  margin-top: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 900;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.nl-login__switch:hover { color: var(--attende-teal); }
 
 @keyframes nl-star-drift {
   0% { background-position: 0 0, 0 0, 0 0, 0 0; opacity: .42; }

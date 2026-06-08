@@ -1,7 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { comTenant, resolverTenantPorDominio } from '@plataforma/db';
 import { createHash, randomBytes } from 'crypto';
-import { verificarSenha } from './senha';
+import { hashSenha, verificarSenha } from './senha';
 import { assinarEstadoGoogleOAuth, assinarToken, verificarEstadoGoogleOAuth } from './jwt';
 
 interface GoogleTokenResponse {
@@ -34,12 +34,38 @@ export class AuthService {
     if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
 
     const user = await comTenant(tenant.id, async (q) => {
-      const r = await q(`select id, senha_hash, papel from usuarios where email=$1`, [email]);
+      const r = await q(`select id, senha_hash, papel, status from usuarios where lower(email)=lower($1)`, [email]);
       return r.rows[0];
     });
-    if (!user || !verificarSenha(senha, user.senha_hash)) {
+    if (!user || user.status !== 'ativo' || !verificarSenha(senha, user.senha_hash)) {
       throw new UnauthorizedException('credenciais invalidas');
     }
+    return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
+  }
+
+  async registrar(dominio: string, body: { nome?: string; email: string; senha: string }): Promise<{ token: string }> {
+    const tenant = dominio ? await resolverTenantPorDominio(dominio) : null;
+    if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
+
+    const email = this.normalizarEmail(body.email);
+    const nome = body.nome?.trim() || null;
+    const senha = body.senha || '';
+    if (!email) throw new BadRequestException('email invalido');
+    if (senha.length < 8) throw new BadRequestException('senha deve ter pelo menos 8 caracteres');
+
+    const user = await comTenant(tenant.id, async (q) => {
+      const existente = await q(`select id from usuarios where lower(email)=lower($1) limit 1`, [email]);
+      if (existente.rows[0]) throw new ConflictException('email ja cadastrado');
+
+      const r = await q(
+        `insert into usuarios (tenant_id, nome, email, senha_hash, papel, status, auth_provider, ultimo_login_em)
+         values ($1,$2,$3,$4,'cliente_final','ativo','password',now())
+         returning id, papel`,
+        [tenant.id, nome, email, hashSenha(senha)],
+      );
+      return r.rows[0];
+    });
+
     return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
   }
 
@@ -211,5 +237,11 @@ export class AuthService {
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/g, '');
+  }
+
+  private normalizarEmail(email: string): string | null {
+    const normalizado = email?.trim().toLowerCase();
+    if (!normalizado || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizado)) return null;
+    return normalizado;
   }
 }

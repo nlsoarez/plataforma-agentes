@@ -12,6 +12,12 @@ export class AuthController {
     return this.svc.login(dominio, body.email, body.senha);
   }
 
+  @Post('register')
+  register(@Body() body: { dominio?: string; nome?: string; email: string; senha: string }, @Req() req: any) {
+    const dominio = body.dominio ?? req.headers['x-tenant-host'];
+    return this.svc.registrar(dominio, body);
+  }
+
   @Post('google/start')
   googleStart(@Body() body: { dominio?: string; origem?: string }, @Req() req: any) {
     const dominio = body.dominio ?? req.headers['x-tenant-host'];

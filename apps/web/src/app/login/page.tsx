@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function Login() {
+  const [modo, setModo] = useState<'login' | 'cadastro'>('login');
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
   const [msg, setMsg] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [googleCarregando, setGoogleCarregando] = useState(false);
@@ -49,6 +52,37 @@ export default function Login() {
     setCarregando(false);
   }
 
+  async function cadastrar() {
+    if (senha.length < 8) {
+      setMsg('A senha precisa ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (senha !== confirmarSenha) {
+      setMsg('As senhas nao conferem.');
+      return;
+    }
+
+    setCarregando(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dominio: window.location.host, nome, email, senha }),
+      });
+      const d = await r.json();
+      if (d.token) {
+        localStorage.setItem('token', d.token);
+        window.location.href = '/dashboard';
+        return;
+      }
+      setMsg(d.message || 'Nao foi possivel criar a conta.');
+    } catch {
+      setMsg('Erro ao criar conta.');
+    }
+    setCarregando(false);
+  }
+
   async function entrarGoogle() {
     setGoogleCarregando(true);
     setMsg('');
@@ -88,8 +122,21 @@ export default function Login() {
 
       <section className="nl-login__form">
         <div className="inner">
-          <div className="eyebrow" style={{ marginBottom: 10 }}>Acesso</div>
-          <h1 className="display display-md" style={{ marginBottom: 26 }}>Entrar</h1>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>{modo === 'login' ? 'Acesso' : 'Cadastro'}</div>
+          <h1 className="display display-md" style={{ marginBottom: 26 }}>{modo === 'login' ? 'Entrar' : 'Criar conta'}</h1>
+
+          {modo === 'cadastro' && (
+            <>
+              <label className="nl-label">Nome</label>
+              <input
+                className="nl-input"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                placeholder="Seu nome"
+                style={{ marginBottom: 16 }}
+              />
+            </>
+          )}
 
           <label className="nl-label">E-mail</label>
           <input
@@ -106,13 +153,33 @@ export default function Login() {
             type="password"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && entrar()}
+            onKeyDown={(e) => e.key === 'Enter' && (modo === 'login' ? entrar() : cadastrar())}
             placeholder="********"
             style={{ marginBottom: 22 }}
           />
 
-          <button className="nl-btn nl-btn--accent" style={{ width: '100%' }} onClick={entrar} disabled={carregando}>
-            {carregando ? 'Entrando...' : 'Entrar'}
+          {modo === 'cadastro' && (
+            <>
+              <label className="nl-label">Confirmar senha</label>
+              <input
+                className="nl-input"
+                type="password"
+                value={confirmarSenha}
+                onChange={(e) => setConfirmarSenha(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && cadastrar()}
+                placeholder="********"
+                style={{ marginBottom: 22 }}
+              />
+            </>
+          )}
+
+          <button
+            className="nl-btn nl-btn--accent"
+            style={{ width: '100%' }}
+            onClick={modo === 'login' ? entrar : cadastrar}
+            disabled={carregando}
+          >
+            {carregando ? (modo === 'login' ? 'Entrando...' : 'Criando conta...') : (modo === 'login' ? 'Entrar' : 'Criar conta')}
           </button>
           <div className="nl-login__divider"><span>ou</span></div>
           <button
@@ -123,6 +190,18 @@ export default function Login() {
           >
             <span className="nl-login__google-mark">G</span>
             {googleCarregando ? 'Abrindo Google...' : 'Entrar com Google'}
+          </button>
+          <button
+            type="button"
+            className="nl-login__switch"
+            onClick={() => {
+              setModo(modo === 'login' ? 'cadastro' : 'login');
+              setMsg('');
+              setSenha('');
+              setConfirmarSenha('');
+            }}
+          >
+            {modo === 'login' ? 'Criar uma conta' : 'Ja tenho uma conta'}
           </button>
           {msg && <p style={{ color: '#c0392b', fontSize: '0.88rem', marginTop: 14 }}>{msg}</p>}
         </div>
