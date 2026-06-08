@@ -314,7 +314,10 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 /* Login */
 .nl-login { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
 .nl-login__brand {
-  background: #06172a;
+  background:
+    radial-gradient(ellipse at 48% 68%, rgba(20, 184, 166, 0.18), transparent 38%),
+    radial-gradient(ellipse at 48% 115%, rgba(34, 197, 94, 0.16), transparent 42%),
+    linear-gradient(180deg, #071a30 0%, #03111f 54%, #020617 100%);
   color: var(--white);
   padding: 56px;
   display: flex;
@@ -327,19 +330,36 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url('/brand/login-wave-pattern.png');
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  opacity: 1;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(255,255,255,.52) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 66% 28%, rgba(94,234,212,.42) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 32% 64%, rgba(255,255,255,.26) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 84% 76%, rgba(20,184,166,.34) 0 1px, transparent 1.8px);
+  background-size: 190px 150px, 260px 220px, 320px 240px, 420px 300px;
+  opacity: .52;
+  animation: nl-star-drift 54s linear infinite;
 }
 .nl-login__brand::after {
   content: '';
   position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(2, 6, 23, 0.08) 0%, rgba(2, 6, 23, 0.22) 46%, rgba(2, 6, 23, 0.66) 100%),
-    linear-gradient(90deg, rgba(2, 6, 23, 0.46) 0%, rgba(2, 6, 23, 0.12) 58%, rgba(2, 6, 23, 0.26) 100%);
+  left: -22%;
+  right: -22%;
+  bottom: -8%;
+  height: 86%;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at 42% 20%, rgba(34, 197, 94, .34), transparent 32%),
+    radial-gradient(ellipse at 76% 16%, rgba(20, 184, 166, .30), transparent 36%),
+    radial-gradient(circle, rgba(45, 255, 207, .94) 0 1.8px, transparent 2.5px);
+  background-size: 100% 100%, 100% 100%, 22px 18px;
+  opacity: .78;
+  transform: perspective(620px) rotateX(64deg) translateY(-150px);
+  transform-origin: center bottom;
+  clip-path: ellipse(78% 58% at 50% 34%);
+  animation: nl-wave-drift 18s ease-in-out infinite alternate;
 }
 .nl-login__brand img.wm { width: 210px; object-fit: contain; position: relative; z-index: 1; }
 .nl-login__hero { position: relative; z-index: 1; }
@@ -348,6 +368,16 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-login__hero p { color: rgba(255,255,255,0.62); max-width: 38ch; margin-top: 16px; font-size: 1.02rem; }
 .nl-login__form { display: flex; align-items: center; justify-content: center; padding: 40px; }
 .nl-login__form .inner { width: 100%; max-width: 360px; }
+
+@keyframes nl-star-drift {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 0 -150px, 0 -220px, 0 -240px, 0 -300px; }
+}
+
+@keyframes nl-wave-drift {
+  from { transform: perspective(620px) rotateX(64deg) translateY(-150px) translateX(-12px); }
+  to { transform: perspective(620px) rotateX(64deg) translateY(-164px) translateX(12px); }
+}
 
 /* Pipeline */
 .nl-board { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 12px; }
