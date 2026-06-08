@@ -1,30 +1,41 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Shell from '../../components/Shell';
 import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+const FEATURE_LABELS: Record<string, string> = {
+  projects: 'projetos',
+  whatsapp_connections: 'WhatsApp',
+  team_users: 'usuarios',
+  ai_agents: 'agentes IA',
+  contacts: 'contatos',
+  active_automations: 'automacoes',
+  campaigns_monthly: 'campanhas/mes',
+  public_api: 'API publica',
+  white_label_branding: 'white-label',
+};
+
 export default function Billing() {
   const { token, ready } = useStoredToken();
   const [info, setInfo] = useState<any>(null);
   const [msg, setMsg] = useState('');
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [pixQrCode, setPixQrCode] = useState('');
   const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [planCode, setPlanCode] = useState('pro');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [billingType, setBillingType] = useState<'PIX' | 'BOLETO' | 'CREDIT_CARD'>('PIX');
+  const [name, setName] = useState('');
+  const [cpfCnpj, setCpfCnpj] = useState('');
+  const [phone, setPhone] = useState('');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
 
   useEffect(() => {
     if (!token) return;
     carregar();
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'success') {
-      setMsg('Pagamento recebido pelo Stripe. Aguarde alguns segundos enquanto confirmamos a assinatura.');
-      window.history.replaceState(null, '', '/billing');
-    }
-    if (params.get('checkout') === 'cancel') {
-      setMsg('Pagamento cancelado. Para acessar o dashboard, conclua a assinatura.');
-      window.history.replaceState(null, '', '/billing');
-    }
   }, [token]);
 
   async function carregar() {
@@ -32,26 +43,41 @@ export default function Billing() {
     const r = await fetch(`${API}/billing`, { headers: auth(token) });
     const d = await r.json();
     setInfo(d);
+    if (d?.plano?.code) setPlanCode(d.plano.code);
   }
 
   async function checkout() {
     if (!token) return;
     setLoadingCheckout(true);
     setMsg('');
+    setPaymentUrl('');
+    setPixQrCode('');
     try {
-      const r = await fetch(`${API}/billing/checkout`, {
+      const r = await fetch(`${API}/billing/assinar`, {
         method: 'POST',
         headers: auth(token),
-        body: JSON.stringify({ origem: window.location.origin }),
+        body: JSON.stringify({
+          origem: window.location.origin,
+          planCode,
+          billingCycle,
+          billingType,
+          name,
+          cpfCnpj,
+          phone,
+        }),
       });
       const d = await r.json();
-      if (d.url) {
-        window.location.href = d.url;
+      if (!r.ok) {
+        setMsg(d?.message || d?.error?.message || 'Nao foi possivel iniciar a assinatura.');
+        setLoadingCheckout(false);
         return;
       }
-      setMsg(d.message || 'Nao foi possivel iniciar o pagamento.');
+      setPaymentUrl(d.url || '');
+      setPixQrCode(d.pixQrCode || '');
+      setMsg('Assinatura criada no Asaas. Conclua o pagamento pela cobranca gerada.');
+      await carregar();
     } catch {
-      setMsg('Erro ao iniciar pagamento.');
+      setMsg('Erro ao iniciar assinatura.');
     }
     setLoadingCheckout(false);
   }
@@ -59,44 +85,183 @@ export default function Billing() {
   if (!ready) return <SessionLoading />;
   if (!token) return <SessionRequired />;
 
-  const valor = info?.valor_por_projeto_centavos ? (info.valor_por_projeto_centavos / 100).toFixed(2) : null;
-  const status = info?.assinatura?.status ?? 'sem assinatura';
+  const status = info?.acesso?.state ?? info?.assinatura?.status ?? 'carregando';
   const ativo = Boolean(info?.pago);
+  const plans = info?.planos || [];
+  const selectedPlan = plans.find((p: any) => p.code === planCode) || plans[0];
+  const selectedPrice = selectedPlan ? priceFor(selectedPlan, billingCycle) : 0;
 
   return (
     <Shell title="Assinatura">
-      <div className="nl-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', maxWidth: 880 }}>
-        <div className="nl-card nl-card--pad">
-          <div className="eyebrow">Status</div>
-          <div className="nl-row" style={{ marginTop: 10 }}>
-            <span className={`nl-badge ${ativo ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{ativo ? 'ativa' : status}</span>
-          </div>
-          <div className="display" style={{ fontSize: '2.6rem', marginTop: 18 }}>
-            {info?.projetos_ativos ?? '-'}<span className="faint" style={{ fontSize: '1rem', fontFamily: 'var(--font-body)', fontWeight: 600 }}> projetos ativos</span>
-          </div>
-          <div className="muted" style={{ marginTop: 6 }}>
-            {valor ? `R$ ${valor} por projeto / mes` : 'Plano configurado no Stripe'}
-          </div>
+      <div className="nl-page-head nl-rise">
+        <div>
+          <h1>Assinatura</h1>
+          <div className="sub">Planos Attende, cobranca Asaas e limites de uso</div>
         </div>
+        <a className="nl-btn nl-btn--ghost" href="/dashboard">Dashboard</a>
+      </div>
 
-        <div className="nl-card nl-card--pad">
-          <div className="eyebrow" style={{ marginBottom: 14 }}>{ativo ? 'Acesso liberado' : 'Pagamento necessario'}</div>
-          <h2 className="display display-sm" style={{ marginBottom: 12 }}>
-            {ativo ? 'Sua assinatura esta ativa.' : 'Conclua a assinatura para acessar o dashboard.'}
-          </h2>
-          <p className="muted" style={{ marginTop: 0 }}>
-            O pagamento e processado pelo Stripe. A liberacao acontece quando o webhook confirma a assinatura.
-          </p>
-          {ativo ? (
-            <a className="nl-btn nl-btn--accent" style={{ width: '100%' }} href="/dashboard">Ir para dashboard</a>
-          ) : (
-            <button className="nl-btn nl-btn--accent" style={{ width: '100%' }} onClick={checkout} disabled={loadingCheckout}>
-              {loadingCheckout ? 'Abrindo Stripe...' : 'Ir para pagamento'}
+      <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', alignItems: 'start' }}>
+        <aside className="nl-stack">
+          <section className="nl-card nl-card--pad">
+            <div className="eyebrow">Status</div>
+            <div className="nl-row" style={{ marginTop: 12, justifyContent: 'space-between' }}>
+              <span className={`nl-badge ${ativo ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{statusLabel(status)}</span>
+              <span className="faint" style={{ fontSize: '.78rem', fontWeight: 800 }}>Asaas</span>
+            </div>
+            <h2 className="display display-md" style={{ marginTop: 18 }}>
+              {info?.plano?.name || 'Sem plano'}
+            </h2>
+            <p className="muted" style={{ margin: '10px 0 0', fontSize: '.9rem' }}>
+              {statusHelp(info)}
+            </p>
+          </section>
+
+          <section className="nl-card nl-card--pad">
+            <div className="eyebrow">Uso atual</div>
+            <UsageRows usage={info?.uso || {}} />
+          </section>
+
+          <section className="nl-card nl-card--pad">
+            <div className="eyebrow">Pagamento</div>
+            <div className="nl-row" style={{ marginTop: 14 }}>
+              <button className={`nl-pill ${billingCycle === 'monthly' ? 'active' : ''}`} onClick={() => setBillingCycle('monthly')}>Mensal</button>
+              <button className={`nl-pill ${billingCycle === 'annual' ? 'active' : ''}`} onClick={() => setBillingCycle('annual')}>Anual</button>
+            </div>
+            <label className="nl-label" style={{ marginTop: 16 }}>Metodo</label>
+            <select className="nl-select" value={billingType} onChange={(e) => setBillingType(e.target.value as any)}>
+              <option value="PIX">PIX</option>
+              <option value="BOLETO">Boleto</option>
+              <option value="CREDIT_CARD">Cartao</option>
+            </select>
+            <label className="nl-label" style={{ marginTop: 12 }}>Nome / razao social</label>
+            <input className="nl-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do pagador" />
+            <label className="nl-label" style={{ marginTop: 12 }}>CPF/CNPJ</label>
+            <input className="nl-input" value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} placeholder="Somente numeros" />
+            <label className="nl-label" style={{ marginTop: 12 }}>Telefone</label>
+            <input className="nl-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Opcional" />
+            <button className="nl-btn nl-btn--accent" style={{ width: '100%', marginTop: 16 }} onClick={checkout} disabled={loadingCheckout || !selectedPlan}>
+              {loadingCheckout ? 'Criando cobranca...' : `Assinar ${selectedPlan?.name || ''} - ${formatCurrency(selectedPrice)}`}
             </button>
-          )}
-          {msg && <p className={msg.includes('cancelado') || msg.includes('Erro') ? 'nl-error' : 'nl-success'}>{msg}</p>}
-        </div>
+            {paymentUrl && <a className="nl-btn nl-btn--ghost" style={{ width: '100%', marginTop: 10 }} href={paymentUrl} target="_blank">Abrir cobranca</a>}
+            {pixQrCode && <textarea className="nl-textarea" style={{ minHeight: 96, marginTop: 10 }} readOnly value={pixQrCode} />}
+            {msg && <p className={msg.includes('Erro') || msg.includes('Nao') ? 'nl-error' : 'nl-success'}>{msg}</p>}
+          </section>
+        </aside>
+
+        <section className="nl-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          {plans.map((plan: any) => (
+            <PlanCard
+              key={plan.code}
+              plan={plan}
+              active={plan.code === planCode}
+              billingCycle={billingCycle}
+              onSelect={() => setPlanCode(plan.code)}
+            />
+          ))}
+        </section>
       </div>
     </Shell>
   );
+}
+
+function PlanCard({ plan, active, billingCycle, onSelect }: any) {
+  const entitlements = importantEntitlements(plan.entitlements || []);
+  return (
+    <button
+      type="button"
+      className="nl-card nl-card--pad"
+      onClick={onSelect}
+      style={{
+        textAlign: 'left',
+        cursor: 'pointer',
+        borderColor: active ? 'var(--accent)' : 'var(--line)',
+        boxShadow: active ? '0 0 0 3px rgba(34,197,94,.12)' : 'var(--shadow-sm)',
+        minHeight: 330,
+      }}
+    >
+      <div className="nl-row" style={{ justifyContent: 'space-between' }}>
+        <div className="eyebrow">{plan.metadata?.popular ? 'Recomendado' : 'Plano'}</div>
+        {active && <span className="nl-badge nl-badge--ok">selecionado</span>}
+      </div>
+      <h2 className="display display-md" style={{ marginTop: 14 }}>{plan.name}</h2>
+      <p className="muted" style={{ minHeight: 54, fontSize: '.88rem' }}>{plan.description}</p>
+      <div className="display" style={{ fontSize: '2rem', margin: '14px 0 4px' }}>
+        {formatCurrency(priceFor(plan, billingCycle))}
+      </div>
+      <div className="faint" style={{ fontSize: '.8rem', fontWeight: 800 }}>
+        {billingCycle === 'annual' ? 'por ano' : 'por mes'}
+      </div>
+      <div className="nl-stack" style={{ gap: 8, marginTop: 18 }}>
+        {entitlements.map((item: string) => (
+          <div key={item} className="nl-row" style={{ gap: 8 }}>
+            <span className="nl-badge nl-badge--accent" style={{ width: 22, height: 22, padding: 0, justifyContent: 'center' }}>✓</span>
+            <span style={{ fontSize: '.86rem', fontWeight: 700, color: 'var(--ink-soft)' }}>{item}</span>
+          </div>
+        ))}
+      </div>
+    </button>
+  );
+}
+
+function UsageRows({ usage }: { usage: Record<string, number> }) {
+  const keys = ['projects', 'whatsapp_connections', 'team_users', 'ai_agents', 'contacts', 'active_automations'];
+  return (
+    <div style={{ marginTop: 12 }}>
+      {keys.map((key) => (
+        <div key={key} className="nl-row" style={{ justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--line)' }}>
+          <span className="muted" style={{ fontSize: '.84rem' }}>{FEATURE_LABELS[key]}</span>
+          <b>{Number(usage[key] || 0).toLocaleString('pt-BR')}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function importantEntitlements(entitlements: any[]) {
+  const keys = ['projects', 'whatsapp_connections', 'team_users', 'ai_agents', 'contacts', 'campaigns_monthly', 'public_api', 'white_label_branding'];
+  return keys
+    .map((key) => entitlements.find((e) => e.key === key))
+    .filter((item) => item?.enabled)
+    .slice(0, 6)
+    .map((item) => `${formatLimit(item.limit)} ${FEATURE_LABELS[item.key] || item.key}`);
+}
+
+function priceFor(plan: any, cycle: 'monthly' | 'annual') {
+  return Number(cycle === 'annual' ? plan.annualPriceCents : plan.monthlyPriceCents) || 0;
+}
+
+function formatCurrency(cents: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
+}
+
+function formatLimit(limit: number | null) {
+  if (limit === null || limit >= 999999) return 'Ilimitado';
+  return Number(limit).toLocaleString('pt-BR');
+}
+
+function statusLabel(status: string) {
+  const map: Record<string, string> = {
+    active: 'ativa',
+    trialing: 'trial',
+    past_due_grace: 'tolerancia',
+    past_due_restricted: 'restrita',
+    canceled: 'cancelada',
+    needs_subscription: 'sem assinatura',
+  };
+  return map[status] || status;
+}
+
+function statusHelp(info: any) {
+  const state = info?.acesso?.state;
+  if (state === 'trialing') return `Trial liberado ate ${dateLabel(info?.acesso?.trialEndsAt)}. Depois disso, conclua a cobranca.`;
+  if (state === 'active') return 'Acesso liberado. Alteracoes de plano sao processadas via Asaas.';
+  if (state === 'past_due_grace') return `Pagamento atrasado. Escrita liberada ate ${dateLabel(info?.acesso?.graceEndsAt)}.`;
+  if (state === 'past_due_restricted') return 'Assinatura restrita. Voce pode visualizar dados e regularizar a cobranca.';
+  return 'Escolha um plano e gere a cobranca para ativar o acesso completo.';
+}
+
+function dateLabel(value?: string | null) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('pt-BR');
 }

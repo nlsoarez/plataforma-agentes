@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
-import { BillingService } from './billing.service';
+import { BillingService, SubscribeInput } from './billing.service';
 
 @Controller('billing')
 @UseGuards(AuthGuard)
@@ -11,12 +11,12 @@ export class BillingController {
   status(@Req() req: any) { return this.svc.status(req.user.tenantId); }
 
   @Post('checkout')
-  checkout(@Body() body: { origem?: string }, @Req() req: any) {
-    return this.svc.criarCheckout(req.user.tenantId, req.user.sub, body.origem);
+  checkout(@Body() body: SubscribeInput, @Req() req: any) {
+    return this.svc.criarCheckout(req.user.tenantId, req.user.sub, body);
   }
 
   @Post('assinar')
-  assinar(@Body() body: { origem?: string }, @Req() req: any) {
-    return this.svc.criarCheckout(req.user.tenantId, req.user.sub, body.origem);
+  assinar(@Body() body: SubscribeInput, @Req() req: any) {
+    return this.svc.criarCheckout(req.user.tenantId, req.user.sub, body);
   }
 }

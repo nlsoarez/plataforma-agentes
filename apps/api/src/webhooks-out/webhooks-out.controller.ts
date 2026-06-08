@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nes
 import { comTenant } from '@plataforma/db';
 import { createHmac } from 'crypto';
 import { AuthGuard } from '../auth/auth.guard';
+import { assertLimit } from '../billing/entitlements';
 
 const EVENTOS_PADRAO = ['LEAD_CREATED', 'LEAD_INTERACTION', 'AI_RESPONSE', 'LEAD_KANBAN_UPDATED', 'LEAD_TAG_ADDED', 'LEAD_TAG_REMOVED', 'ERROR'];
 
@@ -25,7 +26,8 @@ export class WebhooksOutController {
   }
 
   @Post()
-  criar(@Body() body: { nome?: string; url: string; secret?: string; eventos?: string[] }, @Req() req: any) {
+  async criar(@Body() body: { nome?: string; url: string; secret?: string; eventos?: string[] }, @Req() req: any) {
+    await assertLimit(req.user.tenantId, 'outbound_webhooks', 1);
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(
         `insert into webhook_subscriptions (tenant_id, nome, url, secret, eventos)

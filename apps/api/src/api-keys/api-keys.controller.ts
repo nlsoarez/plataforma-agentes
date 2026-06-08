@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
 import { hashApiKey } from '../public-api/api-key-auth';
+import { assertFeature, assertLimit } from '../billing/entitlements';
 
 @Controller('api-keys')
 @UseGuards(AuthGuard)
@@ -20,7 +21,9 @@ export class ApiKeysController {
   }
 
   @Post()
-  criar(@Body() body: { nome?: string; escopos?: string[] }, @Req() req: any) {
+  async criar(@Body() body: { nome?: string; escopos?: string[] }, @Req() req: any) {
+    await assertFeature(req.user.tenantId, 'public_api');
+    await assertLimit(req.user.tenantId, 'public_api_keys', 1);
     return comTenant(req.user.tenantId, async (q) => {
       const secret = `nl_${randomBytes(24).toString('base64url')}`;
       const prefixo = secret.slice(0, 10);

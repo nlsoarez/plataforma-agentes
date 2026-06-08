@@ -60,6 +60,11 @@ export async function resolverAssinatura(subId: string): Promise<{ id: string; t
   return r.rows[0] ?? null;
 }
 
+export async function resolverAssinaturaProvider(provider: string, externalId: string): Promise<{ id: string; tenant_id: string } | null> {
+  const r = await pool.query('select id, tenant_id from resolver_assinatura_provider($1,$2)', [provider, externalId]);
+  return r.rows[0] ?? null;
+}
+
 export async function statusTenant(tenantId: string): Promise<string | null> {
   const r = await pool.query('select status from tenants where id=$1', [tenantId]);
   return r.rows[0]?.status ?? null;

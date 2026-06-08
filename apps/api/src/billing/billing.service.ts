@@ -1,78 +1,212 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
-import Stripe from 'stripe';
+import { AsaasBillingType, AsaasCycle, AsaasProvider } from './providers/asaas.provider';
+import {
+  getSubscriptionAccess,
+  listPlansWithEntitlements,
+  usageForFeature,
+} from './entitlements';
 
-const ACTIVE_STATUSES = new Set(['ativa', 'active', 'trialing', 'CONFIRMED', 'RECEIVED']);
+const VALID_BILLING_TYPES = new Set(['BOLETO', 'PIX', 'CREDIT_CARD', 'UNDEFINED']);
+
+export interface SubscribeInput {
+  planCode?: string;
+  billingCycle?: 'monthly' | 'annual';
+  billingType?: AsaasBillingType;
+  cpfCnpj?: string;
+  name?: string;
+  phone?: string;
+  origem?: string;
+}
 
 @Injectable()
 export class BillingService {
-  private stripe() {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) throw new BadRequestException('stripe nao configurado');
-    return new Stripe(key, { apiVersion: '2026-05-27.dahlia' });
+  constructor(private readonly asaas: AsaasProvider) {}
+
+  async status(tenantId: string) {
+    const access = await getSubscriptionAccess(tenantId);
+    const plans = await listPlansWithEntitlements();
+    const usage = await this.usageSnapshot(tenantId);
+
+    return {
+      provider: 'asaas',
+      pagamento_obrigatorio: process.env.BILLING_REQUIRED !== 'false',
+      pago: access.canUsePaidFeatures,
+      acesso: access,
+      assinatura: access.subscription,
+      plano: access.plan,
+      planos: plans,
+      uso: usage,
+      asaas_configurado: Boolean(process.env.ASAAS_API_KEY),
+    };
   }
 
-  isActiveStatus(status: string | null | undefined): boolean {
-    return Boolean(status && ACTIVE_STATUSES.has(status));
-  }
+  async criarCheckout(tenantId: string, userId: string, input: SubscribeInput): Promise<{
+    provider: 'asaas';
+    subscriptionId: string;
+    paymentId: string | null;
+    url: string | null;
+    pixQrCode?: string | null;
+  }> {
+    const planCode = input.planCode || 'pro';
+    const billingCycle = input.billingCycle === 'annual' ? 'annual' : 'monthly';
+    const billingType = this.billingType(input.billingType);
+    const cpfCnpj = onlyDigits(input.cpfCnpj || '');
+    if (!cpfCnpj || cpfCnpj.length < 11) throw new BadRequestException('CPF/CNPJ obrigatorio para assinatura Asaas');
 
-  status(tenantId: string) {
-    return comTenant(tenantId, async (q) => {
-      const plano = (await q(`select valor_centavos, ciclo from planos order by valor_centavos limit 1`)).rows[0];
-      const ass = (await q(
-        `select status, qtd_projetos, provider, provider_customer_id, provider_subscription_id, provider_price_id, atualizado_em
-         from assinaturas
-         where tenant_id=$1
-         order by criado_em desc
-         limit 1`,
-        [tenantId],
-      )).rows[0] ?? null;
-      const ativos = (await q(`select count(*)::int as n from projetos where status='ativo'`)).rows[0].n;
-      return {
-        assinatura: ass,
-        pagamento_obrigatorio: process.env.BILLING_REQUIRED !== 'false',
-        pago: this.isActiveStatus(ass?.status),
-        projetos_ativos: ativos,
-        valor_por_projeto_centavos: plano?.valor_centavos ?? null,
-      };
-    });
-  }
-
-  async criarCheckout(tenantId: string, userId: string, origem?: string): Promise<{ url: string; sessionId: string }> {
-    const priceId = process.env.STRIPE_PRICE_ID;
-    if (!priceId) throw new BadRequestException('STRIPE_PRICE_ID nao configurado');
-
-    const appUrl = this.appUrl(origem);
     return comTenant(tenantId, async (q) => {
       const user = (await q(`select email, nome from usuarios where id=$1`, [userId])).rows[0];
       if (!user?.email) throw new BadRequestException('usuario sem email');
 
-      const qtd = Math.max((await q(`select count(*)::int as n from projetos where status='ativo'`)).rows[0].n, 1);
-      const stripe = this.stripe();
-      const session = await stripe.checkout.sessions.create({
-        mode: 'subscription',
-        customer_email: user.email,
-        client_reference_id: tenantId,
-        line_items: [{ price: priceId, quantity: qtd }],
-        success_url: `${appUrl}/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appUrl}/billing?checkout=cancel`,
-        metadata: { tenantId, userId },
-        subscription_data: { metadata: { tenantId, userId } },
+      const plan = (await q(
+        `select id, code, nome, monthly_price_cents, annual_price_cents
+           from planos
+          where code=$1 and is_active=true
+          limit 1`,
+        [planCode],
+      )).rows[0];
+      if (!plan) throw new BadRequestException('plano invalido');
+
+      const current = (await q(
+        `select *
+           from assinaturas
+          where tenant_id=$1
+          order by criado_em desc
+          limit 1`,
+        [tenantId],
+      )).rows[0] ?? null;
+
+      const amountCents = billingCycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents;
+      const customer = await this.asaas.createCustomer({
+        name: input.name?.trim() || user.nome || user.email,
+        email: user.email,
+        cpfCnpj,
+        phone: onlyDigits(input.phone || '') || undefined,
+        externalReference: tenantId,
       });
 
-      await q(
+      const nextDueDate = this.nextDueDate(current);
+      const subscription = await this.asaas.createSubscription({
+        customerId: customer.id,
+        billingType,
+        value: amountCents / 100,
+        cycle: billingCycle === 'annual' ? 'YEARLY' : 'MONTHLY',
+        nextDueDate,
+        description: `Attende ${plan.nome} - ${billingCycle === 'annual' ? 'Anual' : 'Mensal'}`,
+        externalReference: tenantId,
+      });
+
+      const payments = await this.asaas.listSubscriptionPayments(subscription.id);
+      const firstPayment = payments[0] ?? null;
+      const pix = billingType === 'PIX' && firstPayment?.id
+        ? await this.asaas.getPixQrCode(firstPayment.id)
+        : null;
+
+      const status = this.keepTrialActive(current) ? 'trialing' : 'pendente';
+      const row = await q(
         `insert into assinaturas
-          (tenant_id, provider, provider_checkout_session_id, provider_customer_id, provider_price_id, status, qtd_projetos)
-         values ($1,'stripe',$2,$3,$4,'pendente',$5)
-         on conflict (provider_checkout_session_id) do update
-           set atualizado_em=now()
+          (tenant_id, plano_id, provider, provider_customer_id, provider_subscription_id,
+           external_customer_id, external_subscription_id, external_payment_id, provider_price_id,
+           status, qtd_projetos, billing_cycle, trial_started_at, trial_ends_at,
+           current_period_started_at, current_period_ends_at, metadata)
+         values ($1,$2,'asaas',$3,$4,$3,$4,$5,$6,$7,
+                 greatest((select count(*)::int from projetos where status='ativo'), 1),
+                 $8, coalesce($9::timestamptz, now()), $10::timestamptz,
+                 now(), $11::timestamptz,
+                 jsonb_build_object('billingType',$12,'checkoutOrigin',$13))
          returning id`,
-        [tenantId, session.id, typeof session.customer === 'string' ? session.customer : null, priceId, qtd],
+        [
+          tenantId,
+          plan.id,
+          customer.id,
+          subscription.id,
+          firstPayment?.id ?? null,
+          plan.code,
+          status,
+          billingCycle,
+          current?.trial_started_at ?? null,
+          current?.trial_ends_at ?? null,
+          billingCycle === 'annual' ? addYearsIso(new Date(), 1) : addMonthsIso(new Date(), 1),
+          billingType,
+          this.appUrl(input.origem),
+        ],
       );
 
-      if (!session.url) throw new BadRequestException('stripe nao retornou url do checkout');
-      return { url: session.url, sessionId: session.id };
+      if (firstPayment) {
+        await q(
+          `insert into invoices
+            (tenant_id, subscription_id, provider, external_invoice_id, amount_cents, status,
+             due_date, payment_method, invoice_url, boleto_url, pix_qr_code, payload)
+           values ($1,$2,'asaas',$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           on conflict (provider, external_invoice_id) do update set
+             status=excluded.status,
+             invoice_url=excluded.invoice_url,
+             boleto_url=excluded.boleto_url,
+             pix_qr_code=excluded.pix_qr_code,
+             payload=excluded.payload,
+             updated_at=now()`,
+          [
+            tenantId,
+            row.rows[0].id,
+            firstPayment.id,
+            Math.round(Number(firstPayment.value ?? amountCents / 100) * 100),
+            firstPayment.status ?? 'PENDING',
+            firstPayment.dueDate ?? nextDueDate,
+            firstPayment.billingType ?? billingType,
+            firstPayment.invoiceUrl ?? null,
+            firstPayment.bankSlipUrl ?? null,
+            pix?.payload ?? pix?.encodedImage ?? null,
+            firstPayment,
+          ],
+        );
+      }
+
+      return {
+        provider: 'asaas',
+        subscriptionId: subscription.id,
+        paymentId: firstPayment?.id ?? null,
+        url: firstPayment?.invoiceUrl ?? firstPayment?.bankSlipUrl ?? null,
+        pixQrCode: pix?.payload ?? pix?.encodedImage ?? null,
+      };
     });
+  }
+
+  private async usageSnapshot(tenantId: string): Promise<Record<string, number>> {
+    const keys = [
+      'projects',
+      'whatsapp_connections',
+      'team_users',
+      'ai_agents',
+      'contacts',
+      'knowledge_documents',
+      'storage_bytes',
+      'active_automations',
+      'public_api_keys',
+      'outbound_webhooks',
+      'campaigns_monthly',
+      'campaign_recipients_monthly',
+    ];
+    const entries = await Promise.all(keys.map(async (key) => [key, await usageForFeature(tenantId, key)] as const));
+    return Object.fromEntries(entries);
+  }
+
+  private billingType(value: AsaasBillingType | undefined): AsaasBillingType {
+    const normalized = String(value || 'PIX').toUpperCase();
+    if (!VALID_BILLING_TYPES.has(normalized)) throw new BadRequestException('forma de pagamento invalida');
+    return normalized as AsaasBillingType;
+  }
+
+  private nextDueDate(current: any | null): string {
+    if (this.keepTrialActive(current) && current.trial_ends_at) {
+      return yyyyMmDd(new Date(current.trial_ends_at));
+    }
+    return yyyyMmDd(new Date());
+  }
+
+  private keepTrialActive(current: any | null): boolean {
+    return current?.status === 'trialing'
+      && current?.trial_ends_at
+      && new Date(current.trial_ends_at).getTime() > Date.now();
   }
 
   private appUrl(origem?: string): string {
@@ -90,4 +224,22 @@ export class BillingService {
   }
 }
 
-export { ACTIVE_STATUSES };
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function yyyyMmDd(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addMonthsIso(date: Date, months: number): string {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next.toISOString();
+}
+
+function addYearsIso(date: Date, years: number): string {
+  const next = new Date(date);
+  next.setFullYear(next.getFullYear() + years);
+  return next.toISOString();
+}

@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
-import { comTenant } from '@plataforma/db';
 import { verificarToken } from './jwt';
+import { getSubscriptionAccess } from '../billing/entitlements';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -27,18 +27,14 @@ export class AuthGuard implements CanActivate {
     if (process.env.BILLING_REQUIRED === 'false') return false;
     const path = req.path || req.url || '';
     if (path.startsWith('/billing')) return false;
+    if (path.startsWith('/auth')) return false;
 
-    const row = await comTenant(req.user.tenantId, async (q) => {
-      const r = await q(
-        `select status
-         from assinaturas
-         where tenant_id=$1
-         order by criado_em desc
-         limit 1`,
-        [req.user.tenantId],
-      );
-      return r.rows[0] ?? null;
-    });
-    return !['ativa', 'active', 'trialing', 'CONFIRMED', 'RECEIVED'].includes(row?.status);
+    const access = await getSubscriptionAccess(req.user.tenantId);
+    if (access.canWrite) return false;
+
+    const method = String(req.method || 'GET').toUpperCase();
+    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
+
+    return true;
   }
 }

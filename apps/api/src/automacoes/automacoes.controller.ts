@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { assertLimit } from '../billing/entitlements';
 
 @Controller('automacoes')
 @UseGuards(AuthGuard)
@@ -20,7 +21,17 @@ export class AutomacoesController {
   }
 
   @Post()
-  salvar(@Body() body: { id?: string; projetoId?: string; nome: string; gatilho: string; condicoes?: any; acoes?: any[]; ativo?: boolean }, @Req() req: any) {
+  async salvar(@Body() body: { id?: string; projetoId?: string; nome: string; gatilho: string; condicoes?: any; acoes?: any[]; ativo?: boolean }, @Req() req: any) {
+    const willBeActive = body.ativo ?? true;
+    if (willBeActive) {
+      const consumesNewSlot = await comTenant(req.user.tenantId, async (q) => {
+        if (!body.id) return true;
+        const r = await q(`select ativo from automacoes where id=$1`, [body.id]);
+        return r.rows[0]?.ativo === false;
+      });
+      if (consumesNewSlot) await assertLimit(req.user.tenantId, 'active_automations', 1);
+    }
+
     return comTenant(req.user.tenantId, async (q) => {
       if (body.id) {
         const r = await q(

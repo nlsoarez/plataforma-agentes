@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
+import { assertLimit } from '../billing/entitlements';
 
 @Injectable()
 export class OnboardingService {
@@ -105,6 +106,14 @@ export class OnboardingService {
     this.assertConfig();
 
     const cleanNome = (nome || 'principal').trim() || 'principal';
+    const slot = await comTenant(tenantId, async (q) => {
+      if (!projetoId) return { project: true, whatsapp: true };
+      const p = (await q(`select phone_number_id from projetos where id=$1`, [projetoId])).rows[0];
+      return { project: false, whatsapp: !p?.phone_number_id };
+    });
+    if (slot.project) await assertLimit(tenantId, 'projects', 1);
+    if (slot.whatsapp) await assertLimit(tenantId, 'whatsapp_connections', 1);
+
     const instancia = `t${tenantId.slice(0, 8)}_${cleanNome}`.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 60);
     const webhookUrl = this.webhookUrl();
     const r = await fetch(`${this.base}/instance/create`, {

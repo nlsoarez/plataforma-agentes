@@ -3,6 +3,7 @@ import { comTenant, resolverTenantPorDominio } from '@plataforma/db';
 import { createHash, randomBytes } from 'crypto';
 import { hashSenha, verificarSenha } from './senha';
 import { assinarEstadoGoogleOAuth, assinarToken, verificarEstadoGoogleOAuth } from './jwt';
+import { ensureTrialSubscription } from '../billing/entitlements';
 
 interface GoogleTokenResponse {
   access_token?: string;
@@ -40,6 +41,7 @@ export class AuthService {
     if (!user || user.status !== 'ativo' || !verificarSenha(senha, user.senha_hash)) {
       throw new UnauthorizedException('credenciais invalidas');
     }
+    await ensureTrialSubscription(tenant.id);
     return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
   }
 
@@ -66,6 +68,7 @@ export class AuthService {
       return r.rows[0];
     });
 
+    await ensureTrialSubscription(tenant.id);
     return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
   }
 
@@ -158,6 +161,7 @@ export class AuthService {
       throw new UnauthorizedException('usuario google nao encontrado neste tenant');
     }
 
+    await ensureTrialSubscription(tenant.id);
     await comTenant(tenant.id, async (q) => {
       await q(
         `update usuarios

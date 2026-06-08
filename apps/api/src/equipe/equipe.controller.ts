@@ -2,6 +2,7 @@ import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, 
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
 import { hashSenha } from '../auth/senha';
+import { assertLimit } from '../billing/entitlements';
 
 @Controller('equipe')
 @UseGuards(AuthGuard)
@@ -59,8 +60,14 @@ export class EquipeController {
   }
 
   @Post('usuarios')
-  criarUsuario(@Body() body: { nome?: string; email: string; senha: string; papel?: string; departamentoId?: string }, @Req() req: any) {
+  async criarUsuario(@Body() body: { nome?: string; email: string; senha: string; papel?: string; departamentoId?: string }, @Req() req: any) {
     this.assertAdmin(req);
+    const consumesSlot = await comTenant(req.user.tenantId, async (q) => {
+      const r = await q(`select status from usuarios where lower(email)=lower($1) limit 1`, [body.email]);
+      return !r.rows[0] || r.rows[0].status !== 'ativo';
+    });
+    if (consumesSlot) await assertLimit(req.user.tenantId, 'team_users', 1);
+
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(
         `insert into usuarios (tenant_id, nome, email, senha_hash, papel, departamento_id)
@@ -75,8 +82,15 @@ export class EquipeController {
   }
 
   @Patch('usuarios/:id')
-  atualizarUsuario(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+  async atualizarUsuario(@Param('id') id: string, @Body() body: any, @Req() req: any) {
     this.assertAdmin(req);
+    if (body.status === 'ativo') {
+      const consumesSlot = await comTenant(req.user.tenantId, async (q) => {
+        const r = await q(`select status from usuarios where id=$1`, [id]);
+        return r.rows[0]?.status !== 'ativo';
+      });
+      if (consumesSlot) await assertLimit(req.user.tenantId, 'team_users', 1);
+    }
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(
         `update usuarios

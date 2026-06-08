@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { comTenant } from '@plataforma/db';
+import { assertFeature, assertLimit, incrementUsage } from '../billing/entitlements';
 
 @Injectable()
 export class CampanhasService {
@@ -8,6 +9,9 @@ export class CampanhasService {
 
   // Cria a campanha e enfileira um envio por contato do segmento.
   async criar(tenantId: string, dto: { projetoId: string; texto: string; segmento?: { tags?: string[] } }) {
+    await assertFeature(tenantId, 'campaigns');
+    await assertLimit(tenantId, 'campaigns_monthly', 1);
+
     return comTenant(tenantId, async (q) => {
       const proj = await q(`select phone_number_id from projetos where id=$1`, [dto.projetoId]);
       if (!proj.rows[0]) throw new NotFoundException('projeto nao encontrado');
@@ -26,6 +30,8 @@ export class CampanhasService {
           : `select id, telefone from contatos where projeto_id=$1`,
         tags?.length ? [dto.projetoId, tags] : [dto.projetoId])).rows;
 
+      await assertLimit(tenantId, 'campaign_recipients_monthly', contatos.length);
+
       for (const c of contatos) {
         const env = await q(
           `insert into campanha_envios (tenant_id, campanha_id, contato_id, status) values ($1,$2,$3,'enfileirado') returning id`,
@@ -35,6 +41,8 @@ export class CampanhasService {
           contatoId: c.id, telefone: c.telefone, phoneNumberId, texto: dto.texto,
         });
       }
+      await incrementUsage(tenantId, 'campaigns_monthly', 1);
+      await incrementUsage(tenantId, 'campaign_recipients_monthly', contatos.length);
       return { ok: true, campanhaId, total: contatos.length };
     });
   }
