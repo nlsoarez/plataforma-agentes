@@ -339,7 +339,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
     radial-gradient(circle at 84% 76%, rgba(20,184,166,.34) 0 1px, transparent 1.8px);
   background-size: 190px 150px, 260px 220px, 320px 240px, 420px 300px;
   opacity: .52;
-  animation: nl-star-drift 54s linear infinite;
+  animation: nl-star-drift 24s linear infinite;
 }
 .nl-login__brand::after {
   content: '';
@@ -355,11 +355,12 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
     radial-gradient(ellipse at 76% 16%, rgba(20, 184, 166, .30), transparent 36%),
     radial-gradient(circle, rgba(45, 255, 207, .94) 0 1.8px, transparent 2.5px);
   background-size: 100% 100%, 100% 100%, 22px 18px;
+  background-position: center, center, 0 0;
   opacity: .78;
   transform: perspective(620px) rotateX(64deg) translateY(-150px);
   transform-origin: center bottom;
   clip-path: ellipse(78% 58% at 50% 34%);
-  animation: nl-wave-drift 18s ease-in-out infinite alternate;
+  animation: nl-wave-drift 8s ease-in-out infinite alternate;
 }
 .nl-login__brand img.wm { width: 210px; object-fit: contain; position: relative; z-index: 1; }
 .nl-login__hero { position: relative; z-index: 1; }
@@ -370,13 +371,24 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-login__form .inner { width: 100%; max-width: 360px; }
 
 @keyframes nl-star-drift {
-  from { background-position: 0 0, 0 0, 0 0, 0 0; }
-  to { background-position: 0 -150px, 0 -220px, 0 -240px, 0 -300px; }
+  0% { background-position: 0 0, 0 0, 0 0, 0 0; opacity: .42; }
+  50% { background-position: 18px -75px, -22px -110px, 28px -120px, -34px -150px; opacity: .62; }
+  100% { background-position: 36px -150px, -44px -220px, 56px -240px, -68px -300px; opacity: .42; }
 }
 
 @keyframes nl-wave-drift {
-  from { transform: perspective(620px) rotateX(64deg) translateY(-150px) translateX(-12px); }
-  to { transform: perspective(620px) rotateX(64deg) translateY(-164px) translateX(12px); }
+  0% {
+    background-position: center, center, 0 0;
+    transform: perspective(620px) rotateX(64deg) translateY(-150px) translateX(-26px) scale(1);
+  }
+  50% {
+    background-position: center, center, 22px -18px;
+    transform: perspective(620px) rotateX(65deg) translateY(-174px) translateX(0) scale(1.025);
+  }
+  100% {
+    background-position: center, center, 44px -36px;
+    transform: perspective(620px) rotateX(64deg) translateY(-156px) translateX(26px) scale(1.01);
+  }
 }
 
 /* Pipeline */
