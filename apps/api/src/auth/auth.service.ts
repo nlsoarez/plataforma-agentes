@@ -126,7 +126,16 @@ export class AuthService {
         [email],
       );
       const encontrado = porEmail.rows[0];
-      if (!encontrado) return null;
+      if (!encontrado) {
+        const criado = await q(
+          `insert into usuarios
+            (tenant_id, nome, email, senha_hash, papel, status, google_sub, avatar_url, auth_provider, ultimo_login_em)
+           values ($1,$2,$3,$4,'cliente_final','ativo',$5,$6,'google',now())
+           returning id, email, papel`,
+          [tenant.id, perfil.name || null, email, hashSenha(this.base64Url(randomBytes(32))), perfil.sub, perfil.picture || null],
+        );
+        return criado.rows[0];
+      }
       if (encontrado.google_sub && encontrado.google_sub !== perfil.sub) {
         throw new UnauthorizedException('email ja vinculado a outra conta google');
       }

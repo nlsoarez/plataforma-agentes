@@ -42,7 +42,8 @@ dominio: localhost:3001
 
 A tela `/login` tambem permite criar uma conta no tenant do dominio atual. O
 usuario e salvo na tabela `usuarios`, com senha protegida por PBKDF2, e recebe
-um JWT imediatamente apos o cadastro.
+um JWT imediatamente apos o cadastro. Se a assinatura ainda nao estiver ativa,
+o usuario e enviado para `/billing`.
 
 Por seguranca, cadastro publico cria usuarios com papel `cliente_final`. Contas
 `owner`, `admin` e `atendente` devem ser criadas por um administrador em
@@ -71,9 +72,41 @@ https://api.seudominio.com/auth/google/callback
 ```
 
 Regra importante: a conta Google so entra se o e-mail ja existir na tabela
-`usuarios` daquele tenant. No primeiro login valido, o sistema vincula o
-`google_sub` ao usuario. Isso evita auto-cadastro indevido em agencias
-white-label.
+`usuarios` daquele tenant ou cria um novo usuario `cliente_final` no dominio
+atual. No primeiro login valido, o sistema vincula o `google_sub` ao usuario.
+
+## Pagamento com Stripe
+
+O acesso autenticado ao dashboard e demais rotas protegidas exige assinatura
+ativa, exceto as rotas de billing. O backend retorna HTTP `402 Payment Required`
+quando o tenant ainda nao pagou.
+
+Configure:
+
+```env
+BILLING_REQUIRED=true
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+WEB_APP_URL=https://seu-painel.com
+```
+
+No Stripe, crie um Price recorrente e configure o webhook:
+
+```text
+https://sua-api.com/webhook/stripe
+```
+
+Eventos recomendados:
+
+```text
+checkout.session.completed
+customer.subscription.updated
+customer.subscription.deleted
+```
+
+Sem webhook configurado, o usuario pode concluir o Checkout, mas o sistema nao
+tera prova confiavel para liberar o dashboard.
 
 ## Fluxo Evolution
 

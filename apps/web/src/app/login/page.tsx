@@ -19,7 +19,7 @@ export default function Login() {
     if (token) {
       localStorage.setItem('token', token);
       window.history.replaceState(null, '', '/login');
-      window.location.href = '/dashboard';
+      redirectAfterAuth(token);
       return;
     }
 
@@ -42,7 +42,7 @@ export default function Login() {
       const d = await r.json();
       if (d.token) {
         localStorage.setItem('token', d.token);
-        window.location.href = '/dashboard';
+        await redirectAfterAuth(d.token);
         return;
       }
       setMsg('Credenciais inválidas.');
@@ -73,7 +73,7 @@ export default function Login() {
       const d = await r.json();
       if (d.token) {
         localStorage.setItem('token', d.token);
-        window.location.href = '/dashboard';
+        await redirectAfterAuth(d.token);
         return;
       }
       setMsg(d.message || 'Nao foi possivel criar a conta.');
@@ -102,6 +102,16 @@ export default function Login() {
       setMsg('Erro ao iniciar login com Google.');
     }
     setGoogleCarregando(false);
+  }
+
+  async function redirectAfterAuth(token: string) {
+    try {
+      const r = await fetch(`${API}/billing`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      window.location.href = d.pago ? '/dashboard' : '/billing';
+    } catch {
+      window.location.href = '/billing';
+    }
   }
 
   return (

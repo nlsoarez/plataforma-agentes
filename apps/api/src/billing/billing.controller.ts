@@ -10,8 +10,13 @@ export class BillingController {
   @Get()
   status(@Req() req: any) { return this.svc.status(req.user.tenantId); }
 
+  @Post('checkout')
+  checkout(@Body() body: { origem?: string }, @Req() req: any) {
+    return this.svc.criarCheckout(req.user.tenantId, req.user.sub, body.origem);
+  }
+
   @Post('assinar')
-  assinar(@Body() body: { nome: string; cpfCnpj: string; email: string; billingType?: string }, @Req() req: any) {
-    return this.svc.assinar(req.user.tenantId, body);
+  assinar(@Body() body: { origem?: string }, @Req() req: any) {
+    return this.svc.criarCheckout(req.user.tenantId, req.user.sub, body.origem);
   }
 }

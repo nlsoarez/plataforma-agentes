@@ -1,55 +1,93 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
+import Stripe from 'stripe';
 
-// Adapter Asaas (recorrência BR: PIX/boleto/cartão). Gated por env.
+const ACTIVE_STATUSES = new Set(['ativa', 'active', 'trialing', 'CONFIRMED', 'RECEIVED']);
+
 @Injectable()
 export class BillingService {
-  private base = process.env.ASAAS_API_URL ?? 'https://sandbox.asaas.com/api/v3';
-  private key = process.env.ASAAS_API_KEY ?? '';
-  private h() { return { access_token: this.key, 'Content-Type': 'application/json' }; }
-
-  private async post(path: string, body: unknown) {
-    const r = await fetch(`${this.base}${path}`, { method: 'POST', headers: this.h(), body: JSON.stringify(body) });
-    if (!r.ok) throw new BadRequestException(`asaas ${path} ${r.status}: ${await r.text()}`);
-    return r.json() as any;
+  private stripe() {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw new BadRequestException('stripe nao configurado');
+    return new Stripe(key, { apiVersion: '2026-05-27.dahlia' });
   }
-  private async get(path: string) {
-    const r = await fetch(`${this.base}${path}`, { headers: this.h() });
-    if (!r.ok) throw new BadRequestException(`asaas ${path} ${r.status}: ${await r.text()}`);
-    return r.json() as any;
-  }
-  private amanha() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }
 
-  // Status atual da assinatura do tenant.
+  isActiveStatus(status: string | null | undefined): boolean {
+    return Boolean(status && ACTIVE_STATUSES.has(status));
+  }
+
   status(tenantId: string) {
     return comTenant(tenantId, async (q) => {
       const plano = (await q(`select valor_centavos, ciclo from planos order by valor_centavos limit 1`)).rows[0];
-      const ass = (await q(`select status, qtd_projetos, provider, atualizado_em from assinaturas where tenant_id=$1 order by criado_em desc limit 1`, [tenantId])).rows[0] ?? null;
+      const ass = (await q(
+        `select status, qtd_projetos, provider, provider_customer_id, provider_subscription_id, provider_price_id, atualizado_em
+         from assinaturas
+         where tenant_id=$1
+         order by criado_em desc
+         limit 1`,
+        [tenantId],
+      )).rows[0] ?? null;
       const ativos = (await q(`select count(*)::int as n from projetos where status='ativo'`)).rows[0].n;
-      return { assinatura: ass, projetos_ativos: ativos, valor_por_projeto_centavos: plano?.valor_centavos ?? null };
+      return {
+        assinatura: ass,
+        pagamento_obrigatorio: process.env.BILLING_REQUIRED !== 'false',
+        pago: this.isActiveStatus(ass?.status),
+        projetos_ativos: ativos,
+        valor_por_projeto_centavos: plano?.valor_centavos ?? null,
+      };
     });
   }
 
-  // Cria cliente + assinatura no Asaas e devolve o link de pagamento.
-  async assinar(tenantId: string, dto: { nome: string; cpfCnpj: string; email: string; billingType?: string }) {
+  async criarCheckout(tenantId: string, userId: string, origem?: string): Promise<{ url: string; sessionId: string }> {
+    const priceId = process.env.STRIPE_PRICE_ID;
+    if (!priceId) throw new BadRequestException('STRIPE_PRICE_ID nao configurado');
+
+    const appUrl = this.appUrl(origem);
     return comTenant(tenantId, async (q) => {
-      const plano = (await q(`select id, valor_centavos, ciclo from planos order by valor_centavos limit 1`)).rows[0];
+      const user = (await q(`select email, nome from usuarios where id=$1`, [userId])).rows[0];
+      if (!user?.email) throw new BadRequestException('usuario sem email');
+
       const qtd = Math.max((await q(`select count(*)::int as n from projetos where status='ativo'`)).rows[0].n, 1);
-      const valor = (plano.valor_centavos * qtd) / 100;
-
-      const cust = await this.post('/customers', { name: dto.nome, cpfCnpj: dto.cpfCnpj, email: dto.email });
-      const sub = await this.post('/subscriptions', {
-        customer: cust.id, billingType: dto.billingType ?? 'PIX', value: valor,
-        nextDueDate: this.amanha(), cycle: plano.ciclo, description: `Plataforma — ${qtd} projeto(s)`,
+      const stripe = this.stripe();
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        customer_email: user.email,
+        client_reference_id: tenantId,
+        line_items: [{ price: priceId, quantity: qtd }],
+        success_url: `${appUrl}/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}/billing?checkout=cancel`,
+        metadata: { tenantId, userId },
+        subscription_data: { metadata: { tenantId, userId } },
       });
-      const pays = await this.get(`/payments?subscription=${sub.id}`);
-      const link = pays?.data?.[0]?.invoiceUrl ?? null;
 
-      await q(`insert into assinaturas (tenant_id, plano_id, provider, provider_customer_id, provider_subscription_id, status, qtd_projetos)
-               values ($1,$2,'asaas',$3,$4,'pendente',$5)`,
-        [tenantId, plano.id, cust.id, sub.id, qtd]);
+      await q(
+        `insert into assinaturas
+          (tenant_id, provider, provider_checkout_session_id, provider_customer_id, provider_price_id, status, qtd_projetos)
+         values ($1,'stripe',$2,$3,$4,'pendente',$5)
+         on conflict (provider_checkout_session_id) do update
+           set atualizado_em=now()
+         returning id`,
+        [tenantId, session.id, typeof session.customer === 'string' ? session.customer : null, priceId, qtd],
+      );
 
-      return { ok: true, link, valor, qtd };
+      if (!session.url) throw new BadRequestException('stripe nao retornou url do checkout');
+      return { url: session.url, sessionId: session.id };
     });
+  }
+
+  private appUrl(origem?: string): string {
+    if (origem) {
+      try {
+        const url = new URL(origem);
+        if (url.protocol === 'https:' || url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+          return url.origin;
+        }
+      } catch {
+        // fallback abaixo
+      }
+    }
+    return (process.env.WEB_APP_URL || 'http://localhost:3001').replace(/\/+$/, '');
   }
 }
+
+export { ACTIVE_STATUSES };

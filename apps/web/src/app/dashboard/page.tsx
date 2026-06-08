@@ -53,6 +53,7 @@ export default function Dashboard() {
   const { token, ready } = useStoredToken();
   const [range, setRange] = useState('7 dias');
   const [data, setData] = useState<any>(null);
+  const [billingReady, setBillingReady] = useState(false);
   const lineRef = useRef<HTMLCanvasElement | null>(null);
   const barRef = useRef<HTMLCanvasElement | null>(null);
   const donutRef = useRef<HTMLCanvasElement | null>(null);
@@ -61,6 +62,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!token) return;
+    (async () => {
+      const billing = await fetch(`${API}/billing`, { headers: auth(token) }).then(r => r.json()).catch(() => null);
+      if (!billing?.pago) {
+        window.location.href = '/billing';
+        return;
+      }
+      setBillingReady(true);
+    })();
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !billingReady) return;
     (async () => {
       const projetos = await fetch(`${API}/projetos`, { headers: auth(token) }).then(r => r.json()).catch(() => []);
       const projetoId = projetos?.[0]?.id;
@@ -105,7 +118,7 @@ export default function Dashboard() {
         })),
       });
     })();
-  }, [token]);
+  }, [token, billingReady]);
 
   useEffect(() => {
     if (!data) return;
@@ -167,6 +180,7 @@ export default function Dashboard() {
 
   if (!ready) return <SessionLoading />;
   if (!token) return <SessionRequired />;
+  if (!billingReady) return <SessionLoading />;
 
   const d = data || DEMO;
   const maxFunnel = Math.max(1, ...(d.funnel || []).map((f: any) => f.v));
