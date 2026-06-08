@@ -314,7 +314,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 /* Login */
 .nl-login { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
 .nl-login__brand {
-  background: #020617;
+  background: #06172a;
   color: var(--white);
   padding: 56px;
   display: flex;
@@ -328,18 +328,18 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   position: absolute;
   inset: 0;
   background-image: url('/brand/login-wave-pattern.png');
-  background-size: auto 72%;
-  background-position: 54% 100%;
+  background-size: cover;
+  background-position: center center;
   background-repeat: no-repeat;
-  opacity: 0.96;
+  opacity: 1;
 }
 .nl-login__brand::after {
   content: '';
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(2, 6, 23, 0.22) 0%, rgba(2, 6, 23, 0.50) 58%, rgba(2, 6, 23, 0.78) 100%),
-    radial-gradient(circle at 70% 70%, rgba(20, 184, 166, 0.18), transparent 44%);
+    linear-gradient(180deg, rgba(2, 6, 23, 0.08) 0%, rgba(2, 6, 23, 0.22) 46%, rgba(2, 6, 23, 0.66) 100%),
+    linear-gradient(90deg, rgba(2, 6, 23, 0.46) 0%, rgba(2, 6, 23, 0.12) 58%, rgba(2, 6, 23, 0.26) 100%);
 }
 .nl-login__brand img.wm { width: 210px; object-fit: contain; position: relative; z-index: 1; }
 .nl-login__hero { position: relative; z-index: 1; }
