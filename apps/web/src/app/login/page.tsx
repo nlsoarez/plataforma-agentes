@@ -8,6 +8,24 @@ export default function Login() {
   const [senha, setSenha] = useState('');
   const [msg, setMsg] = useState('');
   const [carregando, setCarregando] = useState(false);
+  const [googleCarregando, setGoogleCarregando] = useState(false);
+
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const token = hash.get('token');
+    if (token) {
+      localStorage.setItem('token', token);
+      window.history.replaceState(null, '', '/login');
+      window.location.href = '/dashboard';
+      return;
+    }
+
+    const erroGoogle = new URLSearchParams(window.location.search).get('google_error');
+    if (erroGoogle) {
+      setMsg(`Falha no login com Google: ${erroGoogle}`);
+      window.history.replaceState(null, '', '/login');
+    }
+  }, []);
 
   async function entrar() {
     setCarregando(true);
@@ -29,6 +47,27 @@ export default function Login() {
       setMsg('Erro de conexão.');
     }
     setCarregando(false);
+  }
+
+  async function entrarGoogle() {
+    setGoogleCarregando(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/auth/google/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dominio: window.location.host, origem: window.location.origin }),
+      });
+      const d = await r.json();
+      if (d.url) {
+        window.location.href = d.url;
+        return;
+      }
+      setMsg(d.message || 'Google nao configurado.');
+    } catch {
+      setMsg('Erro ao iniciar login com Google.');
+    }
+    setGoogleCarregando(false);
   }
 
   return (
@@ -74,6 +113,16 @@ export default function Login() {
 
           <button className="nl-btn nl-btn--accent" style={{ width: '100%' }} onClick={entrar} disabled={carregando}>
             {carregando ? 'Entrando...' : 'Entrar'}
+          </button>
+          <div className="nl-login__divider"><span>ou</span></div>
+          <button
+            className="nl-btn nl-login__google"
+            style={{ width: '100%' }}
+            onClick={entrarGoogle}
+            disabled={googleCarregando || carregando}
+          >
+            <span className="nl-login__google-mark">G</span>
+            {googleCarregando ? 'Abrindo Google...' : 'Entrar com Google'}
           </button>
           {msg && <p style={{ color: '#c0392b', fontSize: '0.88rem', marginTop: 14 }}>{msg}</p>}
         </div>

@@ -38,6 +38,33 @@ admin@demo.com / senha123
 dominio: localhost:3001
 ```
 
+## Login com Google
+
+O login com Google usa OAuth Authorization Code + PKCE no backend e entrega o
+mesmo JWT usado pelo login por senha. Isso mantem o painel compatível com o
+`localStorage.token` atual.
+
+Configure no `.env`:
+
+```env
+GOOGLE_OAUTH_CLIENT_ID=seu-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=seu-client-secret
+GOOGLE_OAUTH_REDIRECT_URI=http://localhost:3000/auth/google/callback
+WEB_APP_URL=http://localhost:3001
+```
+
+No Google Cloud Console, cadastre a redirect URI acima. Em producao, use a URL
+publica da API, por exemplo:
+
+```text
+https://api.seudominio.com/auth/google/callback
+```
+
+Regra importante: a conta Google so entra se o e-mail ja existir na tabela
+`usuarios` daquele tenant. No primeiro login valido, o sistema vincula o
+`google_sub` ao usuario. Isso evita auto-cadastro indevido em agencias
+white-label.
+
 ## Fluxo Evolution
 
 Para o QR apenas conectar, `EVOLUTION_API_URL` e `EVOLUTION_API_KEY` bastam.

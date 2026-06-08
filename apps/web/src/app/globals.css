@@ -375,6 +375,42 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-login__hero p { color: rgba(255,255,255,0.62); max-width: 38ch; margin-top: 16px; font-size: 1.02rem; }
 .nl-login__form { display: flex; align-items: center; justify-content: center; padding: 40px; }
 .nl-login__form .inner { width: 100%; max-width: 360px; }
+.nl-login__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-faint);
+  font-size: .78rem;
+  font-weight: 800;
+  margin: 18px 0;
+  text-transform: uppercase;
+}
+.nl-login__divider::before,
+.nl-login__divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+.nl-login__google {
+  background: var(--white);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.nl-login__google:hover { border-color: rgba(34,197,94,.42); box-shadow: var(--shadow-md); }
+.nl-login__google-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: conic-gradient(from -45deg, #4285f4 0 25%, #34a853 0 50%, #fbbc05 0 75%, #ea4335 0 100%);
+  color: var(--white);
+  font-weight: 900;
+  font-size: .82rem;
+  margin-right: 8px;
+}
 
 @keyframes nl-star-drift {
   0% { background-position: 0 0, 0 0, 0 0, 0 0; opacity: .42; }
