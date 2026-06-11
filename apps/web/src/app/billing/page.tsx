@@ -124,6 +124,11 @@ export default function Billing() {
 
           <section className="nl-card nl-card--pad">
             <div className="eyebrow">Pagamento</div>
+            {info && !info.asaas_configurado && (
+              <p className="nl-error">
+                Asaas ainda nao configurado. Defina ASAAS_API_KEY e ASAAS_WEBHOOK_TOKEN no Railway antes de criar cobrancas reais.
+              </p>
+            )}
             <div className="nl-row" style={{ marginTop: 14 }}>
               <button className={`nl-pill ${billingCycle === 'monthly' ? 'active' : ''}`} onClick={() => setBillingCycle('monthly')}>Mensal</button>
               <button className={`nl-pill ${billingCycle === 'annual' ? 'active' : ''}`} onClick={() => setBillingCycle('annual')}>Anual</button>
@@ -140,8 +145,8 @@ export default function Billing() {
             <input className="nl-input" value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} placeholder="Somente numeros" />
             <label className="nl-label" style={{ marginTop: 12 }}>Telefone</label>
             <input className="nl-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Opcional" />
-            <button className="nl-btn nl-btn--accent" style={{ width: '100%', marginTop: 16 }} onClick={checkout} disabled={loadingCheckout || !selectedPlan}>
-              {loadingCheckout ? 'Criando cobranca...' : `Assinar ${selectedPlan?.name || ''} - ${formatCurrency(selectedPrice)}`}
+            <button className="nl-btn nl-btn--accent" style={{ width: '100%', marginTop: 16 }} onClick={checkout} disabled={loadingCheckout || !selectedPlan || info?.asaas_configurado === false}>
+              {loadingCheckout ? 'Criando cobranca...' : info?.asaas_configurado === false ? 'Configure Asaas primeiro' : `Assinar ${selectedPlan?.name || ''} - ${formatCurrency(selectedPrice)}`}
             </button>
             {paymentUrl && <a className="nl-btn nl-btn--ghost" style={{ width: '100%', marginTop: 10 }} href={paymentUrl} target="_blank">Abrir cobranca</a>}
             {pixQrCode && <textarea className="nl-textarea" style={{ minHeight: 96, marginTop: 10 }} readOnly value={pixQrCode} />}

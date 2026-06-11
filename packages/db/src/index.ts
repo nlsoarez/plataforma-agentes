@@ -73,3 +73,47 @@ export async function statusTenant(tenantId: string): Promise<string | null> {
 export async function definirStatusTenant(tenantId: string, status: string): Promise<void> {
   await pool.query('update tenants set status=$1 where id=$2', [status, tenantId]);
 }
+
+export type BillingAccessState =
+  | 'active'
+  | 'trialing'
+  | 'past_due_grace'
+  | 'restricted'
+  | 'needs_subscription';
+
+export async function acessoBillingTenant(tenantId: string): Promise<{
+  state: BillingAccessState;
+  canUsePaidFeatures: boolean;
+}> {
+  const r = await pool.query(
+    `select status, trial_ends_at, grace_period_ends_at
+       from assinaturas
+      where tenant_id=$1
+      order by case
+        when lower(status) in ('ativa','active','trialing','trial') then 0
+        when lower(status) in ('inadimplente','past_due','overdue') then 1
+        when lower(status) in ('pendente','pending','pending_payment') then 2
+        else 3
+      end,
+      criado_em desc
+      limit 1`,
+    [tenantId],
+  );
+  const row = r.rows[0];
+  if (!row) return { state: 'needs_subscription', canUsePaidFeatures: false };
+
+  const status = String(row.status || '').toLowerCase();
+  const now = Date.now();
+  const trialEndsAt = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
+  const graceEndsAt = row.grace_period_ends_at ? new Date(row.grace_period_ends_at).getTime() : 0;
+
+  if (['ativa', 'active'].includes(status)) return { state: 'active', canUsePaidFeatures: true };
+  if (['trialing', 'trial'].includes(status) && (!trialEndsAt || trialEndsAt >= now)) {
+    return { state: 'trialing', canUsePaidFeatures: true };
+  }
+  if (['inadimplente', 'past_due', 'overdue'].includes(status) && graceEndsAt >= now) {
+    return { state: 'past_due_grace', canUsePaidFeatures: true };
+  }
+
+  return { state: 'restricted', canUsePaidFeatures: false };
+}

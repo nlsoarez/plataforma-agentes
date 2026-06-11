@@ -1,4 +1,4 @@
-import { comTenant, resolverProjetoPorNumero, statusTenant } from '@plataforma/db';
+import { acessoBillingTenant, comTenant, resolverProjetoPorNumero } from '@plataforma/db';
 import { criarDriver } from '@plataforma/transport';
 import { publicar } from '@plataforma/bus';
 import {
@@ -20,10 +20,7 @@ export async function tratarMensagemRecebida(ev: {
   if (!rota) { console.warn('[rota] projeto ativo nao encontrado para', ev.phoneNumberId); return; }
   const { tenant_id: tenantId, projeto_id: projetoId } = rota;
 
-  if ((await statusTenant(tenantId)) === 'suspended') {
-    console.warn('[billing] tenant suspenso, ignorando atendimento', tenantId);
-    return;
-  }
+  const billing = await acessoBillingTenant(tenantId);
 
   await comTenant(tenantId, async (q) => {
     const contato = await upsertContato(q, tenantId, projetoId, ev.de);
@@ -37,6 +34,17 @@ export async function tratarMensagemRecebida(ev: {
       direcao: 'inbound', autor: 'contato', conteudo: ev.conteudo, metaMessageId: ev.metaId, midia: ev.midia,
     });
     await publicar(tenantId, { tipo: 'mensagem', conversaId: conversa.id, autor: 'contato', conteudo: ev.conteudo });
+
+    if (!billing.canUsePaidFeatures) {
+      await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'warn', 'BILLING_RESTRICTED', 'Mensagem recebida, mas recursos pagos bloqueados pela assinatura', {
+        conversaId: conversa.id,
+        contatoId,
+        billingState: billing.state,
+      });
+      console.warn('[billing] tenant restrito, inbound salvo sem automacao/ia', tenantId, billing.state);
+      return;
+    }
+
     const payload = await leadPayload(q, contatoId);
     if (contato.criado && payload) await dispararWebhooks(q, tenantId, 'LEAD_CREATED', payload);
     if (payload) await dispararWebhooks(q, tenantId, 'LEAD_INTERACTION', { ...payload, message: { from: ev.de, text: ev.conteudo, direction: 'inbound' } });

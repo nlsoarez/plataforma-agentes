@@ -48,6 +48,8 @@ export class BillingService {
     url: string | null;
     pixQrCode?: string | null;
   }> {
+    if (!process.env.ASAAS_API_KEY) throw new BadRequestException('ASAAS_API_KEY nao configurada');
+
     const planCode = input.planCode || 'pro';
     const billingCycle = input.billingCycle === 'annual' ? 'annual' : 'monthly';
     const billingType = this.billingType(input.billingType);

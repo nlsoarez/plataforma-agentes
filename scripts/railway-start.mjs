@@ -16,12 +16,40 @@ if (!command) {
   process.exit(1);
 }
 
-const child = spawn(command[0], command[1], { stdio: 'inherit', shell: process.platform === 'win32' });
+async function run(cmd, args) {
+  await new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32' });
+    child.on('exit', (code, signal) => {
+      if (signal) {
+        reject(new Error(`${cmd} encerrado por sinal ${signal}`));
+        return;
+      }
+      if (code) {
+        reject(new Error(`${cmd} saiu com codigo ${code}`));
+        return;
+      }
+      resolve();
+    });
+  });
+}
 
-child.on('exit', (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
+async function main() {
+  if (service === 'api' && process.env.RUN_MIGRATIONS_ON_START !== 'false') {
+    console.log('[startup] aplicando migrations antes da API');
+    await run('pnpm', ['--filter', '@plataforma/db', 'migrate']);
   }
-  process.exit(code ?? 1);
+
+  const child = spawn(command[0], command[1], { stdio: 'inherit', shell: process.platform === 'win32' });
+  child.on('exit', (code, signal) => {
+    if (signal) {
+      process.kill(process.pid, signal);
+      return;
+    }
+    process.exit(code ?? 1);
+  });
+}
+
+main().catch((err) => {
+  console.error('[startup] falhou', err?.message || err);
+  process.exit(1);
 });

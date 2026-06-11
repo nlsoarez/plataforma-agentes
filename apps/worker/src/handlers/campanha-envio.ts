@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 import { Queue } from 'bullmq';
-import { comTenant } from '@plataforma/db';
+import { acessoBillingTenant, comTenant } from '@plataforma/db';
 import { criarDriver } from '@plataforma/transport';
 import { acharOuCriarConversa, gravarMensagem } from '../repos';
 import { dentroDoHorario, msAteProximaJanela, atrasoGaussiano, expandirSpintax, capDiario } from '../antiban';
@@ -15,6 +15,16 @@ type Job = {
 };
 
 export async function tratarEnvioCampanha(job: Job) {
+  const billing = await acessoBillingTenant(job.tenantId);
+  if (!billing.canUsePaidFeatures) {
+    await comTenant(job.tenantId, (q) => q(
+      `update campanha_envios set status='falha' where id=$1`,
+      [job.envioId],
+    ));
+    console.warn('[billing] campanha bloqueada por assinatura restrita', job.tenantId, billing.state);
+    return;
+  }
+
   // 1. Horário comercial: fora da janela, reagenda (não dispara de madrugada).
   if (!dentroDoHorario()) {
     await fila.add('envio', job, { delay: msAteProximaJanela() });
