@@ -22,9 +22,9 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/png',
       },
       {
-        src: '/brand/comunora/comunora-favicon.svg',
-        sizes: 'any',
-        type: 'image/svg+xml',
+        src: '/brand/comunora/comunora-favicon.png',
+        sizes: '32x32',
+        type: 'image/png',
       },
     ],
   };

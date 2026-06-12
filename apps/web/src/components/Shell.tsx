@@ -81,7 +81,7 @@ export default function Shell({ title, children }: { title: string; children: Re
       {branding.customCss ? <style dangerouslySetInnerHTML={{ __html: branding.customCss }} /> : null}
       <aside className="nl-sidebar">
         <a href="/" className="nl-brand" aria-label={branding.name}>
-          <img src={branding.logoUrl || BRAND.logoLight} alt={branding.name} style={{ height: 32 }} />
+          <img src={branding.logoUrl || BRAND.logoLight} alt={branding.name} />
         </a>
         <nav className="nl-nav">
           {NAV.map((n) => (

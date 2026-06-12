@@ -12,11 +12,11 @@ export const BRAND = {
   docsUrl: process.env.NEXT_PUBLIC_DOCS_URL || 'https://docs.comunora.com.br',
   statusUrl: process.env.NEXT_PUBLIC_STATUS_URL || 'https://status.comunora.com.br',
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'suporte@comunora.com.br',
-  logoDark: '/brand/comunora/comunora-logo-horizontal-dark.svg',
-  logoLight: '/brand/comunora/comunora-logo-horizontal-light.svg',
-  symbol: '/brand/comunora/comunora-symbol.svg',
-  symbolLight: '/brand/comunora/comunora-symbol-light.svg',
-  favicon: '/brand/comunora/comunora-favicon.svg',
+  logoDark: '/brand/comunora/comunora-logo-horizontal-official.png',
+  logoLight: '/brand/comunora/comunora-logo-horizontal-official.png',
+  symbol: '/brand/comunora/comunora-symbol-official.png',
+  symbolLight: '/brand/comunora/comunora-symbol-official.png',
+  favicon: '/brand/comunora/comunora-favicon.png',
   ogImage: '/brand/comunora/comunora-og-image.png',
 };
 

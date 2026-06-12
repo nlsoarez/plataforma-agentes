@@ -106,8 +106,8 @@ export class PublicBrandingController {
   async branding(@Query('dominio') dominio?: string) {
     const fallback = {
       name: process.env.NEXT_PUBLIC_BRAND_NAME || 'Comunora',
-      logoUrl: '/brand/comunora/comunora-logo-horizontal-light.svg',
-      faviconUrl: '/brand/comunora/comunora-favicon.svg',
+      logoUrl: '/brand/comunora/comunora-logo-horizontal-official.png',
+      faviconUrl: '/brand/comunora/comunora-favicon.png',
       primaryColor: '#1565FF',
       supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'suporte@comunora.com.br',
     };
