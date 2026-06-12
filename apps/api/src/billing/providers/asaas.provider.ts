@@ -83,9 +83,14 @@ export class AsaasProvider {
     });
 
     const text = await response.text();
-    const payload = text ? JSON.parse(text) : {};
+    let payload: any = {};
+    try {
+      payload = text ? JSON.parse(text) : {};
+    } catch {
+      payload = { message: text || `Asaas retornou HTTP ${response.status}` };
+    }
     if (!response.ok) {
-      const message = payload?.errors?.[0]?.description || payload?.message || 'falha na API Asaas';
+      const message = payload?.errors?.[0]?.description || payload?.message || `falha na API Asaas (${response.status})`;
       throw new BadRequestException(message);
     }
     return payload;

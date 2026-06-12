@@ -139,7 +139,7 @@ export class BillingService {
           `insert into invoices
             (tenant_id, subscription_id, provider, external_invoice_id, amount_cents, status,
              due_date, payment_method, invoice_url, boleto_url, pix_qr_code, payload)
-           values ($1,$2,'asaas',$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           values ($1,$2,'asaas',$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
            on conflict (provider, external_invoice_id) do update set
              status=excluded.status,
              invoice_url=excluded.invoice_url,

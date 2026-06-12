@@ -21,6 +21,7 @@ export default function Billing() {
   const { token, ready } = useStoredToken();
   const [info, setInfo] = useState<any>(null);
   const [msg, setMsg] = useState('');
+  const [msgKind, setMsgKind] = useState<'success' | 'error' | ''>('');
   const [paymentUrl, setPaymentUrl] = useState('');
   const [pixQrCode, setPixQrCode] = useState('');
   const [loadingCheckout, setLoadingCheckout] = useState(false);
@@ -50,6 +51,7 @@ export default function Billing() {
     if (!token) return;
     setLoadingCheckout(true);
     setMsg('');
+    setMsgKind('');
     setPaymentUrl('');
     setPixQrCode('');
     try {
@@ -69,15 +71,18 @@ export default function Billing() {
       const d = await r.json();
       if (!r.ok) {
         setMsg(d?.message || d?.error?.message || 'Nao foi possivel iniciar a assinatura.');
+        setMsgKind('error');
         setLoadingCheckout(false);
         return;
       }
       setPaymentUrl(d.url || '');
       setPixQrCode(d.pixQrCode || '');
       setMsg('Assinatura criada no Asaas. Conclua o pagamento pela cobranca gerada.');
+      setMsgKind('success');
       await carregar();
     } catch {
       setMsg('Erro ao iniciar assinatura.');
+      setMsgKind('error');
     }
     setLoadingCheckout(false);
   }
@@ -150,7 +155,7 @@ export default function Billing() {
             </button>
             {paymentUrl && <a className="nl-btn nl-btn--ghost" style={{ width: '100%', marginTop: 10 }} href={paymentUrl} target="_blank">Abrir cobranca</a>}
             {pixQrCode && <textarea className="nl-textarea" style={{ minHeight: 96, marginTop: 10 }} readOnly value={pixQrCode} />}
-            {msg && <p className={msg.includes('Erro') || msg.includes('Nao') ? 'nl-error' : 'nl-success'}>{msg}</p>}
+            {msg && <p className={msgKind === 'success' ? 'nl-success' : 'nl-error'}>{msg}</p>}
           </section>
         </aside>
 
