@@ -166,7 +166,7 @@ async function upsertInvoice(q: any, tenantId: string, subscriptionId: string, p
     `insert into invoices
       (tenant_id, subscription_id, provider, external_invoice_id, amount_cents, status,
        due_date, paid_at, payment_method, invoice_url, boleto_url, payload)
-     values ($1,$2,'asaas',$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     values ($1,$2,'asaas',$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
      on conflict (provider, external_invoice_id) do update set
        status=excluded.status,
        paid_at=coalesce(excluded.paid_at, invoices.paid_at),
@@ -185,7 +185,7 @@ async function upsertInvoice(q: any, tenantId: string, subscriptionId: string, p
       payment.billingType ?? null,
       payment.invoiceUrl ?? null,
       payment.bankSlipUrl ?? null,
-      payment,
+      JSON.stringify(payment),
     ],
   );
 }

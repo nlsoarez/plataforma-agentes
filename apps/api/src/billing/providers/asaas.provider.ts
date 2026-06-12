@@ -21,6 +21,15 @@ export interface AsaasSubscriptionInput {
   externalReference: string;
 }
 
+export interface AsaasUpdateSubscriptionInput {
+  billingType?: AsaasBillingType;
+  value?: number;
+  cycle?: AsaasCycle;
+  nextDueDate?: string;
+  description?: string;
+  updatePendingPayments?: boolean;
+}
+
 @Injectable()
 export class AsaasProvider {
   async createCustomer(input: AsaasCustomerInput): Promise<any> {
@@ -56,6 +65,25 @@ export class AsaasProvider {
       method: 'GET',
     });
     return Array.isArray(payload?.data) ? payload.data : [];
+  }
+
+  async getSubscription(subscriptionId: string): Promise<any> {
+    return this.request(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: 'GET',
+    });
+  }
+
+  async updateSubscription(subscriptionId: string, input: AsaasUpdateSubscriptionInput): Promise<any> {
+    return this.request(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteSubscription(subscriptionId: string): Promise<any> {
+    return this.request(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: 'DELETE',
+    });
   }
 
   async getPixQrCode(paymentId: string): Promise<any | null> {

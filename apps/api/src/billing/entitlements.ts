@@ -50,6 +50,9 @@ const PAST_DUE_STATUSES = new Set(['inadimplente', 'past_due', 'overdue']);
 const CANCELED_STATUSES = new Set(['cancelada', 'canceled', 'cancelled']);
 
 export async function ensureTrialSubscription(tenantId: string): Promise<void> {
+  const trialDays = Number(process.env.BILLING_TRIAL_DAYS || 0);
+  if (!Number.isFinite(trialDays) || trialDays <= 0) return;
+
   await comTenant(tenantId, async (q) => {
     const exists = (await q(`select 1 from assinaturas where tenant_id=$1 limit 1`, [tenantId])).rowCount > 0;
     if (exists) return;
@@ -63,10 +66,10 @@ export async function ensureTrialSubscription(tenantId: string): Promise<void> {
         (tenant_id, plano_id, provider, status, qtd_projetos, billing_cycle,
          trial_started_at, trial_ends_at, current_period_started_at, current_period_ends_at,
          migration_origin, metadata)
-       values ($1,$2,'trial','trialing',$3,'monthly',now(),now() + interval '7 days',
-               now(),now() + interval '7 days','signup_trial',
+       values ($1,$2,'trial','trialing',$3,'monthly',now(),now() + ($4::int * interval '1 day'),
+               now(),now() + ($4::int * interval '1 day'),'signup_trial',
                jsonb_build_object('created_by','ensureTrialSubscription'))`,
-      [tenantId, plan.id, Math.max(qtd, 1)],
+      [tenantId, plan.id, Math.max(qtd, 1), trialDays],
     );
   });
 }
@@ -109,7 +112,7 @@ export async function getSubscriptionAccess(tenantId: string): Promise<Subscript
       return access('active', true, true, row, plan);
     }
 
-    if (TRIAL_STATUSES.has(status) && (!trialEndsAt || trialEndsAt >= now)) {
+    if (trialAccessEnabled() && TRIAL_STATUSES.has(status) && (!trialEndsAt || trialEndsAt >= now)) {
       return access('trialing', true, true, row, plan);
     }
 
@@ -127,6 +130,11 @@ export async function getSubscriptionAccess(tenantId: string): Promise<Subscript
 
     return access('needs_subscription', false, false, row, plan);
   });
+}
+
+function trialAccessEnabled(): boolean {
+  const trialDays = Number(process.env.BILLING_TRIAL_DAYS || 0);
+  return Number.isFinite(trialDays) && trialDays > 0;
 }
 
 export async function listPlansWithEntitlements(): Promise<any[]> {

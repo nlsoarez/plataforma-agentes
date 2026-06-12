@@ -1,6 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -25,6 +28,39 @@ const NAV = [
 
 export default function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   const path = usePathname();
+  const [billingChecked, setBillingChecked] = useState(path === '/billing');
+
+  useEffect(() => {
+    if (path === '/billing') {
+      setBillingChecked(true);
+      return;
+    }
+
+    const token = window.localStorage.getItem('token');
+    if (!token) {
+      setBillingChecked(true);
+      return;
+    }
+
+    let alive = true;
+    fetch(`${API}/billing`, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    })
+      .then((r) => r.json())
+      .then((billing) => {
+        if (!alive) return;
+        if (!billing?.pago) {
+          window.location.href = '/billing';
+          return;
+        }
+        setBillingChecked(true);
+      })
+      .catch(() => setBillingChecked(true));
+
+    return () => {
+      alive = false;
+    };
+  }, [path]);
 
   function sair() {
     localStorage.removeItem('token');
@@ -52,7 +88,14 @@ export default function Shell({ title, children }: { title: string; children: Re
         <header className="nl-topbar">
           <div className="title">{title}</div>
         </header>
-        <div className="nl-content">{children}</div>
+        <div className="nl-content">
+          {billingChecked ? children : (
+            <div className="nl-card nl-card--pad">
+              <div className="display display-md">Verificando assinatura</div>
+              <p className="muted">Aguarde enquanto validamos seu acesso.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

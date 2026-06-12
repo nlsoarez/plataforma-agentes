@@ -24,6 +24,30 @@ export class AuthController {
     return this.svc.googleStart(dominio, body.origem);
   }
 
+  @Post('password/forgot')
+  forgotPassword(@Body() body: { dominio?: string; email: string; origem?: string }, @Req() req: any) {
+    const dominio = body.dominio ?? req.headers['x-tenant-host'];
+    return this.svc.solicitarResetSenha(dominio, body.email, body.origem);
+  }
+
+  @Post('password/reset')
+  resetPassword(@Body() body: { dominio?: string; token: string; senha: string }, @Req() req: any) {
+    const dominio = body.dominio ?? req.headers['x-tenant-host'];
+    return this.svc.redefinirSenha(dominio, body.token, body.senha);
+  }
+
+  @Post('email/verify/request')
+  requestEmailVerification(@Body() body: { dominio?: string; email: string; origem?: string }, @Req() req: any) {
+    const dominio = body.dominio ?? req.headers['x-tenant-host'];
+    return this.svc.solicitarVerificacaoEmail(dominio, body.email, body.origem);
+  }
+
+  @Post('email/verify')
+  verifyEmail(@Body() body: { dominio?: string; token: string }, @Req() req: any) {
+    const dominio = body.dominio ?? req.headers['x-tenant-host'];
+    return this.svc.verificarEmail(dominio, body.token);
+  }
+
   @Get('google/callback')
   async googleCallback(
     @Query('code') code: string,

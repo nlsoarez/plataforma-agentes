@@ -19,4 +19,14 @@ export class BillingController {
   assinar(@Body() body: SubscribeInput, @Req() req: any) {
     return this.svc.criarCheckout(req.user.tenantId, req.user.sub, body);
   }
+
+  @Post('sincronizar')
+  sincronizar(@Req() req: any) {
+    return this.svc.sincronizar(req.user.tenantId);
+  }
+
+  @Post('cancelar')
+  cancelar(@Req() req: any) {
+    return this.svc.cancelar(req.user.tenantId);
+  }
 }

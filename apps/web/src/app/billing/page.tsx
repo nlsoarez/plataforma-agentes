@@ -87,6 +87,50 @@ export default function Billing() {
     setLoadingCheckout(false);
   }
 
+  async function sincronizar() {
+    if (!token) return;
+    setMsg('');
+    setMsgKind('');
+    try {
+      const r = await fetch(`${API}/billing/sincronizar`, { method: 'POST', headers: auth(token) });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) {
+        setMsg(d?.message || 'Nao foi possivel sincronizar com o Asaas.');
+        setMsgKind('error');
+      } else {
+        setMsg(`Sincronizado com Asaas. Status: ${d.status || 'atualizado'}.`);
+        setMsgKind('success');
+        await carregar();
+      }
+    } catch {
+      setMsg('Erro ao sincronizar assinatura.');
+      setMsgKind('error');
+    }
+  }
+
+  async function cancelar() {
+    if (!token) return;
+    const ok = window.confirm('Cancelar a assinatura no Asaas e suspender o acesso agora?');
+    if (!ok) return;
+    setMsg('');
+    setMsgKind('');
+    try {
+      const r = await fetch(`${API}/billing/cancelar`, { method: 'POST', headers: auth(token) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.ok === false) {
+        setMsg(d?.message || 'Nao foi possivel cancelar a assinatura.');
+        setMsgKind('error');
+      } else {
+        setMsg('Assinatura cancelada.');
+        setMsgKind('success');
+        await carregar();
+      }
+    } catch {
+      setMsg('Erro ao cancelar assinatura.');
+      setMsgKind('error');
+    }
+  }
+
   if (!ready) return <SessionLoading />;
   if (!token) return <SessionRequired />;
 
@@ -120,11 +164,22 @@ export default function Billing() {
             <p className="muted" style={{ margin: '10px 0 0', fontSize: '.9rem' }}>
               {statusHelp(info)}
             </p>
+            <div className="nl-row" style={{ marginTop: 16 }}>
+              <button className="nl-btn nl-btn--ghost" onClick={sincronizar}>Sincronizar Asaas</button>
+              {info?.assinatura?.provider === 'asaas' && (
+                <button className="nl-btn nl-btn--ghost" onClick={cancelar}>Cancelar</button>
+              )}
+            </div>
           </section>
 
           <section className="nl-card nl-card--pad">
             <div className="eyebrow">Uso atual</div>
             <UsageRows usage={info?.uso || {}} />
+          </section>
+
+          <section className="nl-card nl-card--pad">
+            <div className="eyebrow">Cobranças</div>
+            <InvoiceList invoices={info?.invoices || []} />
           </section>
 
           <section className="nl-card nl-card--pad">
@@ -170,8 +225,55 @@ export default function Billing() {
             />
           ))}
         </section>
+
+        <section className="nl-card nl-card--pad">
+          <div className="eyebrow">Eventos de pagamento</div>
+          <BillingEvents events={info?.eventos || []} />
+        </section>
       </div>
     </Shell>
+  );
+}
+
+function InvoiceList({ invoices }: { invoices: any[] }) {
+  if (!invoices.length) return <p className="muted" style={{ marginBottom: 0 }}>Nenhuma cobrança gerada ainda.</p>;
+  return (
+    <div style={{ marginTop: 12 }}>
+      {invoices.slice(0, 5).map((invoice) => (
+        <div key={invoice.id || invoice.external_invoice_id} className="nl-row" style={{ justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid var(--line)' }}>
+          <div>
+            <b>{formatCurrency(Number(invoice.amount_cents || 0))}</b>
+            <div className="faint" style={{ fontSize: '.78rem' }}>
+              {invoice.payment_method || '-'} / {invoice.due_date ? dateLabel(invoice.due_date) : '-'}
+            </div>
+          </div>
+          <div className="nl-row">
+            <span className={`nl-badge ${paidStatus(invoice.status) ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{invoice.status}</span>
+            {(invoice.invoice_url || invoice.boleto_url) && (
+              <a className="nl-btn nl-btn--ghost" href={invoice.invoice_url || invoice.boleto_url} target="_blank">Abrir</a>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BillingEvents({ events }: { events: any[] }) {
+  if (!events.length) return <p className="muted" style={{ marginBottom: 0 }}>Nenhum evento recebido ainda.</p>;
+  return (
+    <div className="nl-stack" style={{ marginTop: 12 }}>
+      {events.slice(0, 8).map((event, index) => (
+        <div key={`${event.event_type}-${event.created_at}-${index}`} className="nl-row" style={{ justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+          <div>
+            <b>{event.event_type || '-'}</b>
+            <div className="faint" style={{ fontSize: '.78rem' }}>{event.created_at ? new Date(event.created_at).toLocaleString('pt-BR') : '-'}</div>
+            {event.processing_error && <div className="nl-error" style={{ marginTop: 6 }}>{event.processing_error}</div>}
+          </div>
+          <span className={`nl-badge ${event.processing_status === 'processed' ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{event.processing_status}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -260,6 +362,10 @@ function statusLabel(status: string) {
     needs_subscription: 'sem assinatura',
   };
   return map[status] || status;
+}
+
+function paidStatus(status?: string) {
+  return ['received', 'confirmed', 'paid', 'recebida', 'recebido'].includes(String(status || '').toLowerCase());
 }
 
 function statusHelp(info: any) {

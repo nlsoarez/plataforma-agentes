@@ -33,8 +33,7 @@ export class AuthGuard implements CanActivate {
     if (access.canWrite) return false;
 
     const method = String(req.method || 'GET').toUpperCase();
-    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
-
+    if (method === 'OPTIONS') return false;
     return true;
   }
 }

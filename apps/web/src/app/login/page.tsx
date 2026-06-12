@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function Login() {
-  const [modo, setModo] = useState<'login' | 'cadastro'>('login');
+  const [modo, setModo] = useState<'login' | 'cadastro' | 'recuperar' | 'reset'>('login');
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [msg, setMsg] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [googleCarregando, setGoogleCarregando] = useState(false);
@@ -24,6 +25,19 @@ export default function Login() {
     }
 
     const erroGoogle = new URLSearchParams(window.location.search).get('google_error');
+    const tokenReset = new URLSearchParams(window.location.search).get('reset_token');
+    const tokenVerify = new URLSearchParams(window.location.search).get('verify_token');
+    if (tokenReset) {
+      setResetToken(tokenReset);
+      setModo('reset');
+      window.history.replaceState(null, '', '/login');
+      return;
+    }
+    if (tokenVerify) {
+      verificarEmail(tokenVerify);
+      window.history.replaceState(null, '', '/login');
+      return;
+    }
     if (erroGoogle) {
       setMsg(`Falha no login com Google: ${erroGoogle}`);
       window.history.replaceState(null, '', '/login');
@@ -104,6 +118,74 @@ export default function Login() {
     setGoogleCarregando(false);
   }
 
+  async function recuperarSenha() {
+    if (!email.trim()) {
+      setMsg('Informe seu e-mail.');
+      return;
+    }
+    setCarregando(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/auth/password/forgot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dominio: window.location.host, email, origem: window.location.origin }),
+      });
+      const d = await r.json();
+      setMsg(d.url ? `Link de teste: ${d.url}` : 'Se o e-mail existir, enviaremos o link de redefinicao.');
+    } catch {
+      setMsg('Erro ao solicitar redefinicao.');
+    }
+    setCarregando(false);
+  }
+
+  async function redefinirSenha() {
+    if (senha.length < 8) {
+      setMsg('A senha precisa ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (senha !== confirmarSenha) {
+      setMsg('As senhas nao conferem.');
+      return;
+    }
+    setCarregando(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/auth/password/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dominio: window.location.host, token: resetToken, senha }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) {
+        setMsg(d.message || 'Token invalido ou expirado.');
+      } else {
+        setMsg('Senha redefinida. Entre com a nova senha.');
+        setModo('login');
+        setSenha('');
+        setConfirmarSenha('');
+      }
+    } catch {
+      setMsg('Erro ao redefinir senha.');
+    }
+    setCarregando(false);
+  }
+
+  async function verificarEmail(token: string) {
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/auth/email/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dominio: window.location.host, token }),
+      });
+      const d = await r.json();
+      setMsg(r.ok && d.ok !== false ? 'E-mail verificado. Entre para continuar.' : d.message || 'Token de verificacao invalido.');
+    } catch {
+      setMsg('Erro ao verificar e-mail.');
+    }
+  }
+
   async function redirectAfterAuth(token: string) {
     try {
       const r = await fetch(`${API}/billing`, { headers: { Authorization: `Bearer ${token}` } });
@@ -132,8 +214,10 @@ export default function Login() {
 
       <section className="nl-login__form">
         <div className="inner">
-          <div className="eyebrow" style={{ marginBottom: 10 }}>{modo === 'login' ? 'Acesso' : 'Cadastro'}</div>
-          <h1 className="display display-md" style={{ marginBottom: 26 }}>{modo === 'login' ? 'Entrar' : 'Criar conta'}</h1>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>{modo === 'login' ? 'Acesso' : modo === 'cadastro' ? 'Cadastro' : 'Conta'}</div>
+          <h1 className="display display-md" style={{ marginBottom: 26 }}>
+            {modo === 'login' ? 'Entrar' : modo === 'cadastro' ? 'Criar conta' : modo === 'reset' ? 'Nova senha' : 'Recuperar senha'}
+          </h1>
 
           {modo === 'cadastro' && (
             <>
@@ -157,18 +241,22 @@ export default function Login() {
             style={{ marginBottom: 16 }}
           />
 
-          <label className="nl-label">Senha</label>
-          <input
-            className="nl-input"
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (modo === 'login' ? entrar() : cadastrar())}
-            placeholder="********"
-            style={{ marginBottom: 22 }}
-          />
+          {modo !== 'recuperar' && (
+            <>
+              <label className="nl-label">Senha</label>
+              <input
+                className="nl-input"
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (modo === 'login' ? entrar() : modo === 'reset' ? redefinirSenha() : cadastrar())}
+                placeholder="********"
+                style={{ marginBottom: 22 }}
+              />
+            </>
+          )}
 
-          {modo === 'cadastro' && (
+          {(modo === 'cadastro' || modo === 'reset') && (
             <>
               <label className="nl-label">Confirmar senha</label>
               <input
@@ -176,7 +264,7 @@ export default function Login() {
                 type="password"
                 value={confirmarSenha}
                 onChange={(e) => setConfirmarSenha(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && cadastrar()}
+                onKeyDown={(e) => e.key === 'Enter' && (modo === 'reset' ? redefinirSenha() : cadastrar())}
                 placeholder="********"
                 style={{ marginBottom: 22 }}
               />
@@ -186,21 +274,27 @@ export default function Login() {
           <button
             className="nl-btn nl-btn--accent"
             style={{ width: '100%' }}
-            onClick={modo === 'login' ? entrar : cadastrar}
+            onClick={modo === 'login' ? entrar : modo === 'cadastro' ? cadastrar : modo === 'reset' ? redefinirSenha : recuperarSenha}
             disabled={carregando}
           >
-            {carregando ? (modo === 'login' ? 'Entrando...' : 'Criando conta...') : (modo === 'login' ? 'Entrar' : 'Criar conta')}
+            {carregando
+              ? 'Aguarde...'
+              : modo === 'login' ? 'Entrar' : modo === 'cadastro' ? 'Criar conta' : modo === 'reset' ? 'Redefinir senha' : 'Enviar link'}
           </button>
-          <div className="nl-login__divider"><span>ou</span></div>
-          <button
-            className="nl-btn nl-login__google"
-            style={{ width: '100%' }}
-            onClick={entrarGoogle}
-            disabled={googleCarregando || carregando}
-          >
-            <span className="nl-login__google-mark">G</span>
-            {googleCarregando ? 'Abrindo Google...' : 'Entrar com Google'}
-          </button>
+          {modo !== 'reset' && (
+            <>
+              <div className="nl-login__divider"><span>ou</span></div>
+              <button
+                className="nl-btn nl-login__google"
+                style={{ width: '100%' }}
+                onClick={entrarGoogle}
+                disabled={googleCarregando || carregando}
+              >
+                <span className="nl-login__google-mark">G</span>
+                {googleCarregando ? 'Abrindo Google...' : 'Entrar com Google'}
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="nl-login__switch"
@@ -213,6 +307,11 @@ export default function Login() {
           >
             {modo === 'login' ? 'Criar uma conta' : 'Ja tenho uma conta'}
           </button>
+          {modo === 'login' && (
+            <button type="button" className="nl-login__switch" onClick={() => { setModo('recuperar'); setMsg(''); }}>
+              Esqueci minha senha
+            </button>
+          )}
           {msg && <p style={{ color: '#c0392b', fontSize: '0.88rem', marginTop: 14 }}>{msg}</p>}
         </div>
       </section>

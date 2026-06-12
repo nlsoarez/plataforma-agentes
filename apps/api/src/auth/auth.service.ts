@@ -35,13 +35,17 @@ export class AuthService {
     if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
 
     const user = await comTenant(tenant.id, async (q) => {
-      const r = await q(`select id, senha_hash, papel, status from usuarios where lower(email)=lower($1)`, [email]);
+      const r = await q(`select id, senha_hash, papel, status, email_verified_at from usuarios where lower(email)=lower($1)`, [email]);
       return r.rows[0];
     });
     if (!user || user.status !== 'ativo' || !verificarSenha(senha, user.senha_hash)) {
       throw new UnauthorizedException('credenciais invalidas');
     }
+    if (process.env.EMAIL_VERIFICATION_REQUIRED === 'true' && !user.email_verified_at) {
+      throw new UnauthorizedException('email ainda nao verificado');
+    }
     await ensureTrialSubscription(tenant.id);
+    await this.audit(tenant.id, user.id, 'auth.login', 'usuario', user.id);
     return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
   }
 
@@ -60,16 +64,121 @@ export class AuthService {
       if (existente.rows[0]) throw new ConflictException('email ja cadastrado');
 
       const r = await q(
-        `insert into usuarios (tenant_id, nome, email, senha_hash, papel, status, auth_provider, ultimo_login_em)
-         values ($1,$2,$3,$4,'cliente_final','ativo','password',now())
+        `insert into usuarios (tenant_id, nome, email, senha_hash, papel, status, auth_provider, ultimo_login_em, email_verified_at)
+         values ($1,$2,$3,$4,'cliente_final','ativo','password',now(),case when $5::boolean then null else now() end)
          returning id, papel`,
-        [tenant.id, nome, email, hashSenha(senha)],
+        [tenant.id, nome, email, hashSenha(senha), process.env.EMAIL_VERIFICATION_REQUIRED === 'true'],
       );
       return r.rows[0];
     });
 
     await ensureTrialSubscription(tenant.id);
+    await this.audit(tenant.id, user.id, 'auth.register', 'usuario', user.id);
     return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
+  }
+
+  async solicitarResetSenha(dominio: string, emailRaw: string, origem?: string): Promise<any> {
+    const tenant = dominio ? await resolverTenantPorDominio(dominio) : null;
+    if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
+    const email = this.normalizarEmail(emailRaw);
+    if (!email) throw new BadRequestException('email invalido');
+
+    const token = this.base64Url(randomBytes(32));
+    const tokenHash = this.hashToken(token);
+    const user = await comTenant(tenant.id, async (q) => {
+      const row = (await q(`select id from usuarios where lower(email)=lower($1) limit 1`, [email])).rows[0];
+      if (!row?.id) return null;
+      await q(
+        `insert into auth_tokens (tenant_id, usuario_id, tipo, token_hash, expires_at)
+         values ($1,$2,'password_reset',$3,now() + interval '30 minutes')`,
+        [tenant.id, row.id, tokenHash],
+      );
+      return row;
+    });
+    if (user?.id) await this.audit(tenant.id, user.id, 'auth.password_reset_requested', 'usuario', user.id);
+
+    return this.authLinkResponse('reset', token, this.origemPermitida(origem, dominio));
+  }
+
+  async redefinirSenha(dominio: string, token: string, senha: string): Promise<{ ok: true }> {
+    const tenant = dominio ? await resolverTenantPorDominio(dominio) : null;
+    if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
+    if (!token) throw new BadRequestException('token obrigatorio');
+    if (!senha || senha.length < 8) throw new BadRequestException('senha deve ter pelo menos 8 caracteres');
+
+    const tokenHash = this.hashToken(token);
+    const user = await comTenant(tenant.id, async (q) => {
+      const row = (await q(
+        `select id, usuario_id
+           from auth_tokens
+          where tenant_id=$1 and tipo='password_reset' and token_hash=$2
+            and used_at is null and expires_at > now()
+          limit 1`,
+        [tenant.id, tokenHash],
+      )).rows[0];
+      if (!row?.usuario_id) throw new BadRequestException('token invalido ou expirado');
+
+      await q(`update auth_tokens set used_at=now() where id=$1`, [row.id]);
+      await q(
+        `update usuarios
+            set senha_hash=$2,
+                ultimo_reset_senha_em=now(),
+                auth_provider=case when auth_provider='google' then 'password_google' else auth_provider end
+          where id=$1`,
+        [row.usuario_id, hashSenha(senha)],
+      );
+      return { id: row.usuario_id };
+    });
+    await this.audit(tenant.id, user.id, 'auth.password_reset_completed', 'usuario', user.id);
+    return { ok: true };
+  }
+
+  async solicitarVerificacaoEmail(dominio: string, emailRaw: string, origem?: string): Promise<any> {
+    const tenant = dominio ? await resolverTenantPorDominio(dominio) : null;
+    if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
+    const email = this.normalizarEmail(emailRaw);
+    if (!email) throw new BadRequestException('email invalido');
+
+    const token = this.base64Url(randomBytes(32));
+    const tokenHash = this.hashToken(token);
+    const user = await comTenant(tenant.id, async (q) => {
+      const row = (await q(`select id, email_verified_at from usuarios where lower(email)=lower($1) limit 1`, [email])).rows[0];
+      if (!row?.id || row.email_verified_at) return null;
+      await q(
+        `insert into auth_tokens (tenant_id, usuario_id, tipo, token_hash, expires_at)
+         values ($1,$2,'email_verify',$3,now() + interval '24 hours')`,
+        [tenant.id, row.id, tokenHash],
+      );
+      return row;
+    });
+    if (user?.id) await this.audit(tenant.id, user.id, 'auth.email_verify_requested', 'usuario', user.id);
+
+    return this.authLinkResponse('verify', token, this.origemPermitida(origem, dominio));
+  }
+
+  async verificarEmail(dominio: string, token: string): Promise<{ ok: true }> {
+    const tenant = dominio ? await resolverTenantPorDominio(dominio) : null;
+    if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
+    if (!token) throw new BadRequestException('token obrigatorio');
+
+    const tokenHash = this.hashToken(token);
+    const user = await comTenant(tenant.id, async (q) => {
+      const row = (await q(
+        `select id, usuario_id
+           from auth_tokens
+          where tenant_id=$1 and tipo='email_verify' and token_hash=$2
+            and used_at is null and expires_at > now()
+          limit 1`,
+        [tenant.id, tokenHash],
+      )).rows[0];
+      if (!row?.usuario_id) throw new BadRequestException('token invalido ou expirado');
+
+      await q(`update auth_tokens set used_at=now() where id=$1`, [row.id]);
+      await q(`update usuarios set email_verified_at=coalesce(email_verified_at, now()) where id=$1`, [row.usuario_id]);
+      return { id: row.usuario_id };
+    });
+    await this.audit(tenant.id, user.id, 'auth.email_verified', 'usuario', user.id);
+    return { ok: true };
   }
 
   async googleStart(dominio: string, origem?: string): Promise<{ url: string }> {
@@ -132,8 +241,8 @@ export class AuthService {
       if (!encontrado) {
         const criado = await q(
           `insert into usuarios
-            (tenant_id, nome, email, senha_hash, papel, status, google_sub, avatar_url, auth_provider, ultimo_login_em)
-           values ($1,$2,$3,$4,'cliente_final','ativo',$5,$6,'google',now())
+            (tenant_id, nome, email, senha_hash, papel, status, google_sub, avatar_url, auth_provider, ultimo_login_em, email_verified_at)
+           values ($1,$2,$3,$4,'cliente_final','ativo',$5,$6,'google',now(),now())
            returning id, email, papel`,
           [tenant.id, perfil.name || null, email, hashSenha(this.base64Url(randomBytes(32))), perfil.sub, perfil.picture || null],
         );
@@ -149,6 +258,7 @@ export class AuthService {
                 nome=coalesce(nome,$3),
                 avatar_url=coalesce(avatar_url,$4),
                 auth_provider=case when auth_provider='password' then 'password_google' else auth_provider end,
+                email_verified_at=coalesce(email_verified_at, now()),
                 ultimo_login_em=now()
           where id=$1
           returning id, email, papel`,
@@ -162,6 +272,7 @@ export class AuthService {
     }
 
     await ensureTrialSubscription(tenant.id);
+    await this.audit(tenant.id, user.id, 'auth.google_login', 'usuario', user.id);
     await comTenant(tenant.id, async (q) => {
       await q(
         `update usuarios
@@ -250,6 +361,40 @@ export class AuthService {
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/g, '');
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private authLinkResponse(kind: 'reset' | 'verify', token: string, origem: string): any {
+    const path = kind === 'reset' ? '/login?reset_token=' : '/login?verify_token=';
+    const url = `${origem}${path}${encodeURIComponent(token)}`;
+    if (process.env.NODE_ENV !== 'production' || process.env.AUTH_DEBUG_LINKS === 'true') {
+      return { ok: true, url };
+    }
+    return { ok: true };
+  }
+
+  private async audit(
+    tenantId: string,
+    userId: string | null,
+    eventType: string,
+    entityType?: string,
+    entityId?: string,
+    metadata: Record<string, any> = {},
+  ): Promise<void> {
+    try {
+      await comTenant(tenantId, async (q) => {
+        await q(
+          `insert into audit_events (tenant_id, usuario_id, event_type, entity_type, entity_id, metadata)
+           values ($1,$2,$3,$4,$5,$6::jsonb)`,
+          [tenantId, userId, eventType, entityType ?? null, entityId ?? null, JSON.stringify(metadata)],
+        );
+      });
+    } catch {
+      // Auditoria nao pode quebrar login/cadastro.
+    }
   }
 
   private normalizarEmail(email: string): string | null {

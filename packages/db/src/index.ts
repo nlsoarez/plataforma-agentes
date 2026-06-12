@@ -50,7 +50,7 @@ export async function resolverProjetoPorNumero(phoneNumberId: string): Promise<{
 
 // Tenant pelo domínio da agência (white-label). tenants não tem RLS.
 export async function resolverTenantPorDominio(dominio: string): Promise<{ id: string } | null> {
-  const r = await pool.query(`select id from tenants where dominio=$1 and status <> 'suspended' limit 1`, [dominio]);
+  const r = await pool.query(`select id from tenants where dominio=$1 and status <> 'deleted' limit 1`, [dominio]);
   return r.rows[0] ?? null;
 }
 
