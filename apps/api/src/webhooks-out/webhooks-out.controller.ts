@@ -10,10 +10,34 @@ function assinarWebhook(secret: string, payload: string) {
   return createHmac('sha256', secret).update(payload).digest('hex');
 }
 
-@Controller('integracoes/webhooks')
 @UseGuards(AuthGuard)
+@Controller('integracoes')
 export class WebhooksOutController {
+  @Get('status')
+  status() {
+    const googleCalendar = Boolean(
+      process.env.GOOGLE_CALENDAR_ID &&
+      (process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) &&
+      (process.env.GOOGLE_CALENDAR_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY),
+    );
+    return {
+      googleCalendar: {
+        configured: googleCalendar,
+        calendarId: process.env.GOOGLE_CALENDAR_ID ? mask(process.env.GOOGLE_CALENDAR_ID) : null,
+        mode: googleCalendar ? 'service_account' : null,
+      },
+      calendarWebhook: {
+        configured: Boolean(process.env.CALENDAR_WEBHOOK_URL),
+      },
+    };
+  }
+
   @Get()
+  root() {
+    return this.status();
+  }
+
+  @Get('webhooks')
   listar(@Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(
@@ -25,7 +49,7 @@ export class WebhooksOutController {
     });
   }
 
-  @Post()
+  @Post('webhooks')
   async criar(@Body() body: { nome?: string; url: string; secret?: string; eventos?: string[] }, @Req() req: any) {
     await assertLimit(req.user.tenantId, 'outbound_webhooks', 1);
     return comTenant(req.user.tenantId, async (q) => {
@@ -39,7 +63,7 @@ export class WebhooksOutController {
     });
   }
 
-  @Post(':id/testar')
+  @Post('webhooks/:id/testar')
   testar(@Param('id') id: string, @Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(`select id, url, secret from webhook_subscriptions where id=$1 and ativo=true`, [id]);
@@ -53,11 +77,16 @@ export class WebhooksOutController {
     });
   }
 
-  @Delete(':id')
+  @Delete('webhooks/:id')
   desativar(@Param('id') id: string, @Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       await q(`update webhook_subscriptions set ativo=false where id=$1`, [id]);
       return { ok: true };
     });
   }
+}
+
+function mask(value: string) {
+  if (value.length <= 8) return 'configurado';
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }

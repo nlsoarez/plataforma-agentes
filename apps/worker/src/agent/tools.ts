@@ -4,6 +4,7 @@ import { publicar } from '@plataforma/bus';
 import { enviarConversao } from './conversoes';
 import { dispararWebhooks, leadPayload } from '../integrations/webhooks';
 import { buscarConhecimento } from './knowledge';
+import { criarEventoGoogleCalendar, googleCalendarConfigured } from '../integrations/google-calendar';
 
 // Contexto que todo executor recebe.
 export interface ToolCtx {
@@ -56,6 +57,7 @@ const executores: Record<string, Executor> = {
     const inicio = new Date(datetime);
     if (Number.isNaN(inicio.getTime())) return { ok: false, motivo: 'datetime invalido' };
 
+    const contato = (await ctx.q(`select nome, telefone from contatos where id=$1`, [ctx.contatoId])).rows[0] || {};
     const created = await ctx.q(
       `insert into agendamentos (
          tenant_id, projeto_id, conversa_id, contato_id, inicio_em, descricao, status, provider
@@ -69,11 +71,41 @@ const executores: Record<string, Executor> = {
         ctx.contatoId,
         inicio.toISOString(),
         descricao ?? null,
-        process.env.CALENDAR_WEBHOOK_URL ? 'webhook' : null,
+        googleCalendarConfigured() ? 'google_calendar' : (process.env.CALENDAR_WEBHOOK_URL ? 'webhook' : null),
       ],
     );
 
     const agendamento = created.rows[0];
+    if (googleCalendarConfigured()) {
+      try {
+        const evento = await criarEventoGoogleCalendar({
+          summary: `Atendimento ${contato.nome || contato.telefone || 'lead'}`,
+          description: [
+            descricao || 'Agendamento criado pelo agente.',
+            contato.telefone ? `Telefone: ${contato.telefone}` : null,
+            `Conversa: ${ctx.conversaId}`,
+          ].filter(Boolean).join('\n'),
+          startsAt: inicio,
+        });
+        await ctx.q(
+          `update agendamentos
+           set status='sincronizado', provider='google_calendar', provider_ref=$2,
+               metadata=metadata || $3::jsonb, erro=null, atualizado_em=now()
+           where id=$1`,
+          [agendamento.id, evento.id, JSON.stringify({ googleCalendar: evento })],
+        );
+        return { ok: true, agendamento: { ...agendamento, status: 'sincronizado', provider_ref: evento.id }, calendar: evento };
+      } catch (e: any) {
+        await ctx.q(
+          `update agendamentos
+           set status='falha', provider='google_calendar', erro=$2, atualizado_em=now()
+           where id=$1`,
+          [agendamento.id, e?.message || 'erro desconhecido'],
+        );
+        return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
+      }
+    }
+
     if (!process.env.CALENDAR_WEBHOOK_URL) {
       return {
         ok: true,

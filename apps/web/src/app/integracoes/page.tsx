@@ -8,11 +8,13 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type ApiKey = { id: string; nome: string; prefixo: string; escopos: string[]; ativo: boolean; ultimo_uso_em: string | null };
 type Hook = { id: string; nome: string; url: string; eventos: string[]; ativo: boolean };
+type Status = { googleCalendar?: { configured: boolean; calendarId: string | null; mode: string | null }; calendarWebhook?: { configured: boolean } };
 
 export default function IntegracoesPage() {
   const { token, ready } = useStoredToken();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [hooks, setHooks] = useState<Hook[]>([]);
+  const [status, setStatus] = useState<Status | null>(null);
   const [novaKey, setNovaKey] = useState('');
   const [keyMsg, setKeyMsg] = useState('');
   const [hook, setHook] = useState({ nome: '', url: '', secret: '' });
@@ -23,12 +25,14 @@ export default function IntegracoesPage() {
 
   async function carregar() {
     if (!token) return;
-    const [k, h] = await Promise.all([
+    const [k, h, s] = await Promise.all([
       fetch(`${API}/api-keys`, { headers: auth(token) }).then((r) => r.json()),
       fetch(`${API}/integracoes/webhooks`, { headers: auth(token) }).then((r) => r.json()),
+      fetch(`${API}/integracoes/status`, { headers: auth(token) }).then((r) => r.json()),
     ]);
     setKeys(k);
     setHooks(h);
+    setStatus(s);
   }
 
   async function criarKey() {
@@ -71,6 +75,24 @@ export default function IntegracoesPage() {
       </div>
 
       <div className="nl-dashboard-grid">
+        <section className="nl-card nl-card--pad">
+          <div className="eyebrow" style={{ marginBottom: 14 }}>Google Calendar</div>
+          <h2 style={{ marginTop: 0 }}>Agenda do agente</h2>
+          <p className="sub">
+            {status?.googleCalendar?.configured
+              ? `Configurado por service account (${status.googleCalendar.calendarId}).`
+              : 'Nao configurado. A tool agendar salva no banco, mas nao cria evento no Google Calendar.'}
+          </p>
+          <div className="nl-row">
+            <span className={status?.googleCalendar?.configured ? 'nl-badge nl-badge--ok' : 'nl-badge nl-badge--warn'}>
+              {status?.googleCalendar?.configured ? 'ativo' : 'pendente'}
+            </span>
+            <span className={status?.calendarWebhook?.configured ? 'nl-badge nl-badge--ok' : 'nl-badge'}>
+              webhook {status?.calendarWebhook?.configured ? 'ativo' : 'inativo'}
+            </span>
+          </div>
+        </section>
+
         <section className="nl-card nl-card--pad">
           <div className="eyebrow" style={{ marginBottom: 14 }}>API pública</div>
           <label className="nl-label">Nome da chave</label>
