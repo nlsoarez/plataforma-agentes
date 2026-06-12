@@ -56,7 +56,11 @@ export async function dispararWebhooks(q: QueryFn, tenantId: string, evento: str
       [tenantId, sub.id, evento, body],
     );
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (sub.secret) headers['x-attende-signature'] = assinarWebhook(sub.secret, body);
+    if (sub.secret) {
+      const signature = assinarWebhook(sub.secret, body);
+      headers['x-comunora-signature'] = signature;
+      headers['x-attende-signature'] = signature;
+    }
 
     const result = await enviarComRetry(sub.url, { method: 'POST', headers, body });
     await q(

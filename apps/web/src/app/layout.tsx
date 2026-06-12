@@ -1,23 +1,95 @@
+import type { Metadata, Viewport } from 'next';
+import { Poppins } from 'next/font/google';
+import type { ReactNode } from 'react';
 import './globals.css';
+import { BRAND } from '../lib/brand';
 
-export const metadata = {
-  title: 'Attende — Plataforma de Atendimento Inteligente',
-  description: 'Agentes de IA no WhatsApp para operações white-label. Automatize atendimento, vendas e suporte com IA conversacional.',
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-poppins',
+  display: 'swap',
+});
+
+const title = 'Comunora | Atendimento inteligente com IA, CRM e WhatsApp';
+const description =
+  'Centralize conversas, automatize atendimentos com inteligência artificial, organize leads no CRM e conecte sua equipe ao WhatsApp com a Comunora.';
+
+export const metadata: Metadata = {
+  metadataBase: new URL(BRAND.siteUrl),
+  title,
+  description,
+  applicationName: BRAND.name,
+  appleWebApp: {
+    capable: true,
+    title: BRAND.name,
+    statusBarStyle: 'black-translucent',
+  },
+  keywords: ['Comunora', 'WhatsApp', 'CRM', 'IA', 'atendimento inteligente', 'automação de atendimento'],
+  alternates: {
+    canonical: BRAND.siteUrl,
+  },
+  openGraph: {
+    title,
+    description,
+    url: BRAND.siteUrl,
+    siteName: BRAND.name,
+    locale: 'pt_BR',
+    type: 'website',
+    images: [
+      {
+        url: BRAND.ogImage,
+        width: 1200,
+        height: 630,
+        alt: 'Comunora - Comunicação inteligente. Resultados reais.',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title,
+    description,
+    images: [BRAND.ogImage],
+  },
+  icons: {
+    icon: [
+      { url: BRAND.favicon, type: 'image/svg+xml' },
+      { url: '/brand/comunora/comunora-icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [{ url: '/brand/comunora/comunora-apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  manifest: '/manifest.webmanifest',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const viewport: Viewport = {
+  themeColor: '#0B132B',
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: BRAND.name,
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    url: BRAND.siteUrl,
+    description: BRAND.shortDescription,
+    publisher: {
+      '@type': 'Organization',
+      name: BRAND.name,
+      url: BRAND.siteUrl,
+    },
+  };
+
   return (
-    <html lang="pt-BR">
-      <head>
-        <link rel="icon" href="/brand/attende-favicon.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
+    <html lang="pt-BR" className={poppins.variable}>
+      <body>
+        {children}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
-      </head>
-      <body>{children}</body>
+      </body>
     </html>
   );
 }

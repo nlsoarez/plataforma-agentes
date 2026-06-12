@@ -1,6 +1,8 @@
-# Plataforma de Agentes de IA no WhatsApp
+# Comunora
 
-Infraestrutura white-label multi-tenant para agencias entregarem agentes de IA no WhatsApp usando Evolution API.
+Comunicação inteligente. Resultados reais.
+
+A Comunora é uma plataforma white-label multi-tenant para empresas centralizarem atendimento no WhatsApp, agentes de IA, CRM, automações, campanhas e atendimento humano usando Evolution API.
 
 ## Arquitetura
 
@@ -75,7 +77,7 @@ Regra importante: a conta Google so entra se o e-mail ja existir na tabela
 `usuarios` daquele tenant ou cria um novo usuario `cliente_final` no dominio
 atual. No primeiro login valido, o sistema vincula o `google_sub` ao usuario.
 
-## Pagamento com Stripe
+## Pagamento com Asaas
 
 O acesso autenticado ao dashboard e demais rotas protegidas exige assinatura
 ativa, exceto as rotas de billing. O backend retorna HTTP `402 Payment Required`
@@ -85,27 +87,30 @@ Configure:
 
 ```env
 BILLING_REQUIRED=true
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_PRICE_ID=price_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-WEB_APP_URL=https://seu-painel.com
+ASAAS_API_URL=https://api.asaas.com/v3
+ASAAS_API_KEY=...
+ASAAS_WEBHOOK_TOKEN=...
+WEB_APP_URL=https://app.comunora.com.br
+API_PUBLIC_URL=https://api.comunora.com.br
 ```
 
-No Stripe, crie um Price recorrente e configure o webhook:
+No Asaas, configure o webhook de pagamentos:
 
 ```text
-https://sua-api.com/webhook/stripe
+https://api.comunora.com.br/webhook/billing
 ```
 
 Eventos recomendados:
 
 ```text
-checkout.session.completed
-customer.subscription.updated
-customer.subscription.deleted
+PAYMENT_CREATED
+PAYMENT_CONFIRMED
+PAYMENT_RECEIVED
+PAYMENT_OVERDUE
+PAYMENT_DELETED
 ```
 
-Sem webhook configurado, o usuario pode concluir o Checkout, mas o sistema nao
+Sem webhook configurado, o usuario pode gerar cobranca, mas o sistema nao
 tera prova confiavel para liberar o dashboard.
 
 ## Fluxo Evolution
@@ -114,13 +119,13 @@ Para o QR apenas conectar, `EVOLUTION_API_URL` e `EVOLUTION_API_KEY` bastam.
 Para mensagens reais chegarem ao sistema, `API_PUBLIC_URL` precisa apontar para a API publica:
 
 ```env
-API_PUBLIC_URL=https://sua-api-publica.com
+API_PUBLIC_URL=https://api.comunora.com.br
 ```
 
 O webhook configurado na Evolution sera:
 
 ```text
-https://sua-api-publica.com/webhook/evolution
+https://api.comunora.com.br/webhook/evolution
 ```
 
 Sem isso, o WhatsApp pode aparecer como conectado, mas o worker nunca recebe mensagens.
@@ -190,3 +195,54 @@ Crie tres servicos apontando para o mesmo repositorio:
 
 Adicione Postgres e Redis. Configure as variaveis do `.env.example` no painel.
 Segredos nunca devem ir para o repositorio.
+
+Para o dominio oficial `comunora.com.br`, use o guia:
+
+```text
+docs/deploy-comunora-dominios.md
+```
+
+Use `.env.production.example` como base das variaveis de producao no Railway.
+
+## Rebranding Attende -> Comunora
+
+Data: 2026-06-12.
+
+Escopo aplicado no codigo:
+
+- Marca padrao Comunora na interface publica e autenticada.
+- Tokens visuais, metadata, favicon, PWA e Open Graph.
+- E-mails transacionais com remetente e cores Comunora.
+- Billing Asaas com descricao Comunora sem alterar IDs externos.
+- Webhooks outbound enviam `x-comunora-signature` e mantem `x-attende-signature` por compatibilidade.
+- White-label preservado: tenants com logo, cor, favicon e CSS proprio continuam podendo sobrescrever a marca padrao.
+
+Variaveis novas/relevantes:
+
+```env
+NEXT_PUBLIC_SITE_URL=https://comunora.com.br
+NEXT_PUBLIC_APP_URL=https://app.comunora.com.br
+NEXT_PUBLIC_API_URL=https://api.comunora.com.br
+NEXT_PUBLIC_DOCS_URL=https://docs.comunora.com.br
+NEXT_PUBLIC_STATUS_URL=https://status.comunora.com.br
+NEXT_PUBLIC_BRAND_NAME=Comunora
+NEXT_PUBLIC_BRAND_SHORT_DESCRIPTION=Plataforma de atendimento inteligente que conecta WhatsApp, inteligencia artificial, CRM, automacoes e atendimento humano em uma unica operacao.
+NEXT_PUBLIC_SUPPORT_EMAIL=suporte@comunora.com.br
+PUBLIC_BRAND_NAME=Comunora
+EMAIL_FROM=Comunora <no-reply@comunora.com.br>
+ASAAS_USER_AGENT=Comunora/1.0
+```
+
+Pendencias externas antes de producao final:
+
+- DNS e Railway custom domains para `comunora.com.br`, `app`, `api`, `docs` e `status`.
+- Google Cloud OAuth consent screen com nome Comunora, dominio autorizado `comunora.com.br` e callbacks novos.
+- Evolution API apontando para `https://api.comunora.com.br/webhook/evolution`.
+- Asaas apontando para `https://api.comunora.com.br/webhook/billing`.
+- Remetentes de e-mail do dominio `comunora.com.br` verificados no provider.
+
+Rollback:
+
+- Reverter o commit do rebranding.
+- Manter os headers legados de webhook ate todos os consumidores migrarem.
+- Nao apagar assets antigos nem uploads white-label de tenants.

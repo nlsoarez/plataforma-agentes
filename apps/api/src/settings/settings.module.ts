@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { SettingsController } from './settings.controller';
+import { PublicBrandingController, SettingsController } from './settings.controller';
 
-@Module({ controllers: [SettingsController] })
+@Module({ controllers: [PublicBrandingController, SettingsController] })
 export class SettingsModule {}

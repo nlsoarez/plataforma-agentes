@@ -2,25 +2,24 @@ import { Pool } from 'pg';
 import { config as dotenvConfig } from 'dotenv';
 import { join } from 'path';
 
-// Carrega o .env da raiz do monorepo. Chame ANTES de qualquer query.
-// (Em produção, as env vars vêm da plataforma e isto vira no-op.)
+// Carrega o .env da raiz do monorepo. Chame antes de qualquer query.
+// Em producao, as env vars vem da plataforma e isto vira no-op.
 export function carregarEnv(): void {
   dotenvConfig({ path: join(__dirname, '..', '..', '..', '.env') });
 }
 
-// Pool PREGUIÇOSO: só cria a conexão (lendo DATABASE_URL) no primeiro uso,
-// garantindo que o .env já foi carregado. Bancos hospedados (Neon) exigem SSL.
 let _pool: Pool | null = null;
+
 function init(): Pool {
   if (_pool) return _pool;
   const url = process.env.DATABASE_URL ?? '';
   const ssl = /sslmode=require/.test(url) || process.env.PGSSL === 'true'
-    ? { rejectUnauthorized: false } : undefined;
+    ? { rejectUnauthorized: false }
+    : undefined;
   _pool = new Pool({ connectionString: url, ssl });
   return _pool;
 }
 
-// Proxy que inicializa o pool sob demanda — todo `pool.query`/`pool.connect` funciona igual.
 export const pool: Pool = new Proxy({} as Pool, {
   get(_t, prop) {
     const p = init() as any;
@@ -31,7 +30,6 @@ export const pool: Pool = new Proxy({} as Pool, {
 
 export type QueryFn = (sql: string, params?: unknown[]) => Promise<any>;
 
-// Executa queries JÁ no escopo de um tenant (ativa o RLS via app.tenant_id).
 export async function comTenant<T>(tenantId: string, fn: (q: QueryFn) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
@@ -42,19 +40,61 @@ export async function comTenant<T>(tenantId: string, fn: (q: QueryFn) => Promise
   }
 }
 
-// Roteamento: tenant + projeto pelo número/instância (SECURITY DEFINER, ignora RLS).
 export async function resolverProjetoPorNumero(phoneNumberId: string): Promise<{ tenant_id: string; projeto_id: string } | null> {
   const r = await pool.query('select tenant_id, projeto_id from resolver_projeto($1)', [phoneNumberId]);
   return r.rows[0] ?? null;
 }
 
-// Tenant pelo domínio da agência (white-label). tenants não tem RLS.
-export async function resolverTenantPorDominio(dominio: string): Promise<{ id: string } | null> {
-  const r = await pool.query(`select id from tenants where dominio=$1 and status <> 'deleted' limit 1`, [dominio]);
-  return r.rows[0] ?? null;
+export function normalizarDominio(input: string): string {
+  const raw = String(input || '').trim().toLowerCase();
+  if (!raw) return '';
+
+  try {
+    const url = new URL(raw.includes('://') ? raw : `https://${raw}`);
+    return url.host.replace(/^www\./, '');
+  } catch {
+    return raw
+      .replace(/^https?:\/\//, '')
+      .split('/')[0]
+      .replace(/^www\./, '');
+  }
 }
 
-// Billing: assinatura pelo id do provider (sem tenant, via SECURITY DEFINER).
+function tabelaNaoExiste(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && (error as { code?: string }).code === '42P01');
+}
+
+export async function resolverTenantPorDominio(dominio: string): Promise<{ id: string } | null> {
+  const host = normalizarDominio(dominio);
+  if (!host) return null;
+
+  const direto = await pool.query(
+    `select id
+       from tenants
+      where lower(dominio)=lower($1)
+        and status <> 'deleted'
+      limit 1`,
+    [host],
+  );
+  if (direto.rows[0]) return direto.rows[0];
+
+  try {
+    const alias = await pool.query(
+      `select t.id
+         from tenant_domains td
+         join tenants t on t.id=td.tenant_id
+        where lower(td.domain)=lower($1)
+          and t.status <> 'deleted'
+        limit 1`,
+      [host],
+    );
+    return alias.rows[0] ?? null;
+  } catch (error) {
+    if (tabelaNaoExiste(error)) return null;
+    throw error;
+  }
+}
+
 export async function resolverAssinatura(subId: string): Promise<{ id: string; tenant_id: string } | null> {
   const r = await pool.query('select id, tenant_id from resolver_assinatura($1)', [subId]);
   return r.rows[0] ?? null;

@@ -145,7 +145,7 @@ export default function Billing() {
       <div className="nl-page-head nl-rise">
         <div>
           <h1>Assinatura</h1>
-          <div className="sub">Planos Attende, cobranca Asaas e limites de uso</div>
+          <div className="sub">Planos Comunora, cobrança Asaas e limites de uso</div>
         </div>
         <a className="nl-btn nl-btn--ghost" href="/dashboard">Dashboard</a>
       </div>
@@ -288,7 +288,7 @@ function PlanCard({ plan, active, billingCycle, onSelect }: any) {
         textAlign: 'left',
         cursor: 'pointer',
         borderColor: active ? 'var(--accent)' : 'var(--line)',
-        boxShadow: active ? '0 0 0 3px rgba(34,197,94,.12)' : 'var(--shadow-sm)',
+        boxShadow: active ? '0 0 0 3px rgba(21,101,255,.12)' : 'var(--shadow-sm)',
         minHeight: 330,
       }}
     >

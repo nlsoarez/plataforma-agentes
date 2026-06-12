@@ -6,9 +6,10 @@ import { SessionLoading, SessionRequired, useStoredToken } from '../../component
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 declare global { interface Window { Chart?: any } }
 
-const GREEN = '#22C55E';
-const TEAL = '#14B8A6';
-const TEAL_LIGHT = '#5EEAD4';
+const BLUE = '#1565FF';
+const TEAL = '#00C6A9';
+const GREEN = '#7ED957';
+const NEUTRAL = '#DDE3EA';
 const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
 
 const DEMO = {
@@ -143,12 +144,12 @@ export default function Dashboard() {
       charts.current.forEach((chart) => chart?.destroy?.());
       charts.current = [];
 
-      Chart.defaults.font.family = "'Sora', 'Inter', sans-serif";
-      Chart.defaults.color = '#9a9a9e';
+      Chart.defaults.font.family = "'Poppins', 'Inter', sans-serif";
+      Chart.defaults.color = '#526070';
       Chart.defaults.font.size = 11;
 
       const xAxis = { grid: { display: false }, border: { display: false } };
-      const yAxis = { grid: { color: '#f0f0ee' }, border: { display: false } };
+      const yAxis = { grid: { color: '#EEF2F6' }, border: { display: false } };
 
       if (lineRef.current) {
         charts.current.push(new Chart(lineRef.current, {
@@ -156,8 +157,8 @@ export default function Dashboard() {
           data: {
             labels: DAYS,
             datasets: [
-              { label: 'IA', data: DEMO.linha.ia, borderColor: GREEN, backgroundColor: 'rgba(34,197,94,.10)', fill: true, tension: .4, borderWidth: 2, pointRadius: 0 },
-              { label: 'Humano', data: DEMO.linha.humano, borderColor: '#c9c4dd', borderDash: [5, 4], fill: false, tension: .4, borderWidth: 2, pointRadius: 0 },
+              { label: 'IA', data: DEMO.linha.ia, borderColor: BLUE, backgroundColor: 'rgba(21,101,255,.10)', fill: true, tension: .4, borderWidth: 2, pointRadius: 0 },
+              { label: 'Humano', data: DEMO.linha.humano, borderColor: TEAL, borderDash: [5, 4], fill: false, tension: .4, borderWidth: 2, pointRadius: 0 },
             ],
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: yAxis, x: xAxis } },
@@ -169,7 +170,7 @@ export default function Dashboard() {
           type: 'bar',
           data: {
             labels: data.funnel.map((f: any) => f.n),
-            datasets: [{ data: data.funnel.map((f: any) => f.v), backgroundColor: [GREEN, TEAL, TEAL_LIGHT, '#A7F3D0'], borderRadius: 6 }],
+            datasets: [{ data: data.funnel.map((f: any) => f.v), backgroundColor: [BLUE, TEAL, GREEN, '#A7F3D0'], borderRadius: 6 }],
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: yAxis, x: xAxis } },
         }));
@@ -180,7 +181,7 @@ export default function Dashboard() {
           type: 'doughnut',
           data: {
             labels: ['Entregues', 'Lidas', 'Falhas'],
-            datasets: [{ data: data.donut, backgroundColor: [GREEN, TEAL, '#d8d8dc'], borderWidth: 0 }],
+            datasets: [{ data: data.donut, backgroundColor: [BLUE, TEAL, NEUTRAL], borderWidth: 0 }],
           },
           options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false } } },
         }));
@@ -207,7 +208,7 @@ export default function Dashboard() {
       <div className="nl-page-head nl-rise">
         <div>
           <h1>Dashboard</h1>
-          <div className="sub">Attende â€” visÃ£o geral â€” atualizado agora</div>
+          <div className="sub">Comunora — visão geral — atualizado agora</div>
         </div>
         <div className="nl-filterbar" aria-label="Periodo">
           {['Hoje', '7 dias', '30 dias'].map((item) => (
@@ -218,11 +219,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {d.demo && <div className="nl-demo-note">Modo demonstracao - dados de exemplo ate o WhatsApp gerar trafego</div>}
+      {d.demo && <div className="nl-demo-note">Modo demonstração - dados de exemplo até o WhatsApp gerar tráfego</div>}
       {setup && !setupComplete(setup) && <SetupGuide setup={setup} />}
 
       <div className="nl-kpis">
-        <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} delta="+12% vs. periodo anterior" />
+        <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} delta="+12% vs. período anterior" />
         <Kpi label="Leads no funil" value={d.leads.toLocaleString('pt-BR')} delta="+8% novos hoje" />
         <Kpi label="Fechamento" value={`${d.fechamento}%`} delta="+3pts no mes" />
         <Kpi label="Receita estimada" value={fmtMoney(d.receita)} delta="+15%" />
@@ -257,9 +258,9 @@ export default function Dashboard() {
               <canvas ref={donutRef} role="img" aria-label="Status de entrega" />
             </div>
             <div className="nl-legend">
-              <div><i style={{ background: GREEN }} />Entregues {deliveredPct}%</div>
+              <div><i style={{ background: BLUE }} />Entregues {deliveredPct}%</div>
               <div><i style={{ background: TEAL }} />Lidas</div>
-              <div><i style={{ background: '#d8d8dc' }} />Falhas</div>
+              <div><i style={{ background: NEUTRAL }} />Falhas</div>
             </div>
           </div>
         </section>
@@ -267,7 +268,7 @@ export default function Dashboard() {
         <section className="nl-card nl-panel nl-rise">
           <div className="nl-panel-head">
             <h3>Funil</h3>
-            <span className="meta">conversao</span>
+            <span className="meta">conversão</span>
           </div>
           {d.funnel.map((f: any) => (
             <div className="nl-funnel-row" key={f.n}>
@@ -314,7 +315,7 @@ function SetupGuide({ setup }: { setup: any }) {
   return (
     <section className="nl-card nl-card--pad nl-rise" style={{ marginBottom: 14 }}>
       <div className="nl-panel-head" style={{ marginBottom: 8 }}>
-        <h3>Proximos passos</h3>
+        <h3>Próximos passos</h3>
         <span className="meta">onboarding</span>
       </div>
       <div className="nl-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>

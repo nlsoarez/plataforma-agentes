@@ -1,0 +1,16 @@
+<svg width="212" height="56" viewBox="0 0 212 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Comunora">
+  <rect width="56" height="56" rx="16" fill="url(#bg)"/>
+  <path d="M37.5 15.4c7.2 0 12.2 4.6 12.2 10.8 0 3.8-1.9 7.1-5 9 .3 2.2 1.1 4.4 2.4 6.3-3.7-.4-6.5-1.5-8.6-3.4h-1c-7.2 0-12.2-4.6-12.2-11.9 0-6.2 5-10.8 12.2-10.8Z" fill="white" fill-opacity=".96"/>
+  <path d="M19.4 13c-7.7 0-13.1 5.1-13.1 11.8 0 4.2 2.1 7.8 5.5 9.9-.3 2.4-1.2 4.8-2.6 6.9 3.9-.4 7-1.7 9.4-3.8h.8c7.7 0 13.1-5.1 13.1-13C32.5 18.1 27.1 13 19.4 13Z" fill="white"/>
+  <circle cx="16.1" cy="25.9" r="2.1" fill="#0B132B"/>
+  <circle cx="21.2" cy="25.9" r="2.1" fill="#0B132B"/>
+  <circle cx="26.2" cy="25.9" r="2.1" fill="#0B132B"/>
+  <text x="68" y="36" font-family="Poppins, Inter, system-ui, sans-serif" font-weight="700" font-size="26" fill="#0B132B" letter-spacing="0">Comunora</text>
+  <defs>
+    <linearGradient id="bg" x1="7" y1="5" x2="51" y2="53" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7ED957"/>
+      <stop offset=".48" stop-color="#00C6A9"/>
+      <stop offset="1" stop-color="#1565FF"/>
+    </linearGradient>
+  </defs>
+</svg>

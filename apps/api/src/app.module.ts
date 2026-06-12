@@ -21,6 +21,7 @@ import { EquipeModule } from './equipe/equipe.module';
 import { AiSettingsModule } from './ai-settings/ai-settings.module';
 import { TemplatesModule } from './templates/templates.module';
 import { AgendaModule } from './agenda/agenda.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { AgendaModule } from './agenda/agenda.module';
     ConversasModule, PipelineModule, CampanhasModule, BillingModule, AgentesModule,
     ApiKeysModule, WebhooksOutModule, KnowledgeModule, AutomacoesModule,
     SessoesModule, LeadsModule, PublicApiModule, SettingsModule, EquipeModule,
-    AiSettingsModule, TemplatesModule, AgendaModule,
+    AiSettingsModule, TemplatesModule, AgendaModule, HealthModule,
   ],
 })
 export class AppModule {}

@@ -104,7 +104,7 @@ export class AsaasProvider {
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'user-agent': process.env.ASAAS_USER_AGENT || 'Attende/1.0',
+        'user-agent': process.env.ASAAS_USER_AGENT || 'Comunora/1.0',
         access_token: key,
         ...(init.headers ?? {}),
       },

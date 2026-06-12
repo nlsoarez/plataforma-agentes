@@ -9,7 +9,8 @@
   },
   "scripts": {
     "migrate": "dotenv -e ../../.env -- tsx migrate.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "tsx --test src/**/*.spec.ts"
   },
   "devDependencies": {
     "tsx": "^4.7.0",

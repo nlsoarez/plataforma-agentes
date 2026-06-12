@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
+import { BRAND } from '../lib/brand';
+import { useTenantBranding } from '../lib/useTenantBranding';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API = BRAND.apiUrl;
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -26,9 +29,15 @@ const NAV = [
   { href: '/onboarding', label: 'Conectar WhatsApp' },
 ];
 
-export default function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+export default function Shell({ title, children }: { title: string; children: ReactNode }) {
   const path = usePathname();
   const [billingChecked, setBillingChecked] = useState(path === '/billing');
+  const [token, setToken] = useState<string | null>(null);
+  const branding = useTenantBranding({ token });
+
+  useEffect(() => {
+    setToken(window.localStorage.getItem('token'));
+  }, []);
 
   useEffect(() => {
     if (path === '/billing') {
@@ -36,15 +45,15 @@ export default function Shell({ title, children }: { title: string; children: Re
       return;
     }
 
-    const token = window.localStorage.getItem('token');
-    if (!token) {
+    const currentToken = window.localStorage.getItem('token');
+    if (!currentToken) {
       setBillingChecked(true);
       return;
     }
 
     let alive = true;
     fetch(`${API}/billing`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
     })
       .then((r) => r.json())
       .then((billing) => {
@@ -68,10 +77,11 @@ export default function Shell({ title, children }: { title: string; children: Re
   }
 
   return (
-    <div className="nl-shell">
+    <div className="nl-shell" style={{ ['--accent' as any]: branding.primaryColor || '#1565FF' }}>
+      {branding.customCss ? <style dangerouslySetInnerHTML={{ __html: branding.customCss }} /> : null}
       <aside className="nl-sidebar">
-        <a href="/" className="nl-brand">
-          <img src="/brand/attende-logo-horizontal-light.svg" alt="Attende" style={{ height: 32 }} />
+        <a href="/" className="nl-brand" aria-label={branding.name}>
+          <img src={branding.logoUrl || BRAND.logoLight} alt={branding.name} style={{ height: 32 }} />
         </a>
         <nav className="nl-nav">
           {NAV.map((n) => (

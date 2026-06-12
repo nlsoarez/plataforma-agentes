@@ -188,7 +188,7 @@ export class BillingService {
         value: amountCents / 100,
         cycle: billingCycle === 'annual' ? 'YEARLY' : 'MONTHLY',
         nextDueDate,
-        description: `Attende ${plan.nome} - ${billingCycle === 'annual' ? 'Anual' : 'Mensal'}`,
+        description: `Comunora ${plan.nome} - ${billingCycle === 'annual' ? 'Anual' : 'Mensal'}`,
         externalReference: tenantId,
       });
 

@@ -182,7 +182,7 @@ export default function AgentesPage() {
                   </div>
                 </div>
 
-                <div className="nl-card nl-card--pad" style={{ background: 'rgba(34,197,94,0.06)', marginBottom: 14 }}>
+                <div className="nl-card nl-card--pad" style={{ background: 'rgba(21,101,255,0.06)', marginBottom: 14 }}>
                   <b>Chave {PROVIDERS[form.provider]?.keyPageLabel || 'IA'}</b>
                   <p className="muted" style={{ margin: '6px 0 12px', fontSize: '0.9rem' }}>
                     Configure, teste e salve a chave em IA e Custos. Anthropic e Google respondem texto; tools avancadas ainda ficam no OpenAI.

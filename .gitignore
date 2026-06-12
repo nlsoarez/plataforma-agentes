@@ -12,6 +12,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.production.example
 credentials/
 
 # logs e artefatos locais
