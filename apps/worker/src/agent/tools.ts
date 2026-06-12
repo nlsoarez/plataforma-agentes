@@ -4,7 +4,7 @@ import { publicar } from '@plataforma/bus';
 import { enviarConversao } from './conversoes';
 import { dispararWebhooks, leadPayload } from '../integrations/webhooks';
 import { buscarConhecimento } from './knowledge';
-import { criarEventoGoogleCalendar, googleCalendarConfigured } from '../integrations/google-calendar';
+import { criarEventoGoogleCalendar, criarEventoGoogleCalendarTenant, googleCalendarConfigured } from '../integrations/google-calendar';
 
 // Contexto que todo executor recebe.
 export interface ToolCtx {
@@ -71,11 +71,41 @@ const executores: Record<string, Executor> = {
         ctx.contatoId,
         inicio.toISOString(),
         descricao ?? null,
-        googleCalendarConfigured() ? 'google_calendar' : (process.env.CALENDAR_WEBHOOK_URL ? 'webhook' : null),
+        'calendar',
       ],
     );
 
     const agendamento = created.rows[0];
+    try {
+      const eventoTenant = await criarEventoGoogleCalendarTenant(ctx.q, ctx.tenantId, {
+        summary: `Atendimento ${contato.nome || contato.telefone || 'lead'}`,
+        description: [
+          descricao || 'Agendamento criado pelo agente.',
+          contato.telefone ? `Telefone: ${contato.telefone}` : null,
+          `Conversa: ${ctx.conversaId}`,
+        ].filter(Boolean).join('\n'),
+        startsAt: inicio,
+      });
+      if (eventoTenant) {
+        await ctx.q(
+          `update agendamentos
+           set status='sincronizado', provider='google_calendar_oauth', provider_ref=$2,
+               metadata=metadata || $3::jsonb, erro=null, atualizado_em=now()
+           where id=$1`,
+          [agendamento.id, eventoTenant.id, JSON.stringify({ googleCalendar: eventoTenant })],
+        );
+        return { ok: true, agendamento: { ...agendamento, status: 'sincronizado', provider_ref: eventoTenant.id }, calendar: eventoTenant };
+      }
+    } catch (e: any) {
+      await ctx.q(
+        `update agendamentos
+         set status='falha', provider='google_calendar_oauth', erro=$2, atualizado_em=now()
+         where id=$1`,
+        [agendamento.id, e?.message || 'erro desconhecido'],
+      );
+      return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
+    }
+
     if (googleCalendarConfigured()) {
       try {
         const evento = await criarEventoGoogleCalendar({

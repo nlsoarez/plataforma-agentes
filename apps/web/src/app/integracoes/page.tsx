@@ -8,7 +8,20 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type ApiKey = { id: string; nome: string; prefixo: string; escopos: string[]; ativo: boolean; ultimo_uso_em: string | null };
 type Hook = { id: string; nome: string; url: string; eventos: string[]; ativo: boolean };
-type Status = { googleCalendar?: { configured: boolean; calendarId: string | null; mode: string | null }; calendarWebhook?: { configured: boolean } };
+type Status = {
+  googleCalendar?: {
+    configured: boolean;
+    tenantConnected: boolean;
+    accountEmail: string | null;
+    calendarId: string | null;
+    mode: string | null;
+    lastSyncAt: string | null;
+    lastError: string | null;
+    oauthConfigured: boolean;
+    redirectUri: string;
+  };
+  calendarWebhook?: { configured: boolean };
+};
 
 export default function IntegracoesPage() {
   const { token, ready } = useStoredToken();
@@ -19,6 +32,7 @@ export default function IntegracoesPage() {
   const [keyMsg, setKeyMsg] = useState('');
   const [hook, setHook] = useState({ nome: '', url: '', secret: '' });
   const [msg, setMsg] = useState('');
+  const [calendarMsg, setCalendarMsg] = useState('');
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
 
   useEffect(() => { if (token) carregar(); }, [token]);
@@ -62,6 +76,26 @@ export default function IntegracoesPage() {
     setMsg(JSON.stringify(await r.json()));
   }
 
+  async function conectarCalendar() {
+    if (!token) return;
+    setCalendarMsg('');
+    const r = await fetch(`${API}/integracoes/google-calendar/start`, {
+      method: 'POST',
+      headers: auth(token),
+      body: JSON.stringify({ origem: window.location.origin }),
+    });
+    const d = await r.json();
+    if (d.url) window.location.href = d.url;
+    else setCalendarMsg(d.message || JSON.stringify(d));
+  }
+
+  async function desconectarCalendar() {
+    if (!token) return;
+    const r = await fetch(`${API}/integracoes/google-calendar/disconnect`, { method: 'POST', headers: auth(token) });
+    setCalendarMsg(r.ok ? 'Google Calendar desconectado.' : JSON.stringify(await r.json()));
+    await carregar();
+  }
+
   if (!ready) return <SessionLoading />;
   if (!token) return <SessionRequired />;
 
@@ -77,19 +111,33 @@ export default function IntegracoesPage() {
       <div className="nl-dashboard-grid">
         <section className="nl-card nl-card--pad">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Google Calendar</div>
-          <h2 style={{ marginTop: 0 }}>Agenda do agente</h2>
+          <h2 style={{ marginTop: 0 }}>Agenda do cliente</h2>
           <p className="sub">
-            {status?.googleCalendar?.configured
-              ? `Configurado por service account (${status.googleCalendar.calendarId}).`
-              : 'Nao configurado. A tool agendar salva no banco, mas nao cria evento no Google Calendar.'}
+            {status?.googleCalendar?.tenantConnected
+              ? `Conectado em ${status.googleCalendar.accountEmail}. Os agendamentos do agente entram nessa conta.`
+              : 'Cada cliente deve conectar a propria conta Google para o agente criar eventos na agenda dele.'}
           </p>
-          <div className="nl-row">
-            <span className={status?.googleCalendar?.configured ? 'nl-badge nl-badge--ok' : 'nl-badge nl-badge--warn'}>
-              {status?.googleCalendar?.configured ? 'ativo' : 'pendente'}
+          <div className="nl-row" style={{ flexWrap: 'wrap', marginTop: 14 }}>
+            <span className={status?.googleCalendar?.tenantConnected ? 'nl-badge nl-badge--ok' : 'nl-badge nl-badge--warn'}>
+              {status?.googleCalendar?.tenantConnected ? 'conectado' : 'desconectado'}
             </span>
-            <span className={status?.calendarWebhook?.configured ? 'nl-badge nl-badge--ok' : 'nl-badge'}>
-              webhook {status?.calendarWebhook?.configured ? 'ativo' : 'inativo'}
+            <span className={status?.googleCalendar?.oauthConfigured ? 'nl-badge nl-badge--ok' : 'nl-badge nl-badge--warn'}>
+              oauth {status?.googleCalendar?.oauthConfigured ? 'ativo' : 'pendente'}
             </span>
+            {status?.googleCalendar?.mode === 'service_account' && <span className="nl-badge">fallback global</span>}
+          </div>
+          {status?.googleCalendar?.lastError && <p className="nl-error">{status.googleCalendar.lastError}</p>}
+          {calendarMsg && <p className="nl-success">{calendarMsg}</p>}
+          {!status?.googleCalendar?.oauthConfigured && (
+            <p className="nl-error">OAuth do Google Calendar nao esta configurado na API.</p>
+          )}
+          <div className="nl-row" style={{ marginTop: 16 }}>
+            <button className="nl-btn nl-btn--accent" onClick={conectarCalendar} disabled={!status?.googleCalendar?.oauthConfigured}>
+              {status?.googleCalendar?.tenantConnected ? 'Reconectar' : 'Conectar Google Calendar'}
+            </button>
+            {status?.googleCalendar?.tenantConnected && (
+              <button className="nl-btn nl-btn--ghost" onClick={desconectarCalendar}>Desconectar</button>
+            )}
           </div>
         </section>
 

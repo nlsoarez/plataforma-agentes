@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { WebhooksOutController } from './webhooks-out.controller';
+import { GoogleCalendarCallbackController, WebhooksOutController } from './webhooks-out.controller';
 
-@Module({ controllers: [WebhooksOutController] })
+@Module({ controllers: [WebhooksOutController, GoogleCalendarCallbackController] })
 export class WebhooksOutModule {}

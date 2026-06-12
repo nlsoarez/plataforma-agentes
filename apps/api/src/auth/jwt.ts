@@ -18,6 +18,14 @@ export interface EstadoGoogleOAuth {
   codeVerifier: string;
 }
 
+export interface EstadoGoogleCalendarOAuth {
+  typ: 'google_calendar_oauth';
+  tenantId: string;
+  userId: string;
+  origem: string;
+  codeVerifier: string;
+}
+
 export function assinarEstadoGoogleOAuth(estado: EstadoGoogleOAuth): string {
   return jwt.sign(estado, SEGREDO(), { expiresIn: '10m' });
 }
@@ -26,6 +34,18 @@ export function verificarEstadoGoogleOAuth(token: string): EstadoGoogleOAuth {
   const estado = jwt.verify(token, SEGREDO()) as EstadoGoogleOAuth;
   if (estado.typ !== 'google_oauth' || !estado.dominio || !estado.origem || !estado.codeVerifier) {
     throw new Error('estado oauth invalido');
+  }
+  return estado;
+}
+
+export function assinarEstadoGoogleCalendarOAuth(estado: EstadoGoogleCalendarOAuth): string {
+  return jwt.sign(estado, SEGREDO(), { expiresIn: '10m' });
+}
+
+export function verificarEstadoGoogleCalendarOAuth(token: string): EstadoGoogleCalendarOAuth {
+  const estado = jwt.verify(token, SEGREDO()) as EstadoGoogleCalendarOAuth;
+  if (estado.typ !== 'google_calendar_oauth' || !estado.tenantId || !estado.userId || !estado.origem || !estado.codeVerifier) {
+    throw new Error('estado oauth calendar invalido');
   }
   return estado;
 }
