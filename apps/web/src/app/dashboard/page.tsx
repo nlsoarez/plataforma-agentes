@@ -208,7 +208,7 @@ export default function Dashboard() {
       <div className="nl-page-head nl-rise">
         <div>
           <h1>Dashboard</h1>
-          <div className="sub">Comunora — visão geral — atualizado agora</div>
+          <div className="sub">Comunora ï¿½ visï¿½o geral ï¿½ atualizado agora</div>
         </div>
         <div className="nl-filterbar" aria-label="Periodo">
           {['Hoje', '7 dias', '30 dias'].map((item) => (
@@ -219,11 +219,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {d.demo && <div className="nl-demo-note">Modo demonstração - dados de exemplo até o WhatsApp gerar tráfego</div>}
+      {d.demo && <div className="nl-demo-note">Modo demonstraï¿½ï¿½o - dados de exemplo atï¿½ o WhatsApp gerar trï¿½fego</div>}
       {setup && !setupComplete(setup) && <SetupGuide setup={setup} />}
 
       <div className="nl-kpis">
-        <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} delta="+12% vs. período anterior" />
+        <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} delta="+12% vs. perï¿½odo anterior" />
         <Kpi label="Leads no funil" value={d.leads.toLocaleString('pt-BR')} delta="+8% novos hoje" />
         <Kpi label="Fechamento" value={`${d.fechamento}%`} delta="+3pts no mes" />
         <Kpi label="Receita estimada" value={fmtMoney(d.receita)} delta="+15%" />
@@ -268,7 +268,7 @@ export default function Dashboard() {
         <section className="nl-card nl-panel nl-rise">
           <div className="nl-panel-head">
             <h3>Funil</h3>
-            <span className="meta">conversão</span>
+            <span className="meta">conversï¿½o</span>
           </div>
           {d.funnel.map((f: any) => (
             <div className="nl-funnel-row" key={f.n}>
@@ -315,7 +315,7 @@ function SetupGuide({ setup }: { setup: any }) {
   return (
     <section className="nl-card nl-card--pad nl-rise" style={{ marginBottom: 14 }}>
       <div className="nl-panel-head" style={{ marginBottom: 8 }}>
-        <h3>Próximos passos</h3>
+        <h3>Prï¿½ximos passos</h3>
         <span className="meta">onboarding</span>
       </div>
       <div className="nl-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
