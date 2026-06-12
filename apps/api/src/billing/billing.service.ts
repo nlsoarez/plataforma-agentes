@@ -115,7 +115,7 @@ export class BillingService {
                  greatest((select count(*)::int from projetos where status='ativo'), 1),
                  $8, coalesce($9::timestamptz, now()), $10::timestamptz,
                  now(), $11::timestamptz,
-                 jsonb_build_object('billingType',$12,'checkoutOrigin',$13))
+                 jsonb_build_object('billingType',$12::text,'checkoutOrigin',$13::text))
          returning id`,
         [
           tenantId,
@@ -158,7 +158,7 @@ export class BillingService {
             firstPayment.invoiceUrl ?? null,
             firstPayment.bankSlipUrl ?? null,
             pix?.payload ?? pix?.encodedImage ?? null,
-            firstPayment,
+            JSON.stringify(firstPayment),
           ],
         );
       }
