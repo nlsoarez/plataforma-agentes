@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'crypto';
 import { hashSenha, verificarSenha } from './senha';
 import { assinarEstadoGoogleOAuth, assinarToken, verificarEstadoGoogleOAuth } from './jwt';
 import { ensureTrialSubscription } from '../billing/entitlements';
+import { actionEmail, EmailService } from './email.service';
 
 interface GoogleTokenResponse {
   access_token?: string;
@@ -28,6 +29,8 @@ const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
 @Injectable()
 export class AuthService {
+  constructor(private readonly emailService: EmailService) {}
+
   // Login é escopado pelo domínio da agência (white-label): o mesmo email pode
   // existir em agências diferentes, então o tenant vem do domínio, não do email.
   async login(dominio: string, email: string, senha: string): Promise<{ token: string }> {
@@ -49,7 +52,7 @@ export class AuthService {
     return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
   }
 
-  async registrar(dominio: string, body: { nome?: string; email: string; senha: string }): Promise<{ token: string }> {
+  async registrar(dominio: string, body: { nome?: string; email: string; senha: string; origem?: string }): Promise<{ token: string }> {
     const tenant = dominio ? await resolverTenantPorDominio(dominio) : null;
     if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
 
@@ -74,6 +77,9 @@ export class AuthService {
 
     await ensureTrialSubscription(tenant.id);
     await this.audit(tenant.id, user.id, 'auth.register', 'usuario', user.id);
+    if (process.env.EMAIL_VERIFICATION_REQUIRED === 'true') {
+      await this.criarEnviarVerificacaoEmail(tenant.id, user.id, email, this.origemPermitida(body.origem, dominio));
+    }
     return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
   }
 
@@ -97,7 +103,21 @@ export class AuthService {
     });
     if (user?.id) await this.audit(tenant.id, user.id, 'auth.password_reset_requested', 'usuario', user.id);
 
-    return this.authLinkResponse('reset', token, this.origemPermitida(origem, dominio));
+    const url = this.authLink('reset', token, this.origemPermitida(origem, dominio));
+    const emailResult = user?.id
+      ? await this.emailService.send({
+        to: email,
+        subject: 'Redefina sua senha',
+        html: actionEmail({
+          title: 'Redefinir senha',
+          intro: 'Recebemos uma solicitacao para redefinir sua senha. O link expira em 30 minutos.',
+          ctaLabel: 'Redefinir senha',
+          url,
+        }),
+      })
+      : { ok: true, provider: 'none' };
+
+    return this.authLinkResponse(url, emailResult);
   }
 
   async redefinirSenha(dominio: string, token: string, senha: string): Promise<{ ok: true }> {
@@ -139,21 +159,19 @@ export class AuthService {
     const email = this.normalizarEmail(emailRaw);
     if (!email) throw new BadRequestException('email invalido');
 
-    const token = this.base64Url(randomBytes(32));
-    const tokenHash = this.hashToken(token);
     const user = await comTenant(tenant.id, async (q) => {
       const row = (await q(`select id, email_verified_at from usuarios where lower(email)=lower($1) limit 1`, [email])).rows[0];
-      if (!row?.id || row.email_verified_at) return null;
-      await q(
-        `insert into auth_tokens (tenant_id, usuario_id, tipo, token_hash, expires_at)
-         values ($1,$2,'email_verify',$3,now() + interval '24 hours')`,
-        [tenant.id, row.id, tokenHash],
-      );
       return row;
     });
-    if (user?.id) await this.audit(tenant.id, user.id, 'auth.email_verify_requested', 'usuario', user.id);
+    let emailResult: any = { ok: true, provider: 'none' };
+    let url = '';
+    if (user?.id && !user.email_verified_at) {
+      const sent = await this.criarEnviarVerificacaoEmail(tenant.id, user.id, email, this.origemPermitida(origem, dominio));
+      emailResult = sent.emailResult;
+      url = sent.url;
+    }
 
-    return this.authLinkResponse('verify', token, this.origemPermitida(origem, dominio));
+    return this.authLinkResponse(url, emailResult);
   }
 
   async verificarEmail(dominio: string, token: string): Promise<{ ok: true }> {
@@ -367,13 +385,47 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  private authLinkResponse(kind: 'reset' | 'verify', token: string, origem: string): any {
+  private authLink(kind: 'reset' | 'verify', token: string, origem: string): string {
     const path = kind === 'reset' ? '/login?reset_token=' : '/login?verify_token=';
-    const url = `${origem}${path}${encodeURIComponent(token)}`;
-    if (process.env.NODE_ENV !== 'production' || process.env.AUTH_DEBUG_LINKS === 'true') {
-      return { ok: true, url };
-    }
-    return { ok: true };
+    return `${origem}${path}${encodeURIComponent(token)}`;
+  }
+
+  private authLinkResponse(url: string, emailResult: any): any {
+    const response: any = {
+      ok: true,
+      email: {
+        sent: Boolean(emailResult?.ok),
+        provider: emailResult?.provider || 'none',
+      },
+    };
+    if (emailResult?.error && process.env.NODE_ENV !== 'production') response.email.error = emailResult.error;
+    if (url && (process.env.NODE_ENV !== 'production' || process.env.AUTH_DEBUG_LINKS === 'true')) response.url = url;
+    return response;
+  }
+
+  private async criarEnviarVerificacaoEmail(tenantId: string, userId: string, email: string, origem: string): Promise<{ url: string; emailResult: any }> {
+    const token = this.base64Url(randomBytes(32));
+    const tokenHash = this.hashToken(token);
+    await comTenant(tenantId, async (q) => {
+      await q(
+        `insert into auth_tokens (tenant_id, usuario_id, tipo, token_hash, expires_at)
+         values ($1,$2,'email_verify',$3,now() + interval '24 hours')`,
+        [tenantId, userId, tokenHash],
+      );
+    });
+    await this.audit(tenantId, userId, 'auth.email_verify_requested', 'usuario', userId);
+    const url = this.authLink('verify', token, origem);
+    const emailResult = await this.emailService.send({
+      to: email,
+      subject: 'Verifique seu e-mail',
+      html: actionEmail({
+        title: 'Verifique seu e-mail',
+        intro: 'Confirme seu e-mail para proteger sua conta e concluir o acesso.',
+        ctaLabel: 'Verificar e-mail',
+        url,
+      }),
+    });
+    return { url, emailResult };
   }
 
   private async audit(

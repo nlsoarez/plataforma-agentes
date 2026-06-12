@@ -82,7 +82,7 @@ export default function Login() {
       const r = await fetch(`${API}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dominio: window.location.host, nome, email, senha }),
+        body: JSON.stringify({ dominio: window.location.host, nome, email, senha, origem: window.location.origin }),
       });
       const d = await r.json();
       if (d.token) {

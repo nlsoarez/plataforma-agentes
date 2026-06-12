@@ -53,6 +53,7 @@ export default function Dashboard() {
   const { token, ready } = useStoredToken();
   const [range, setRange] = useState('7 dias');
   const [data, setData] = useState<any>(null);
+  const [setup, setSetup] = useState<any>(null);
   const [billingReady, setBillingReady] = useState(false);
   const lineRef = useRef<HTMLCanvasElement | null>(null);
   const barRef = useRef<HTMLCanvasElement | null>(null);
@@ -75,11 +76,25 @@ export default function Dashboard() {
   useEffect(() => {
     if (!token || !billingReady) return;
     (async () => {
-      const projetos = await fetch(`${API}/projetos`, { headers: auth(token) }).then(r => r.json()).catch(() => []);
+      const [projetos, agentes, aiSettings] = await Promise.all([
+        fetch(`${API}/projetos`, { headers: auth(token) }).then(r => r.json()).catch(() => []),
+        fetch(`${API}/agentes`, { headers: auth(token) }).then(r => r.json()).catch(() => []),
+        fetch(`${API}/ai-settings`, { headers: auth(token) }).then(r => r.json()).catch(() => []),
+      ]);
       const projetoId = projetos?.[0]?.id;
       let pipeline: any = { etapas: [], cards: [] };
       let conversas: any[] = [];
       let campanhas: any[] = [];
+      const connectedProject = Array.isArray(projetos) && projetos.find((p: any) => p.phone_number_id);
+      const activeAgent = Array.isArray(agentes) && agentes.find((a: any) => a.agente_status === 'ativo');
+      const configuredProvider = Array.isArray(aiSettings) && aiSettings.find((s: any) => s.key_last4);
+
+      setSetup({
+        hasProject: Array.isArray(projetos) && projetos.length > 0,
+        hasWhatsApp: Boolean(connectedProject),
+        hasAiKey: Boolean(configuredProvider),
+        hasAgent: Boolean(activeAgent),
+      });
 
       if (projetoId) {
         [pipeline, conversas, campanhas] = await Promise.all([
@@ -204,6 +219,7 @@ export default function Dashboard() {
       </div>
 
       {d.demo && <div className="nl-demo-note">Modo demonstracao - dados de exemplo ate o WhatsApp gerar trafego</div>}
+      {setup && !setupComplete(setup) && <SetupGuide setup={setup} />}
 
       <div className="nl-kpis">
         <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} delta="+12% vs. periodo anterior" />
@@ -286,6 +302,37 @@ export default function Dashboard() {
       </div>
     </Shell>
   );
+}
+
+function SetupGuide({ setup }: { setup: any }) {
+  const steps = [
+    { label: 'Conectar WhatsApp', done: setup.hasWhatsApp, href: '/onboarding' },
+    { label: 'Configurar chave de IA', done: setup.hasAiKey, href: '/ai-settings' },
+    { label: 'Ativar agente', done: setup.hasAgent, href: '/agentes' },
+    { label: 'Receber primeira conversa', done: false, href: '/inbox' },
+  ];
+  return (
+    <section className="nl-card nl-card--pad nl-rise" style={{ marginBottom: 14 }}>
+      <div className="nl-panel-head" style={{ marginBottom: 8 }}>
+        <h3>Proximos passos</h3>
+        <span className="meta">onboarding</span>
+      </div>
+      <div className="nl-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+        {steps.map((step, index) => (
+          <a key={step.label} href={step.href} className="nl-cardlet" style={{ display: 'block', textDecoration: 'none' }}>
+            <span className={`nl-badge ${step.done ? 'nl-badge--ok' : 'nl-badge--warn'}`}>
+              {step.done ? 'feito' : `passo ${index + 1}`}
+            </span>
+            <b style={{ display: 'block', marginTop: 10 }}>{step.label}</b>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function setupComplete(setup: any) {
+  return setup.hasWhatsApp && setup.hasAiKey && setup.hasAgent;
 }
 
 function Kpi({ label, value, delta }: { label: string; value: string; delta: string }) {

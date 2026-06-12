@@ -13,7 +13,7 @@ export class AuthController {
   }
 
   @Post('register')
-  register(@Body() body: { dominio?: string; nome?: string; email: string; senha: string }, @Req() req: any) {
+  register(@Body() body: { dominio?: string; nome?: string; email: string; senha: string; origem?: string }, @Req() req: any) {
     const dominio = body.dominio ?? req.headers['x-tenant-host'];
     return this.svc.registrar(dominio, body);
   }
