@@ -7,7 +7,8 @@
     "build": "turbo run build",
     "start": "node scripts/railway-start.mjs",
     "lint": "turbo run lint",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "check:prod": "node scripts/comunora-production-check.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

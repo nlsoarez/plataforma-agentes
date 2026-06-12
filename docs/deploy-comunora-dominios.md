@@ -49,6 +49,40 @@ Use apenas se o Railway fornecer registros aceitos pelo RegistroBR para cada hos
 - `api.comunora.com.br`: CNAME/target informado pelo Railway
 - `comunora.com.br`: use o registro raiz aceito pelo Railway/RegistroBR. Se o RegistroBR nao aceitar CNAME no apex, use Cloudflare.
 
+### Registros atuais gerados pelo Railway
+
+No RegistroBR, use `Configurar enderecamento` -> `Modo avancado`.
+Nao use `Alterar servidores DNS` para estes registros.
+
+Cadastre:
+
+```text
+Tipo: CNAME
+Nome: app
+Valor: ltqiq8fh.up.railway.app
+```
+
+```text
+Tipo: TXT
+Nome: _railway-verify.app
+Valor: railway-verify=8c41d452f1b2c975a1a5a4ab307116caadc9a64a0acaa2159f87feb7de5b6991
+```
+
+```text
+Tipo: CNAME
+Nome: api
+Valor: 3z7xvypo.up.railway.app
+```
+
+```text
+Tipo: TXT
+Nome: _railway-verify.api
+Valor: railway-verify=0f44e0a3c60e76f30d9b540df7720a779ba09f98c8ccb35aae2b70788e3ad701
+```
+
+O campo `Nome` deve receber apenas `app`, `api`, `_railway-verify.app` e `_railway-verify.api`.
+Nao preencha `app.comunora.com.br` dentro da zona `comunora.com.br`, porque isso pode criar um host duplicado.
+
 ## 3. Variaveis Railway
 
 Use `.env.production.example` como base.
@@ -171,6 +205,7 @@ Sem DNS de e-mail validado, confirmação de conta, reset de senha e convites po
 Depois do DNS propagar:
 
 ```bash
+pnpm check:prod -- --soft
 curl -I https://app.comunora.com.br/login
 curl -I https://app.comunora.com.br/health
 curl -I https://api.comunora.com.br/health
@@ -178,6 +213,25 @@ curl -I https://api.comunora.com.br/webhook/evolution
 ```
 
 `/health` deve responder HTTP 200 com JSON simples no web e na API.
+
+Quando `pnpm check:prod` passar sem falhas, troque as variaveis do Railway para os dominios definitivos:
+
+```env
+WEB_APP_URL=https://app.comunora.com.br
+API_PUBLIC_URL=https://api.comunora.com.br
+NEXT_PUBLIC_API_URL=https://api.comunora.com.br
+NEXT_PUBLIC_APP_URL=https://app.comunora.com.br
+GOOGLE_OAUTH_REDIRECT_URI=https://api.comunora.com.br/auth/google/callback
+GOOGLE_CALENDAR_OAUTH_REDIRECT_URI=https://api.comunora.com.br/integracoes/google-calendar/callback
+```
+
+Depois redeploy/restart:
+
+```bash
+railway up --service web --environment production --detach --message "Switch to Comunora domains"
+railway restart --service api --environment production --yes
+railway restart --service worker --environment production --yes
+```
 
 No app:
 
