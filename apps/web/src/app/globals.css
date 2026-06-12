@@ -1241,6 +1241,116 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-site__band p {
   color: rgba(255,255,255,.72);
 }
+.nl-site__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 34px 0 46px;
+  border-top: 1px solid var(--line);
+}
+.nl-site__footer img {
+  height: 42px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+}
+.nl-site__footer p {
+  margin: 10px 0 0;
+  color: #526070;
+}
+.nl-site__footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 14px 20px;
+  color: #526070;
+  font-size: .92rem;
+  font-weight: 600;
+}
+.nl-site__footer a:hover,
+.nl-site__nav a:hover {
+  color: #1565FF;
+}
+.nl-legal {
+  width: min(920px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 62px 0 78px;
+}
+.nl-legal__head {
+  max-width: 820px;
+  margin-bottom: 34px;
+}
+.nl-legal__head span {
+  display: inline-flex;
+  margin-bottom: 14px;
+  color: #00A88F;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.nl-legal__head h1 {
+  margin: 0;
+  color: #0B132B;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1;
+  font-weight: 700;
+}
+.nl-legal__head p {
+  max-width: 760px;
+  margin: 18px 0 0;
+  color: #526070;
+  font-size: 1.12rem;
+  line-height: 1.7;
+}
+.nl-legal__body {
+  padding: clamp(26px, 4vw, 44px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+.nl-legal__body h2 {
+  margin: 30px 0 10px;
+  color: #0B132B;
+  font-size: 1.28rem;
+  font-weight: 700;
+}
+.nl-legal__body h2:first-child {
+  margin-top: 0;
+}
+.nl-legal__body p {
+  margin: 0 0 16px;
+  color: #526070;
+  font-size: 1rem;
+  line-height: 1.78;
+}
+.nl-legal__body strong {
+  color: #0B132B;
+  font-weight: 700;
+}
+.nl-legal__body a {
+  color: #1565FF;
+  font-weight: 700;
+}
+.nl-legal__faq {
+  display: grid;
+  gap: 14px;
+}
+.nl-legal__faq section {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.nl-legal__faq section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.nl-legal__faq h2 {
+  margin-top: 0;
+}
 
 @keyframes nl-up {
   from { opacity: 1; transform: translateY(8px); }
@@ -1255,6 +1365,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   .nl-site__hero { grid-template-columns: 1fr; min-height: auto; }
   .nl-site__hero aside { min-height: 420px; }
   .nl-site__module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nl-site__footer { flex-direction: column; }
+  .nl-site__footer nav { justify-content: flex-start; }
 }
 
 @media (max-width: 860px) {
@@ -1299,4 +1411,6 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   .nl-site__hero aside { min-height: 340px; }
   .nl-site__module-grid { grid-template-columns: 1fr; }
   .nl-site__band { padding: 28px; }
+  .nl-legal { padding-top: 34px; }
+  .nl-legal__body { padding: 24px; }
 }

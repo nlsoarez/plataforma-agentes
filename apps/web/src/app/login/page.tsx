@@ -76,9 +76,9 @@ export default function Login() {
         await redirectAfterAuth(d.token);
         return;
       }
-      setMsg('Credenciais inv�lidas.');
+      setMsg('Credenciais inválidas.');
     } catch {
-      setMsg('Erro de conex�o.');
+      setMsg('Erro de conexão.');
     }
     setCarregando(false);
   }
@@ -89,7 +89,7 @@ export default function Login() {
       return;
     }
     if (senha !== confirmarSenha) {
-      setMsg('As senhas n�o conferem.');
+      setMsg('As senhas não conferem.');
       return;
     }
 
@@ -107,7 +107,7 @@ export default function Login() {
         await redirectAfterAuth(d.token);
         return;
       }
-      setMsg(d.message || 'N�o foi poss�vel criar a conta.');
+      setMsg(d.message || 'Não foi possível criar a conta.');
     } catch {
       setMsg('Erro ao criar conta.');
     }
@@ -128,7 +128,7 @@ export default function Login() {
         window.location.href = d.url;
         return;
       }
-      setMsg(d.message || 'Google n�o configurado.');
+      setMsg(d.message || 'Google não configurado.');
     } catch {
       setMsg('Erro ao iniciar login com Google.');
     }
@@ -149,9 +149,9 @@ export default function Login() {
         body: JSON.stringify({ dominio: window.location.host, email, origem: window.location.origin }),
       });
       const d = await r.json();
-      setMsg(d.url ? `Link de teste: ${d.url}` : 'Se o e-mail existir, enviaremos o link de redefini��o.');
+      setMsg(d.url ? `Link de teste: ${d.url}` : 'Se o e-mail existir, enviaremos o link de redefinição.');
     } catch {
-      setMsg('Erro ao solicitar redefini��o.');
+      setMsg('Erro ao solicitar redefinição.');
     }
     setCarregando(false);
   }
@@ -162,7 +162,7 @@ export default function Login() {
       return;
     }
     if (senha !== confirmarSenha) {
-      setMsg('As senhas n�o conferem.');
+      setMsg('As senhas não conferem.');
       return;
     }
     setCarregando(true);
@@ -175,7 +175,7 @@ export default function Login() {
       });
       const d = await r.json();
       if (!r.ok || d.ok === false) {
-        setMsg(d.message || 'Token inv�lido ou expirado.');
+        setMsg(d.message || 'Token inválido ou expirado.');
       } else {
         setMsg('Senha redefinida. Entre com a nova senha.');
         setModo('login');
@@ -197,7 +197,7 @@ export default function Login() {
         body: JSON.stringify({ dominio: window.location.host, token }),
       });
       const d = await r.json();
-      setMsg(r.ok && d.ok !== false ? 'E-mail verificado. Entre para continuar.' : d.message || 'Token de verifica��o inv�lido.');
+      setMsg(r.ok && d.ok !== false ? 'E-mail verificado. Entre para continuar.' : d.message || 'Token de verificação inválido.');
     } catch {
       setMsg('Erro ao verificar e-mail.');
     }
@@ -226,26 +226,26 @@ export default function Login() {
       <section className="nl-login__brand">
         <LoginWaveCanvas />
         <div className="nl-login__brand-inner">
-          <a href="/" className="nl-login__logo" aria-label={`${branding.name || BRAND.name} - p�gina inicial`}>
+          <a href="/" className="nl-login__logo" aria-label={`${branding.name || BRAND.name} - página inicial`}>
             <img src={branding.logoUrl || BRAND.logoLight} alt={branding.name || BRAND.name} />
           </a>
 
           <div className="nl-login__hero">
             <h2>
-              Comunica��o inteligente.
+              Comunicação inteligente.
               <em>Resultados reais.</em>
             </h2>
-            <p>Agentes de IA, atendimento humano, CRM e automa��es em uma opera��o integrada.</p>
+            <p>Agentes de IA, atendimento humano, CRM e automações em uma operação integrada.</p>
             <div className="nl-login__features" aria-label="Recursos da plataforma">
               <FeatureCard icon={<WhatsAppIcon />} title="Atendimento" description="no WhatsApp" />
               <FeatureCard icon={<BotIcon />} title="Agentes" description="de IA" />
               <FeatureCard icon={<UserFlowIcon />} title="Funil" description="comercial" />
-              <FeatureCard icon={<ChartIcon />} title="Relat�rios e" description="performance" />
+              <FeatureCard icon={<ChartIcon />} title="Relatórios e" description="performance" />
             </div>
           </div>
 
           <p className="nl-login__footer-brand">
-            Plataforma white-label <span>�</span> <strong>{branding.name || BRAND.name}</strong>
+            Plataforma white-label <span>•</span> <strong>{branding.name || BRAND.name}</strong>
           </p>
         </div>
       </section>
@@ -352,7 +352,7 @@ export default function Login() {
             )}
 
             <p className="nl-login__account">
-              {modo === 'login' ? 'Ainda n�o tem uma conta?' : 'J� tem uma conta?'}
+              {modo === 'login' ? 'Ainda não tem uma conta?' : 'Já tem uma conta?'}
               <button
                 type="button"
                 onClick={() => {
@@ -371,7 +371,12 @@ export default function Login() {
 
           <footer className="nl-login__support">
             <p><HeadsetIcon /> Precisa de ajuda? <a href={`mailto:${branding.supportEmail}`}>Fale com o suporte</a></p>
-            <p>� {new Date().getFullYear()} <strong>{branding.name || BRAND.name}</strong>. Todos os direitos reservados.</p>
+            <p>
+              <a href="/politica-de-privacidade">Política de Privacidade</a>
+              {' '}•{' '}
+              <a href="/termos-de-uso">Termos de Uso</a>
+            </p>
+            <p>© {new Date().getFullYear()} <strong>{branding.name || BRAND.name}</strong>. Todos os direitos reservados.</p>
           </footer>
         </div>
       </section>

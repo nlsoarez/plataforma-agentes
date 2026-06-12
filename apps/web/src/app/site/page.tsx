@@ -1,3 +1,4 @@
+import { PublicSiteLayout } from '../../components/PublicSiteLayout';
 import { BRAND } from '../../lib/brand';
 
 const modules = [
@@ -9,19 +10,7 @@ const modules = [
 
 export default function SitePage() {
   return (
-    <main className="nl-site">
-      <header className="nl-site__nav">
-        <a href="/" aria-label={`${BRAND.name} - início`}>
-          <img src={BRAND.logoDark} alt={BRAND.name} />
-        </a>
-        <nav>
-          <a href="#plataforma">Plataforma</a>
-          <a href="#operacao">Operação</a>
-          <a href={`mailto:${BRAND.supportEmail}`}>Contato</a>
-          <a className="nl-site__nav-cta" href={BRAND.appUrl}>Entrar</a>
-        </nav>
-      </header>
-
+    <PublicSiteLayout>
       <section className="nl-site__hero">
         <div>
           <h1>Comunicação inteligente. Resultados reais.</h1>
@@ -66,6 +55,6 @@ export default function SitePage() {
           vender e atender pelo WhatsApp com organização.
         </p>
       </section>
-    </main>
+    </PublicSiteLayout>
   );
 }
