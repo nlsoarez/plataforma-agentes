@@ -1570,11 +1570,11 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__mockup-sidebar i svg {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 2.15;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1781,11 +1781,11 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__float svg {
-  width: 33px;
-  height: 33px;
+  width: 34px;
+  height: 34px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.9;
+  stroke-width: 2.3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1886,13 +1886,18 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 .nl-site__module-icon svg,
 .nl-site__band-items svg {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.15;
+  stroke-width: 2.35;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.nl-site svg.nl-site__svg-fill {
+  fill: currentColor;
+  stroke: none;
 }
 
 .nl-site__module-grid h3 {
