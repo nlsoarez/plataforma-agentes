@@ -28,7 +28,7 @@ export function PublicSiteLayout({ children }: { children: ReactNode }) {
       <footer className="nl-site__footer">
         <div>
           <img src={BRAND.logoDark} alt={BRAND.name} />
-          <p>{BRAND.tagline}</p>
+          <p>Comunicação inteligente. <span>Resultados reais.</span></p>
         </div>
         <nav aria-label="Links institucionais">
           {navItems.map((item) => (
