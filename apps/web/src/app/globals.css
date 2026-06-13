@@ -1380,8 +1380,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-site__nav {
   position: relative;
   z-index: 10;
-  width: min(1180px, calc(100% - 40px));
-  padding: 22px 0 18px;
+  width: min(1320px, calc(100% - 64px));
+  padding: 24px 0 16px;
 }
 
 .nl-site__nav img {
@@ -1408,13 +1408,13 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-site__hero {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(420px, .8fr) minmax(580px, 1.2fr);
-  gap: clamp(32px, 5vw, 78px);
+  grid-template-columns: minmax(430px, .72fr) minmax(760px, 1.28fr);
+  gap: clamp(30px, 4vw, 64px);
   align-items: center;
-  width: min(1180px, calc(100% - 40px));
-  min-height: 680px;
+  width: min(1440px, calc(100% - 64px));
+  min-height: 690px;
   margin: 0 auto;
-  padding: 52px 0 48px;
+  padding: 44px 0 40px;
 }
 
 .nl-site__hero::before {
@@ -1442,11 +1442,11 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__hero h1 {
-  max-width: 560px;
-  font-size: clamp(3.4rem, 5.9vw, 5.9rem);
+  max-width: 590px;
+  font-size: clamp(3.4rem, 5.15vw, 5.45rem);
   line-height: .93;
   font-weight: 700;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
 }
 
 .nl-site__hero h1 span {
@@ -1459,7 +1459,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__hero p {
-  max-width: 610px;
+  max-width: 565px;
   margin: 24px 0 0;
   color: #334155;
   font-size: 1.06rem;
@@ -1487,14 +1487,14 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 .nl-site__mockup {
   position: relative;
-  min-height: 500px;
+  min-height: 590px;
   isolation: isolate;
 }
 
 .nl-site__mockup::before {
   content: '';
   position: absolute;
-  inset: -70px -70px -38px -50px;
+  inset: -76px -54px -28px -26px;
   z-index: -2;
   border-radius: 46px;
   background:
@@ -1517,16 +1517,17 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 .nl-site__mockup-shell {
   position: absolute;
-  top: 24px;
-  left: 38px;
-  right: 80px;
-  height: 424px;
+  top: 28px;
+  left: 88px;
+  right: 30px;
+  z-index: 1;
+  height: 432px;
   display: grid;
-  grid-template-columns: 142px 1fr;
+  grid-template-columns: 152px 1fr;
   overflow: hidden;
   border-radius: 12px;
   background: rgba(255,255,255,.96);
-  box-shadow: 0 26px 68px rgba(11, 19, 43, .14);
+  box-shadow: 0 30px 76px rgba(11, 19, 43, .15);
 }
 
 .nl-site__mockup-sidebar {
@@ -1549,8 +1550,9 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   min-height: 28px;
   padding: 0 9px;
   border-radius: 7px;
-  font-size: .64rem;
+  font-size: .65rem;
   font-weight: 600;
+  line-height: 1;
 }
 
 .nl-site__mockup-sidebar span.active {
@@ -1559,11 +1561,22 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__mockup-sidebar i {
-  width: 8px;
-  height: 8px;
-  border-radius: 3px;
-  border: 1px solid currentColor;
-  opacity: .8;
+  display: grid;
+  flex: 0 0 14px;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  opacity: .9;
+}
+
+.nl-site__mockup-sidebar i svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .nl-site__mockup-board {
@@ -1685,21 +1698,21 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 .nl-site__people {
   position: absolute;
-  left: 175px;
-  bottom: 16px;
-  z-index: 4;
-  width: min(430px, 58%);
+  left: clamp(130px, 16vw, 210px);
+  bottom: -4px;
+  z-index: 5;
+  width: clamp(470px, 43vw, 650px);
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 18px 18px rgba(11, 19, 43, .10));
+  filter: drop-shadow(0 22px 24px rgba(11, 19, 43, .13));
 }
 
 .nl-site__chat {
   position: absolute;
-  right: 0;
-  top: 168px;
-  z-index: 5;
-  width: 222px;
+  right: 6px;
+  top: 214px;
+  z-index: 7;
+  width: 232px;
   padding: 16px;
   border: 1px solid #DDE3EA;
   border-radius: 14px;
@@ -1756,7 +1769,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 .nl-site__float {
   position: absolute;
-  z-index: 6;
+  z-index: 8;
   display: grid;
   place-items: center;
   width: 66px;
@@ -1778,26 +1791,26 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__float--whatsapp {
-  left: -44px;
-  top: 190px;
+  left: 18px;
+  top: 208px;
   color: #22C55E;
 }
 
 .nl-site__float--bot {
-  left: -22px;
-  bottom: 112px;
+  left: 46px;
+  bottom: 118px;
   color: #1565FF;
 }
 
 .nl-site__float--growth {
-  right: -10px;
-  top: 102px;
+  right: -8px;
+  top: 116px;
   color: #22C55E;
 }
 
 .nl-site__float--message {
-  right: 114px;
-  bottom: 42px;
+  right: 118px;
+  bottom: 74px;
   color: #1565FF;
   font-size: 1.45rem;
   font-weight: 800;
@@ -1805,8 +1818,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__modules {
-  width: min(980px, calc(100% - 40px));
-  padding: 26px 0 16px;
+  width: min(1240px, calc(100% - 64px));
+  padding: 24px 0 18px;
   text-align: center;
 }
 
@@ -1828,16 +1841,16 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 .nl-site__module-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 18px;
   margin-top: 24px;
   text-align: left;
 }
 
 .nl-site__module-grid article {
-  min-height: 206px;
-  padding: 23px 24px;
+  min-height: 214px;
+  padding: 26px 26px;
   border-color: #DDE3EA;
-  border-radius: 14px;
+  border-radius: 16px;
   background: rgba(255,255,255,.9);
   box-shadow: 0 14px 34px rgba(11, 19, 43, 0.07);
   transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
@@ -1852,10 +1865,10 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-site__module-icon {
   display: grid;
   place-items: center;
-  width: 45px;
-  height: 45px;
+  width: 54px;
+  height: 54px;
   margin-bottom: 18px;
-  border-radius: 14px;
+  border-radius: 16px;
   background: rgba(21, 101, 255, .08);
   color: #1565FF;
 }
@@ -1873,11 +1886,11 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 .nl-site__module-icon svg,
 .nl-site__band-items svg {
-  width: 25px;
-  height: 25px;
+  width: 28px;
+  height: 28px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.9;
+  stroke-width: 2.15;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1897,15 +1910,15 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-site__band {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(420px, .9fr);
+  grid-template-columns: minmax(500px, .95fr) minmax(560px, 1.05fr);
   align-items: center;
-  gap: 34px;
-  width: min(980px, calc(100% - 40px));
+  gap: 46px;
+  width: min(1240px, calc(100% - 64px));
   margin-top: 0;
   margin-bottom: 34px;
-  padding: 34px 38px;
+  padding: 42px 44px;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: 16px;
   background:
     radial-gradient(circle at 86% 24%, rgba(21,101,255,.22), transparent 30%),
     radial-gradient(circle at 68% 84%, rgba(0,198,169,.18), transparent 34%),
@@ -1929,10 +1942,10 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__band h2 {
-  max-width: 500px;
+  max-width: 560px;
   color: #FFFFFF;
-  font-size: clamp(2rem, 3.6vw, 3rem);
-  line-height: 1.02;
+  font-size: clamp(2rem, 3.15vw, 2.72rem);
+  line-height: 1.06;
 }
 
 .nl-site__band h2 span {
@@ -1940,7 +1953,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-site__band p {
-  max-width: 540px;
+  max-width: 560px;
   margin-top: 16px;
   color: rgba(255,255,255,.78);
   font-size: .95rem;
@@ -1951,31 +1964,37 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(5, minmax(104px, 1fr));
+  gap: 22px;
 }
 
 .nl-site__band-items article {
   display: grid;
   justify-items: center;
   align-content: start;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
+  padding: 8px 4px;
   color: #FFFFFF;
   text-align: center;
 }
 
 .nl-site__band-items svg {
+  width: 32px;
+  height: 32px;
   color: #00C6A9;
+  filter: drop-shadow(0 8px 18px rgba(0,198,169,.18));
 }
 
 .nl-site__band-items b {
-  font-size: .78rem;
-  line-height: 1.2;
+  max-width: 116px;
+  font-size: .85rem;
+  line-height: 1.16;
+  letter-spacing: 0;
 }
 
 .nl-site__footer {
-  width: min(980px, calc(100% - 40px));
+  width: min(1240px, calc(100% - 64px));
   padding: 24px 0 30px;
 }
 
@@ -2008,10 +2027,11 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   }
   .nl-site__hero aside { min-height: 420px; }
   .nl-site__mockup {
-    min-height: 500px;
+    min-height: 560px;
   }
   .nl-site__band {
     grid-template-columns: 1fr;
+    width: min(100% - 40px, 900px);
   }
   .nl-site__module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nl-site__footer { flex-direction: column; }
@@ -2057,7 +2077,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   .nl-site__nav {
     align-items: flex-start;
     flex-direction: column;
-    width: min(100% - 24px, 1180px);
+    width: min(100% - 24px, 1320px);
     padding-top: 18px;
   }
   .nl-site__nav img {
@@ -2072,7 +2092,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
     padding: 9px 13px;
   }
   .nl-site__hero {
-    width: min(100% - 24px, 1180px);
+    width: min(100% - 24px, 1440px);
     padding-top: 14px;
   }
   .nl-site__hero h1 {
@@ -2095,7 +2115,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   }
   .nl-site__hero aside { min-height: 340px; }
   .nl-site__mockup {
-    min-height: 390px;
+    min-height: 430px;
     margin: 6px -8px 0;
   }
   .nl-site__mockup::before {
@@ -2103,10 +2123,10 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
     border-radius: 28px;
   }
   .nl-site__mockup-shell {
-    left: 26px;
+    left: 24px;
     right: 12px;
     top: 18px;
-    height: 300px;
+    height: 310px;
     grid-template-columns: 92px 1fr;
     border-radius: 11px;
   }
@@ -2162,14 +2182,14 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
     gap: 5px;
   }
   .nl-site__people {
-    left: 116px;
-    bottom: 18px;
-    width: 220px;
+    left: 82px;
+    bottom: 10px;
+    width: 300px;
   }
   .nl-site__chat {
-    right: 2px;
-    top: 190px;
-    width: 178px;
+    right: 0;
+    top: 198px;
+    width: 176px;
     padding: 12px;
   }
   .nl-site__chat p {
@@ -2185,12 +2205,12 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
     height: 25px;
   }
   .nl-site__float--whatsapp {
-    left: -8px;
-    top: 178px;
+    left: -2px;
+    top: 174px;
   }
   .nl-site__float--bot {
-    left: 6px;
-    bottom: 72px;
+    left: 10px;
+    bottom: 86px;
   }
   .nl-site__float--growth {
     right: -4px;
@@ -2201,12 +2221,12 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
     bottom: 45px;
   }
   .nl-site__modules {
-    width: min(100% - 24px, 980px);
+    width: min(100% - 24px, 1240px);
     padding-top: 10px;
   }
   .nl-site__module-grid { grid-template-columns: 1fr; }
   .nl-site__band {
-    width: min(100% - 24px, 980px);
+    width: min(100% - 24px, 1240px);
     padding: 24px;
     gap: 24px;
   }
@@ -2227,10 +2247,11 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
     text-align: left;
   }
   .nl-site__band-items b {
-    font-size: .75rem;
+    max-width: none;
+    font-size: .78rem;
   }
   .nl-site__footer {
-    width: min(100% - 24px, 980px);
+    width: min(100% - 24px, 1240px);
   }
   .nl-legal { padding-top: 34px; }
   .nl-legal__body { padding: 24px; }

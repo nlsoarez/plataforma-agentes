@@ -32,6 +32,17 @@ const operationItems = [
   ['chart', 'Dados que', 'geram resultado'],
 ];
 
+const dashboardNavItems = [
+  ['dashboard', 'Dashboard'],
+  ['message', 'Conversas'],
+  ['contacts', 'Contatos'],
+  ['bot', 'Agentes de IA'],
+  ['plug', 'Automação'],
+  ['send', 'Campanhas'],
+  ['tag', 'Pipeline'],
+  ['chart', 'Relatórios'],
+];
+
 function Icon({ name }: { name: string }) {
   if (name === 'whatsapp') {
     return (
@@ -98,6 +109,36 @@ function Icon({ name }: { name: string }) {
     );
   }
 
+  if (name === 'dashboard') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="7" height="7" rx="2" />
+        <rect x="13" y="4" width="7" height="7" rx="2" />
+        <rect x="4" y="13" width="7" height="7" rx="2" />
+        <rect x="13" y="13" width="7" height="7" rx="2" />
+      </svg>
+    );
+  }
+
+  if (name === 'message') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v4.7a3.5 3.5 0 0 1-3.5 3.5h-4.1L6.4 19v-4.3A3.5 3.5 0 0 1 5 11.9V6.5Z" />
+        <path d="M9 8h6M9 11h4" />
+      </svg>
+    );
+  }
+
+  if (name === 'contacts') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="5" y="4" width="14" height="16" rx="3" />
+        <path d="M9 8h6M9 16h6" />
+        <path d="M12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M5 19V9M12 19V5M19 19v-7" />
@@ -112,14 +153,14 @@ function HeroMockup() {
       <div className="nl-site__mockup-shell">
         <aside className="nl-site__mockup-sidebar">
           <img src={BRAND.logoLight} alt="" />
-          {['Dashboard', 'Conversas', 'Contatos', 'Agentes de IA', 'Automação', 'Campanhas', 'Pipeline', 'Relatórios'].map(
-            (item, index) => (
-              <span key={item} className={index === 0 ? 'active' : ''}>
-                <i />
-                {item}
-              </span>
-            ),
-          )}
+          {dashboardNavItems.map(([icon, label], index) => (
+            <span key={label} className={index === 0 ? 'active' : ''}>
+              <i>
+                <Icon name={icon} />
+              </i>
+              {label}
+            </span>
+          ))}
         </aside>
         <section className="nl-site__mockup-board">
           <header>
