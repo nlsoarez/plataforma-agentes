@@ -2,7 +2,7 @@ import { BRAND } from '../lib/brand';
 
 const shortcuts = [
   { href: '/dashboard', title: 'Dashboard', description: 'Métricas, funil, campanhas e leitura rápida da operação.' },
-  { href: '/sessoes', title: 'Sessões', description: 'Estado das instâncias Evolution conectadas.' },
+  { href: '/sessoes', title: 'Conexões', description: 'Estado dos números de WhatsApp conectados.' },
   { href: '/agentes', title: 'Agentes', description: 'Prompt, modelo e roteamento ativo por projeto.' },
   { href: '/inbox', title: 'Inbox', description: 'Conversas ao vivo com IA e atendimento humano.' },
   { href: '/pipeline', title: 'Pipeline', description: 'Funil visual para acompanhar e mover leads.' },

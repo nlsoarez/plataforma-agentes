@@ -36,6 +36,13 @@ type Evento = {
   criado_em: string;
 };
 
+function connectionLabel(state: string | null | undefined) {
+  if (state === 'open') return 'Conectado';
+  if (state === 'close') return 'Desconectado';
+  if (state === 'connecting') return 'Conectando';
+  return 'Verificando';
+}
+
 export default function SessoesPage() {
   const { token, ready } = useStoredToken();
   const [sessoes, setSessoes] = useState<Sessao[]>([]);
@@ -80,19 +87,21 @@ export default function SessoesPage() {
       expireSession();
       return;
     }
-    setMsg(d.ok ? `${nome} executado.` : d.message || JSON.stringify(d));
+    setMsg(d.ok ? (nome === 'sincronizar' ? 'Conexão verificada.' : 'WhatsApp desconectado.') : d.message || JSON.stringify(d));
     await carregar();
   }
 
   if (!ready) return <SessionLoading />;
   if (!token) return <SessionRequired />;
 
+  const fluxoPronto = Boolean(diagnostico?.apiPublicUrl && diagnostico?.redisUrl && diagnostico?.evolutionApiUrl && diagnostico?.evolutionApiKey);
+
   return (
-    <Shell title="Sessões">
+    <Shell title="Conexões WhatsApp">
       <div className="nl-page-head nl-rise">
         <div>
-          <h1>Sessões Evolution</h1>
-          <div className="sub">Estado persistente das instâncias conectadas</div>
+          <h1>Conexões WhatsApp</h1>
+          <div className="sub">Números conectados, estado da conexão e eventos recentes</div>
         </div>
         <a className="nl-btn nl-btn--accent" href="/onboarding">Nova conexão</a>
       </div>
@@ -101,21 +110,19 @@ export default function SessoesPage() {
         <div className="nl-card nl-card--pad" style={{ maxWidth: 980, marginBottom: 16 }}>
           <div className="nl-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <b>Diagnóstico do fluxo</b>
+              <b>Fluxo automático</b>
               <div className="faint" style={{ marginTop: 4 }}>
-                Webhook esperado: {diagnostico.webhookUrl || 'API_PUBLIC_URL não configurada'}
+                A Comunora cria a conexão, configura o recebimento de mensagens e roteia tudo para o inbox correto.
               </div>
             </div>
             <div className="nl-row">
-              <span className={`nl-badge ${diagnostico.evolutionApiUrl ? 'nl-badge--ok' : 'nl-badge--warn'}`}>URL</span>
-              <span className={`nl-badge ${diagnostico.evolutionApiKey ? 'nl-badge--ok' : 'nl-badge--warn'}`}>API key</span>
               <span className={`nl-badge ${diagnostico.apiPublicUrl ? 'nl-badge--ok' : 'nl-badge--warn'}`}>Webhook</span>
-              <span className={`nl-badge ${diagnostico.redisUrl ? 'nl-badge--ok' : 'nl-badge--warn'}`}>Redis</span>
+              <span className={`nl-badge ${fluxoPronto ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{fluxoPronto ? 'Pronto' : 'Atenção'}</span>
             </div>
           </div>
-          {!diagnostico.apiPublicUrl && (
+          {!fluxoPronto && (
             <p className="nl-error" style={{ marginBottom: 0 }}>
-              Sem API_PUBLIC_URL pública, o QR pode conectar, mas as mensagens reais não chegam no sistema.
+              A conexão técnica ainda não está completa. Mensagens reais podem não chegar até a configuração ser finalizada.
             </p>
           )}
         </div>
@@ -126,23 +133,23 @@ export default function SessoesPage() {
           <thead>
             <tr>
               <th>Projeto</th>
-              <th>Instancia</th>
-              <th>Conexao</th>
+              <th>Conexão</th>
+              <th>Estado</th>
               <th>Status</th>
               <th>Atualizado</th>
-              <th>Ultimo erro</th>
-              <th>Acoes</th>
+              <th>Último erro</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {sessoes.length === 0 && (
-              <tr><td colSpan={7} className="faint" style={{ padding: 24, textAlign: 'center' }}>Nenhuma sessao conectada.</td></tr>
+              <tr><td colSpan={7} className="faint" style={{ padding: 24, textAlign: 'center' }}>Nenhuma conexão criada.</td></tr>
             )}
             {sessoes.map((s) => (
               <tr key={s.id}>
-                <td><b>{s.nome}</b><div className="faint">{s.transporte_driver}</div></td>
+                <td><b>{s.nome}</b><div className="faint">WhatsApp</div></td>
                 <td>{s.phone_number_id || '-'}</td>
-                <td><span className={`nl-badge ${s.connection_state === 'open' ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{s.connection_state}</span></td>
+                <td><span className={`nl-badge ${s.connection_state === 'open' ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{connectionLabel(s.connection_state)}</span></td>
                 <td>{s.status}</td>
                 <td>{s.last_connection_update ? new Date(s.last_connection_update).toLocaleString('pt-BR') : '-'}</td>
                 <td style={{ maxWidth: 220 }}>
@@ -152,8 +159,8 @@ export default function SessoesPage() {
                 </td>
                 <td>
                   <div className="nl-row">
-                    <button className="nl-btn nl-btn--ghost nl-btn--sm" disabled={loading} onClick={() => acao(s.id, 'sincronizar')}>Sync</button>
-                    <button className="nl-btn nl-btn--ghost nl-btn--sm" disabled={loading} onClick={() => acao(s.id, 'logout')}>Logout</button>
+                    <button className="nl-btn nl-btn--ghost nl-btn--sm" disabled={loading} onClick={() => acao(s.id, 'sincronizar')}>Verificar</button>
+                    <button className="nl-btn nl-btn--ghost nl-btn--sm" disabled={loading} onClick={() => acao(s.id, 'logout')}>Desconectar</button>
                   </div>
                 </td>
               </tr>
@@ -168,7 +175,7 @@ export default function SessoesPage() {
           <button className="nl-btn nl-btn--ghost nl-btn--sm" disabled={loading} onClick={carregar}>Atualizar</button>
         </div>
         <div style={{ marginTop: 12 }}>
-          {eventos.length === 0 && <div className="faint">Nenhum erro operacional registrado ainda.</div>}
+          {eventos.length === 0 && <div className="faint">Nenhum evento operacional registrado ainda.</div>}
           {eventos.map((e) => (
             <div key={e.id} className="nl-log-row">
               <span className={`nl-badge ${e.nivel === 'error' ? 'nl-badge--warn' : 'nl-badge--ok'}`}>{e.nivel}</span>
@@ -182,7 +189,7 @@ export default function SessoesPage() {
         </div>
       </div>
 
-      {msg && <p className={msg.includes('executado') ? 'nl-success' : 'nl-error'} style={{ maxWidth: 980 }}>{msg}</p>}
+      {msg && <p className={msg.includes('verificada') || msg.includes('desconectado') ? 'nl-success' : 'nl-error'} style={{ maxWidth: 980 }}>{msg}</p>}
     </Shell>
   );
 }

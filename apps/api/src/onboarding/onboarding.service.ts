@@ -6,6 +6,7 @@ import { assertLimit } from '../billing/entitlements';
 export class OnboardingService {
   private base = (process.env.EVOLUTION_API_URL ?? '').replace(/\/+$/, '');
   private apikey = process.env.EVOLUTION_API_KEY ?? '';
+  private webhookGarantido = new Set<string>();
 
   private headers() {
     return { apikey: this.apikey, 'Content-Type': 'application/json' };
@@ -75,6 +76,39 @@ export class OnboardingService {
     return this.extractQr(data);
   }
 
+  private async garantirWebhook(instancia: string) {
+    const url = this.webhookUrl();
+    if (!url) {
+      return { ok: false, message: 'API_PUBLIC_URL nao configurada' };
+    }
+
+    const r = await fetch(`${this.base}/webhook/set/${instancia}`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify({ webhook: this.webhookConfig(url) }),
+    });
+    const data = await this.readJson(r);
+    if (!r.ok) {
+      return { ok: false, message: `Falha ao configurar webhook Evolution: ${r.status}`, raw: data };
+    }
+
+    this.webhookGarantido.add(instancia);
+    return { ok: true };
+  }
+
+  private async garantirWebhookUmaVez(instancia: string) {
+    if (this.webhookGarantido.has(instancia)) return { ok: true, cached: true };
+    return this.garantirWebhook(instancia);
+  }
+
+  private async assertInstanciaDoTenant(tenantId: string, instancia: string) {
+    const existe = await comTenant(tenantId, async (q) => {
+      const r = await q(`select id from projetos where phone_number_id=$1 limit 1`, [instancia]);
+      return Boolean(r.rows[0]);
+    });
+    if (!existe) throw new BadRequestException('conexao nao encontrada para este cliente');
+  }
+
   private async salvarProjeto(tenantId: string, nome: string, instancia: string, projetoId?: string) {
     await comTenant(tenantId, async (q) => {
       if (projetoId) {
@@ -131,6 +165,14 @@ export class OnboardingService {
       const message = JSON.stringify(data).toLowerCase();
       if (message.includes('exist') || message.includes('already') || message.includes('existe')) {
         await this.salvarProjeto(tenantId, cleanNome, instancia, projetoId);
+        const webhook = await this.garantirWebhook(instancia);
+        if (!webhook.ok) {
+          return {
+            instancia,
+            warning: webhook.message,
+            ...(await this.connect(instancia)),
+          };
+        }
         return { instancia, warning: webhookUrl ? undefined : 'API_PUBLIC_URL nao configurada; o QR pode conectar, mas mensagens reais nao chegam no sistema.', ...(await this.connect(instancia)) };
       }
 
@@ -138,22 +180,25 @@ export class OnboardingService {
     }
 
     await this.salvarProjeto(tenantId, cleanNome, instancia, projetoId);
+    const webhook = await this.garantirWebhook(instancia);
 
     const qr = this.extractQr(data);
     if (qr.qr || qr.qrCode || qr.pairingCode) {
-      return { instancia, warning: webhookUrl ? undefined : 'API_PUBLIC_URL nao configurada; o QR pode conectar, mas mensagens reais nao chegam no sistema.', ...qr };
+      return { instancia, warning: webhook.ok ? undefined : webhook.message, ...qr };
     }
 
-    return { instancia, warning: webhookUrl ? undefined : 'API_PUBLIC_URL nao configurada; o QR pode conectar, mas mensagens reais nao chegam no sistema.', ...(await this.connect(instancia)) };
+    return { instancia, warning: webhook.ok ? undefined : webhook.message, ...(await this.connect(instancia)) };
   }
 
-  async qr(instancia: string) {
+  async qr(tenantId: string, instancia: string) {
     this.assertConfig();
+    await this.assertInstanciaDoTenant(tenantId, instancia);
     return this.connect(instancia);
   }
 
   async status(tenantId: string, instancia: string) {
     this.assertConfig();
+    await this.assertInstanciaDoTenant(tenantId, instancia);
 
     const r = await fetch(`${this.base}/instance/connectionState/${instancia}`, { headers: this.headers() });
     const data = await this.readJson(r);
@@ -162,12 +207,18 @@ export class OnboardingService {
     }
 
     const state = this.normalizarEstado(data?.instance?.state ?? data?.state ?? data?.status ?? 'unknown');
+    const webhook = state === 'open' ? await this.garantirWebhookUmaVez(instancia) : { ok: true };
     if (state === 'open') {
       await comTenant(tenantId, (q) => q(
         `update projetos
-         set status='ativo', connection_state=$2, last_connection_update=now(), session_meta=$3, last_error=null, last_error_at=null
+         set status='ativo',
+             connection_state=$2,
+             last_connection_update=now(),
+             session_meta=$3,
+             last_error=case when $4::boolean then null else $5 end,
+             last_error_at=case when $4::boolean then null else now() end
          where phone_number_id=$1`,
-        [instancia, state, JSON.stringify(data)],
+        [instancia, state, JSON.stringify(data), webhook.ok, (webhook as any).message ?? null],
       ));
     } else if (state === 'close') {
       await comTenant(tenantId, (q) => q(
@@ -180,6 +231,6 @@ export class OnboardingService {
         [instancia, state, JSON.stringify(data)],
       ));
     }
-    return { state };
+    return { state, webhookOk: webhook.ok };
   }
 }

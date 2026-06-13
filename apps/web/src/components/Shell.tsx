@@ -10,7 +10,7 @@ const API = BRAND.apiUrl;
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/sessoes', label: 'Sessões' },
+  { href: '/sessoes', label: 'Conexões' },
   { href: '/agentes', label: 'Agentes' },
   { href: '/templates', label: 'Templates' },
   { href: '/ai-settings', label: 'IA e Custos' },

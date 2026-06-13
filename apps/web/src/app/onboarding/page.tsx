@@ -57,7 +57,7 @@ function ensureAuth(r: Response, data: any) {
   const message = apiMessage(data);
   if (r.status === 401 || message.toLowerCase().includes('token invalido')) {
     expireSession();
-    throw new Error('Sessao expirada. Entre novamente.');
+    throw new Error('Sessão expirada. Entre novamente.');
   }
   return message;
 }
@@ -185,7 +185,7 @@ export default function Onboarding() {
       setEstado('aguardando QR');
       iniciarPolling(d.instancia);
     } catch (e: any) {
-      setErro(e?.message || 'Falha ao criar instância');
+      setErro(e?.message || 'Falha ao criar conexão');
     } finally {
       setLoading(false);
     }
@@ -234,7 +234,7 @@ export default function Onboarding() {
         <div className="nl-card nl-card--pad">
           <div className="eyebrow" style={{ marginBottom: 12 }}>Nova conexão</div>
           <p className="muted" style={{ marginTop: 0 }}>
-            Crie a instância e escaneie o QR no WhatsApp do cliente em <b>Aparelhos conectados</b>.
+            Escaneie o QR Code no WhatsApp em <b>Aparelhos conectados</b>. A Comunora configura a conexão automaticamente.
           </p>
 
           {!instancia ? (
@@ -260,7 +260,7 @@ export default function Onboarding() {
                   </select>
                 </>
               )}
-              <label className="nl-label">Nome da instância</label>
+              <label className="nl-label">Nome da conexão</label>
               <input
                 className="nl-input"
                 value={nome}
@@ -275,7 +275,7 @@ export default function Onboarding() {
             </>
           ) : (
             <div className="nl-row" style={{ justifyContent: 'space-between' }}>
-              <span className="muted">Instância <b>{instancia}</b></span>
+              <span className="muted">Conexão <b>{instancia}</b></span>
               <span className={`nl-badge ${conectado ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{estado || '-'}</span>
             </div>
           )}
@@ -308,7 +308,7 @@ export default function Onboarding() {
           ) : (
             <div className="nl-empty" style={{ padding: 20 }}>
               <div className="display display-md">QR</div>
-              <div>{instancia ? 'Evolution ainda não retornou o QR.' : 'Aparece aqui após criar a instância.'}</div>
+              <div>{instancia ? 'Aguardando retorno do QR.' : 'Aparece aqui após criar a conexão.'}</div>
               {instancia && <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 0 }}>A tela tenta renovar automaticamente a cada 4s.</p>}
               {pairingCode && <PairingCode value={pairingCode} />}
             </div>

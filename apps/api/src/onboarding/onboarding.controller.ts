@@ -13,8 +13,8 @@ export class OnboardingController {
   }
 
   @Get('instancia/:instancia/qr')
-  qr(@Param('instancia') instancia: string) {
-    return this.svc.qr(instancia);
+  qr(@Param('instancia') instancia: string, @Req() req: any) {
+    return this.svc.qr(req.user.tenantId, instancia);
   }
 
   @Get('instancia/:instancia/status')

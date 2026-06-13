@@ -22,9 +22,9 @@ type AgentRow = {
   provider_key_last4: string | null;
 };
 
-const DEFAULT_PROMPT = `Voce e um atendente objetivo, educado e comercial.
-Responda em portugues do Brasil.
-Faca perguntas curtas para entender a necessidade do lead.
+const DEFAULT_PROMPT = `Você é um atendente objetivo, educado e comercial.
+Responda em português do Brasil.
+Faça perguntas curtas para entender a necessidade do lead.
 Quando o cliente pedir atendimento humano, acione handoff.
 Nunca invente preço, prazo ou política que não esteja no contexto.`;
 
@@ -118,16 +118,16 @@ export default function AgentesPage() {
     <Shell title="Agentes">
       <div className="nl-page-head nl-rise">
         <div>
-          <h1>Agentes e sessões</h1>
-          <div className="sub">Instâncias conectadas, roteamento e configuração do agente ativo</div>
+          <h1>Agentes e conexões</h1>
+          <div className="sub">Números conectados, roteamento e configuração do agente ativo</div>
         </div>
         <button className="nl-btn nl-btn--ghost" onClick={carregar} disabled={loading}>Atualizar</button>
       </div>
 
       {rows.length === 0 ? (
         <div className="nl-card nl-card--pad nl-empty" style={{ maxWidth: 520 }}>
-          <div className="display display-md">Nenhuma sessão</div>
-          <div>Conecte uma instância em Conectar WhatsApp primeiro.</div>
+          <div className="display display-md">Nenhuma conexão</div>
+          <div>Conecte um número em Conectar WhatsApp primeiro.</div>
         </div>
       ) : (
         <div className="nl-agents-grid">
@@ -140,7 +140,7 @@ export default function AgentesPage() {
               >
                 <span>
                   <b>{row.projeto_nome}</b>
-                  <small>{row.phone_number_id || 'sem instância'}</small>
+                  <small>{row.phone_number_id || 'sem conexão'}</small>
                 </span>
                 <i className={row.projeto_status === 'ativo' ? 'ok' : ''}>{row.projeto_status}</i>
               </button>
@@ -154,7 +154,7 @@ export default function AgentesPage() {
                   <div>
                     <div className="eyebrow">Projeto ativo</div>
                     <h2>{selected.projeto_nome}</h2>
-                    <p className="muted">{selected.transporte_driver} / {selected.phone_number_id || 'sem rota'}</p>
+                    <p className="muted">WhatsApp / {selected.phone_number_id || 'sem rota'}</p>
                   </div>
                   <span className={`nl-badge ${selected.agente_status === 'ativo' ? 'nl-badge--ok' : 'nl-badge--warn'}`}>
                     {selected.agente_status || 'sem agente'}
@@ -185,13 +185,13 @@ export default function AgentesPage() {
                 <div className="nl-card nl-card--pad" style={{ background: 'rgba(21,101,255,0.06)', marginBottom: 14 }}>
                   <b>Chave {PROVIDERS[form.provider]?.keyPageLabel || 'IA'}</b>
                   <p className="muted" style={{ margin: '6px 0 12px', fontSize: '0.9rem' }}>
-                    Configure, teste e salve a chave em IA e Custos. Anthropic e Google respondem texto; tools avancadas ainda ficam no OpenAI.
+                    Configure, teste e salve a chave em IA e Custos. Anthropic e Google respondem texto; tools avançadas ainda ficam no OpenAI.
                     {selected.provider_key_last4 ? ` Chave salva: ****${selected.provider_key_last4}.` : ''}
                   </p>
                   <a className="nl-btn nl-btn--ghost nl-btn--sm" href="/ai-settings">Abrir IA e Custos</a>
                 </div>
 
-                <label className="nl-label">Referencia BYOK legada opcional</label>
+                <label className="nl-label">Referência BYOK legada opcional</label>
                 <input
                   className="nl-input"
                   value={form.byok_key_ref}

@@ -9,9 +9,9 @@ const faqs = [
       'A Comunora é uma plataforma de atendimento inteligente que conecta WhatsApp, inteligência artificial, CRM, automações, campanhas e atendimento humano em uma única operação.',
   },
   {
-    question: 'A Comunora usa WhatsApp oficial?',
+    question: 'Como a conexão com WhatsApp funciona?',
     answer:
-      'A plataforma foi preparada para operar com Evolution API como camada de conexão com WhatsApp. A configuração técnica depende do ambiente contratado e das políticas aplicáveis ao uso do canal.',
+      'A conexão é feita pelo painel da Comunora. O cliente escaneia o QR Code no WhatsApp e a plataforma configura automaticamente o recebimento de mensagens, o inbox e o roteamento para agentes.',
   },
   {
     question: 'Posso usar minha própria chave de IA?',

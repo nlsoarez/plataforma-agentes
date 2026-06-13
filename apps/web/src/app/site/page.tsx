@@ -2,7 +2,7 @@ import { PublicSiteLayout } from '../../components/PublicSiteLayout';
 import { BRAND } from '../../lib/brand';
 
 const modules = [
-  ['WhatsApp conectado', 'Evolution API para sessões, QR code, inbox e respostas em tempo real.'],
+  ['WhatsApp conectado', 'QR Code, inbox e respostas em tempo real com configuração automática pelo painel.'],
   ['Agentes de IA', 'Atendimento automatizado com modelos BYOK, prompts por projeto e passagem para humano.'],
   ['CRM e pipeline', 'Leads, etapas, responsáveis, histórico de conversas e oportunidades organizadas.'],
   ['Automações e campanhas', 'Gatilhos, mensagens segmentadas, cadência e operação comercial em uma só plataforma.'],
