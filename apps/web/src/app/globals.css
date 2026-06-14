@@ -390,42 +390,58 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-login--comunora .nl-login__features {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px 32px;
+  gap: 22px 30px;
   margin-top: 42px;
-  max-width: 540px;
+  max-width: 610px;
 }
 .nl-login__feature-card {
   display: flex;
-  align-items: center;
-  gap: 18px;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
 }
 .nl-login__feature-card i {
   display: grid;
   place-items: center;
   flex: none;
-  width: 58px;
-  height: 58px;
+  width: 54px;
+  height: 54px;
   border: 1px solid rgba(255,255,255,.06);
   border-radius: 16px;
-  background: rgba(255,255,255,.065);
-  box-shadow: 0 12px 40px rgba(0,0,0,.16);
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255,255,255,.18), transparent 35%),
+    rgba(255,255,255,.075);
+  box-shadow: 0 14px 34px rgba(0,0,0,.18);
   color: #00C6A9;
 }
-.nl-login__feature-card:nth-child(1) i,
+.nl-login__feature-card:nth-child(1) i { color: #25D366; }
 .nl-login__feature-card:nth-child(3) i { color: #7ED957; }
 .nl-login__feature-card:nth-child(4) i { color: #1565FF; }
 .nl-login__feature-card svg {
-  width: 27px;
-  height: 27px;
-}
-.nl-login__feature-card b {
-  color: #fff;
-  font-size: .96rem;
-  font-weight: 600;
-  line-height: 1.35;
-}
-.nl-login__feature-card b span {
+  width: 30px;
+  height: 30px;
   display: block;
+}
+.nl-login__feature-copy {
+  display: block;
+  min-width: 0;
+  padding-top: 1px;
+}
+.nl-login__feature-copy b {
+  display: block;
+  color: #fff;
+  font-size: .94rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.nl-login__feature-copy small {
+  display: block;
+  max-width: 24ch;
+  margin-top: 5px;
+  color: rgba(255,255,255,.62);
+  font-size: .72rem;
+  font-weight: 500;
+  line-height: 1.35;
 }
 .nl-login__footer-brand {
   margin: 0;
@@ -690,7 +706,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   margin-top: 22px;
   max-width: 460px;
 }
-.nl-login__features span {
+.nl-login__features > span {
   display: inline-flex;
   align-items: center;
   min-height: 30px;

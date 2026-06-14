@@ -237,10 +237,10 @@ export default function Login() {
             </h2>
             <p>Agentes de IA, atendimento humano, CRM e automações em uma operação integrada.</p>
             <div className="nl-login__features" aria-label="Recursos da plataforma">
-              <FeatureCard icon={<WhatsAppIcon />} title="Atendimento" description="no WhatsApp" />
-              <FeatureCard icon={<BotIcon />} title="Agentes" description="de IA" />
-              <FeatureCard icon={<UserFlowIcon />} title="Funil" description="comercial" />
-              <FeatureCard icon={<ChartIcon />} title="Relatórios e" description="performance" />
+              <FeatureCard icon={<WhatsAppIcon />} title="Atendimento no WhatsApp" description="Conversas e respostas em tempo real." />
+              <FeatureCard icon={<BotIcon />} title="Agentes de IA" description="Automação com passagem para humano." />
+              <FeatureCard icon={<UserFlowIcon />} title="Funil comercial" description="Leads organizados por etapa." />
+              <FeatureCard icon={<ChartIcon />} title="Relatórios e performance" description="Indicadores para acompanhar resultado." />
             </div>
           </div>
 
@@ -388,7 +388,10 @@ function FeatureCard({ icon, title, description }: { icon: ReactNode; title: str
   return (
     <div className="nl-login__feature-card">
       <i>{icon}</i>
-      <b>{title}<span>{description}</span></b>
+      <span className="nl-login__feature-copy">
+        <b>{title}</b>
+        <small>{description}</small>
+      </span>
     </div>
   );
 }
@@ -398,19 +401,46 @@ function IconSvg({ children }: { children: ReactNode }) {
 }
 
 function WhatsAppIcon() {
-  return <IconSvg><path d="M5.4 18.6 6.2 15A7.2 7.2 0 1 1 9 17.8l-3.6.8Z" /><path d="M9.2 8.7c.2-.4.4-.4.7-.4h.5c.2 0 .4.1.5.4l.7 1.5c.1.3 0 .5-.2.7l-.4.5c.7 1.2 1.7 2.1 3 2.7l.5-.6c.2-.2.4-.3.7-.2l1.6.7c.3.1.4.3.4.6v.4c0 .4-.2.7-.5.9-.5.3-1.3.5-2.3.2-2.7-.8-5-3-5.8-5.7-.3-.9-.1-1.6.1-2.1Z" /></IconSvg>;
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" className="nl-login__brand-icon">
+      <path fill="currentColor" d="M16.02 4C9.4 4 4 9.3 4 15.84c0 2.1.56 4.12 1.62 5.92L4.02 28l6.42-1.58a12.18 12.18 0 0 0 5.58 1.36C22.65 27.78 28 22.48 28 15.9 28 9.32 22.65 4 16.02 4Zm0 21.74c-1.76 0-3.48-.48-4.98-1.38l-.36-.22-3.8.94 1-3.68-.24-.38a9.82 9.82 0 0 1-1.52-5.18c0-5.4 4.44-9.8 9.9-9.8 5.45 0 9.88 4.42 9.88 9.86 0 5.43-4.43 9.84-9.88 9.84Zm5.42-7.36c-.3-.14-1.76-.86-2.03-.96-.27-.1-.47-.14-.67.14-.2.3-.76.96-.94 1.16-.17.2-.34.22-.64.08-.3-.14-1.26-.46-2.4-1.48-.88-.78-1.48-1.74-1.66-2.04-.17-.3-.02-.46.13-.6.14-.13.3-.34.44-.5.15-.18.2-.3.3-.5.1-.2.05-.38-.02-.52-.08-.14-.67-1.6-.92-2.2-.24-.58-.48-.5-.67-.5h-.58c-.2 0-.52.08-.8.38-.27.3-1.04 1-1.04 2.46 0 1.44 1.08 2.84 1.22 3.04.15.2 2.12 3.2 5.14 4.5.72.3 1.28.48 1.72.62.72.22 1.38.18 1.9.12.58-.08 1.76-.72 2-1.4.25-.68.25-1.26.18-1.4-.08-.12-.28-.2-.58-.34Z" />
+    </svg>
+  );
 }
 
 function BotIcon() {
-  return <IconSvg><rect x="5" y="8" width="14" height="10" rx="3" /><path d="M12 5v3" /><path d="M9 12h.01" /><path d="M15 12h.01" /><path d="M9.5 15h5" /></IconSvg>;
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" className="nl-login__brand-icon">
+      <path fill="currentColor" d="M14.8 4h2.4v4.2h-2.4V4Z" />
+      <circle cx="16" cy="4.6" r="2.6" fill="currentColor" />
+      <path fill="currentColor" d="M7 12.1A4.1 4.1 0 0 1 11.1 8h9.8A4.1 4.1 0 0 1 25 12.1v6.2a7.2 7.2 0 0 1-7.2 7.2h-3.6A7.2 7.2 0 0 1 7 18.3v-6.2Z" />
+      <path fill="currentColor" d="M3.5 15a2.6 2.6 0 0 1 2.6-2.6H7v7.8h-.9A2.6 2.6 0 0 1 3.5 17.6V15ZM25 12.4h.9a2.6 2.6 0 0 1 2.6 2.6v2.6a2.6 2.6 0 0 1-2.6 2.6H25v-7.8Z" />
+      <circle cx="12.4" cy="15.6" r="1.55" fill="#fff" />
+      <circle cx="19.6" cy="15.6" r="1.55" fill="#fff" />
+      <path fill="#fff" d="M12.2 19.5h7.6a4.05 4.05 0 0 1-7.6 0Z" />
+    </svg>
+  );
 }
 
 function UserFlowIcon() {
-  return <IconSvg><circle cx="12" cy="7" r="3" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></IconSvg>;
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" className="nl-login__brand-icon">
+      <circle cx="16" cy="9.2" r="4.7" fill="currentColor" />
+      <path fill="currentColor" d="M7.2 25.8c.85-5.1 4.16-8.1 8.8-8.1s7.95 3 8.8 8.1c.16.96-.6 1.8-1.58 1.8H8.78c-.98 0-1.74-.84-1.58-1.8Z" />
+      <path fill="#fff" opacity=".75" d="M4.8 15.2a2.7 2.7 0 1 1 5.4 0 2.7 2.7 0 0 1-5.4 0Zm17 0a2.7 2.7 0 1 1 5.4 0 2.7 2.7 0 0 1-5.4 0Z" />
+    </svg>
+  );
 }
 
 function ChartIcon() {
-  return <IconSvg><path d="M5 19V9" /><path d="M11 19V5" /><path d="M17 19v-7" /><path d="M4 19h16" /></IconSvg>;
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" className="nl-login__brand-icon">
+      <path fill="currentColor" d="M6 24.4h20.5a1.3 1.3 0 1 1 0 2.6H4.7A1.7 1.7 0 0 1 3 25.3V6.5a1.3 1.3 0 0 1 2.6 0v17.9H6Z" />
+      <rect x="8.2" y="15.2" width="4.2" height="7.2" rx="1.2" fill="currentColor" />
+      <rect x="14" y="8.6" width="4.2" height="13.8" rx="1.2" fill="currentColor" />
+      <rect x="19.8" y="12" width="4.2" height="10.4" rx="1.2" fill="currentColor" />
+    </svg>
+  );
 }
 
 function MailIcon() {
