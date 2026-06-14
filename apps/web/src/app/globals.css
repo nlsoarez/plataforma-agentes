@@ -1865,8 +1865,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-site__module-icon {
   display: grid;
   place-items: center;
-  width: 54px;
-  height: 54px;
+  width: 58px;
+  height: 58px;
   margin-bottom: 18px;
   border-radius: 16px;
   background: rgba(21, 101, 255, .08);
@@ -1886,8 +1886,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 .nl-site__module-icon svg,
 .nl-site__band-items svg {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2.35;
@@ -1898,6 +1898,21 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-site svg.nl-site__svg-fill {
   fill: currentColor;
   stroke: none;
+}
+
+.nl-site svg.nl-site__svg-solid {
+  fill: currentColor;
+  stroke: none;
+}
+
+.nl-site svg.nl-site__svg-solid .nl-site__svg-hole {
+  fill: #FFFFFF;
+}
+
+.nl-site__module-icon svg.nl-site__svg-solid,
+.nl-site__float svg.nl-site__svg-solid {
+  width: 34px;
+  height: 34px;
 }
 
 .nl-site__module-grid h3 {

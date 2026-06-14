@@ -54,33 +54,34 @@ function Icon({ name }: { name: string }) {
 
   if (name === 'bot') {
     return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 4v3" />
-        <path d="M9 4h6" />
-        <rect x="4.5" y="7" width="15" height="12" rx="4" />
-        <path d="M8 13h.01M16 13h.01" />
-        <path d="M9.5 16h5" />
-        <path d="M2.5 13h2M19.5 13h2" />
+      <svg className="nl-site__svg-solid nl-site__svg-bot" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M11 3.9h2v3h-2z" />
+        <circle cx="12" cy="3.8" r="2" />
+        <path d="M4.25 10.4A2.4 2.4 0 0 1 6.65 8h10.7a2.4 2.4 0 0 1 2.4 2.4v5.15a4.7 4.7 0 0 1-4.7 4.7H8.95a4.7 4.7 0 0 1-4.7-4.7V10.4Z" />
+        <path d="M2.15 12.35c0-.88.72-1.6 1.6-1.6h.65v5.5h-.65a1.6 1.6 0 0 1-1.6-1.6v-2.3ZM19.6 10.75h.65c.88 0 1.6.72 1.6 1.6v2.3c0 .88-.72 1.6-1.6 1.6h-.65v-5.5Z" />
+        <circle className="nl-site__svg-hole" cx="8.9" cy="13.25" r="1.15" />
+        <circle className="nl-site__svg-hole" cx="15.1" cy="13.25" r="1.15" />
+        <path className="nl-site__svg-hole" d="M9.35 16.05h5.3a2.85 2.85 0 0 1-5.3 0Z" />
       </svg>
     );
   }
 
   if (name === 'users') {
     return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M8.5 11.5a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Z" />
-        <path d="M15.8 11a2.7 2.7 0 1 0 0-5.4" />
-        <path d="M3.5 19.2c.55-3.25 2.25-5.05 5-5.05s4.45 1.8 5 5.05" />
-        <path d="M14 14.6c2.75.25 4.55 1.85 5 4.6" />
+      <svg className="nl-site__svg-solid nl-site__svg-users" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8.6" r="3.1" />
+        <circle cx="6.25" cy="9.45" r="2.65" />
+        <circle cx="17.75" cy="9.45" r="2.65" />
+        <path d="M4.1 19.6v-1.05c0-2.6 1.55-4.65 3.9-5.3.9.78 2.12 1.23 4 1.23s3.1-.45 4-1.23c2.35.65 3.9 2.7 3.9 5.3v1.05c0 .7-.5 1.18-1.25 1.18H5.35c-.75 0-1.25-.48-1.25-1.18Z" />
       </svg>
     );
   }
 
   if (name === 'send') {
     return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 12 20 4l-5.2 16-3.1-6.7L4 12Z" />
-        <path d="M11.7 13.3 16.8 8" />
+      <svg className="nl-site__svg-solid nl-site__svg-send" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3.4 11.7 20.7 3.4 14.9 20.8l-3.45-7.25L3.4 11.7Z" />
+        <path className="nl-site__svg-hole" d="M11.15 13.9 16.95 7.95l-7.05 5.25 1.25.7Z" />
       </svg>
     );
   }
