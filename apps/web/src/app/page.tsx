@@ -15,10 +15,10 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'dashboard') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="4" y="4" width="6" height="7" rx="1.5" />
-        <rect x="14" y="4" width="6" height="4" rx="1.5" />
-        <rect x="4" y="15" width="6" height="5" rx="1.5" />
-        <rect x="14" y="12" width="6" height="8" rx="1.5" />
+        <rect x="3.5" y="3.5" width="7" height="8.5" rx="2" />
+        <rect x="13.5" y="3.5" width="7" height="5.5" rx="2" />
+        <rect x="3.5" y="15" width="7" height="5.5" rx="2" />
+        <rect x="13.5" y="12" width="7" height="8.5" rx="2" />
       </svg>
     );
   }
@@ -26,10 +26,9 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'sessions') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9.5 8.5a4 4 0 0 1 5.6 0l.4.4" />
-        <path d="M7.2 6.2a7.3 7.3 0 0 1 9.6 0l.5.5" />
-        <path d="M11.1 11.4a1.4 1.4 0 0 1 1.8 0" />
-        <rect x="6" y="14" width="12" height="5" rx="2" />
+        <path d="M12 3.3c3.55 0 6.6 1.86 8.25 4.62a1.55 1.55 0 0 1-.54 2.12 1.5 1.5 0 0 1-2.06-.53A6.5 6.5 0 0 0 12 6.3a6.5 6.5 0 0 0-5.65 3.21 1.5 1.5 0 0 1-2.06.53 1.55 1.55 0 0 1-.54-2.12A9.57 9.57 0 0 1 12 3.3Z" />
+        <path d="M12 8.8c1.8 0 3.35.9 4.26 2.28a1.42 1.42 0 0 1-.43 1.98 1.37 1.37 0 0 1-1.9-.43A2.28 2.28 0 0 0 12 11.7c-.8 0-1.53.36-1.94.94a1.37 1.37 0 0 1-1.9.42 1.42 1.42 0 0 1-.42-1.97A5.1 5.1 0 0 1 12 8.8Z" />
+        <rect x="7" y="15" width="10" height="5.5" rx="2.25" />
       </svg>
     );
   }
@@ -51,8 +50,9 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'inbox') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 6.6A3.6 3.6 0 0 1 8.6 3h6.8A3.6 3.6 0 0 1 19 6.6v4.6a3.6 3.6 0 0 1-3.6 3.6h-3.9L6.4 19v-4.5A3.6 3.6 0 0 1 5 11.6v-5Z" />
-        <path d="M9 8.4h6M9 11.3h4.5" />
+        <path d="M5 5.7A4.2 4.2 0 0 1 9.2 1.5h5.6A4.2 4.2 0 0 1 19 5.7v5.1a4.2 4.2 0 0 1-4.2 4.2h-2.7l-5.5 4.7A1 1 0 0 1 5 19v-4.5a4.18 4.18 0 0 1-2-3.6V5.7h2Z" />
+        <rect className="nl-home__icon-hole" x="8.2" y="7" width="7.6" height="1.55" rx=".78" />
+        <rect className="nl-home__icon-hole" x="8.2" y="10.1" width="5.2" height="1.55" rx=".78" />
       </svg>
     );
   }
@@ -60,7 +60,7 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'pipeline') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 5h14l-5.4 6.2v5.4L10.4 19v-7.8L5 5Z" />
+        <path d="M4.4 4.3c-.8 0-1.24.93-.72 1.54l6.18 7.26v5.76c0 .84.98 1.3 1.63.78l3.15-2.52c.24-.19.37-.48.37-.78V13.1l6.19-7.26a.94.94 0 0 0-.72-1.54H4.4Z" />
       </svg>
     );
   }
@@ -68,8 +68,7 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'billing') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 8.4A2.4 2.4 0 0 1 7.4 6h9.2A2.4 2.4 0 0 1 19 8.4v7.2a2.4 2.4 0 0 1-2.4 2.4H7.4A2.4 2.4 0 0 1 5 15.6V8.4Z" />
-        <path d="M5 10h14M8.2 14.8h3" />
+        <path d="M4 7.4A3.4 3.4 0 0 1 7.4 4h9.2A3.4 3.4 0 0 1 20 7.4v9.2a3.4 3.4 0 0 1-3.4 3.4H7.4A3.4 3.4 0 0 1 4 16.6V7.4Zm2.4 2.1h11.2V7.4a1 1 0 0 0-1-1H7.4a1 1 0 0 0-1 1v2.1Zm2 4.2a1.1 1.1 0 1 0 0 2.2h4.5a1.1 1.1 0 1 0 0-2.2H8.4Z" />
       </svg>
     );
   }

@@ -1088,9 +1088,9 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(430px, .9fr) minmax(680px, 1.1fr);
+  grid-template-columns: minmax(520px, .94fr) minmax(640px, 1.06fr);
   align-items: center;
-  gap: clamp(28px, 4.5vw, 76px);
+  gap: clamp(24px, 3vw, 48px);
   width: min(1480px, calc(100% - 72px));
   min-height: 585px;
   margin: 0 auto;
@@ -1106,9 +1106,9 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   margin-bottom: clamp(36px, 3.6vw, 52px);
 }
 .nl-app-entry__copy h1 {
-  max-width: 680px;
+  max-width: 790px;
   margin: 0;
-  font-size: clamp(3.35rem, 4.15vw, 4.55rem);
+  font-size: clamp(3.25rem, 3.85vw, 4.25rem);
   line-height: .99;
   letter-spacing: 0;
   font-weight: 800;
@@ -1116,6 +1116,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-app-entry__copy h1 span {
   display: block;
   white-space: nowrap;
+  padding-right: .18em;
   background: linear-gradient(135deg, #7ed957 0%, #00c6a9 45%, #1565ff 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1136,7 +1137,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 .nl-app-entry__visual {
   position: relative;
-  min-height: 560px;
+  min-height: 590px;
 }
 .nl-app-entry__visual::before {
   content: "";
@@ -1161,13 +1162,13 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 .nl-app-entry__mockup {
   position: absolute;
-  top: 42px;
-  left: 18px;
-  z-index: 1;
+  top: 12px;
+  left: -4px;
+  z-index: 2;
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr);
-  width: min(760px, 95%);
-  height: 392px;
+  width: min(800px, 100%);
+  height: 400px;
   overflow: hidden;
   border: 1px solid rgba(221, 227, 234, .9);
   border-radius: 18px;
@@ -1201,11 +1202,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-app-entry__mockup aside svg {
   width: 13px;
   height: 13px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: currentColor;
+  stroke: none;
 }
 .nl-app-entry__mockup section {
   padding: 26px 28px;
@@ -1337,17 +1335,20 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 .nl-app-entry__operator {
   position: absolute;
-  right: -24px;
-  bottom: 4px;
+  right: -52px;
+  bottom: -74px;
   z-index: 3;
-  width: clamp(410px, 37vw, 580px);
+  width: clamp(420px, 36vw, 565px);
   height: auto;
+  clip-path: inset(14% 0 0 32%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 100%);
   filter: drop-shadow(0 28px 34px rgba(11, 19, 43, .16));
 }
 .nl-app-entry__bot-orb {
   position: absolute;
-  top: 236px;
-  right: -10px;
+  top: 246px;
+  right: -18px;
   z-index: 4;
   display: grid;
   place-items: center;
@@ -1373,8 +1374,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 .nl-app-entry__card {
   display: block;
-  min-height: 130px;
-  padding: 18px;
+  min-height: 150px;
+  padding: 20px;
   border: 1px solid rgba(221, 227, 234, .95);
   border-radius: 14px;
   background: rgba(255, 255, 255, .93);
@@ -1389,10 +1390,10 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-app-entry__card i {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  margin-bottom: 14px;
-  border-radius: 14px;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+  border-radius: 17px;
   background: rgba(21, 101, 255, .09);
   color: #1565ff;
 }
@@ -1409,23 +1410,20 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-app-entry__card h2 {
   margin: 0 0 8px;
   color: #0b132b;
-  font-size: .9rem;
+  font-size: .98rem;
   font-weight: 800;
 }
 .nl-app-entry__card p {
   margin: 0;
   color: #526070;
-  font-size: .72rem;
+  font-size: .78rem;
   line-height: 1.5;
 }
 .nl-app-entry__card svg {
-  width: 20px;
-  height: 20px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.1;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 32px;
+  height: 32px;
+  fill: currentColor;
+  stroke: none;
 }
 .nl-home__icon-solid {
   fill: currentColor !important;
