@@ -332,7 +332,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 
 .nl-login--comunora {
-  grid-template-columns: minmax(520px, 46%) minmax(0, 54%);
+  grid-template-columns: minmax(500px, 46%) minmax(0, 54%);
   background: #f8fafc;
 }
 .nl-login--comunora .nl-login__brand {
@@ -349,7 +349,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 48px clamp(34px, 5vw, 70px);
+  padding: 42px clamp(32px, 4.2vw, 58px);
 }
 .nl-login__logo {
   display: inline-flex;
@@ -357,20 +357,20 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 .nl-login__logo img {
   width: auto;
-  height: 86px;
-  max-width: min(360px, 100%);
+  height: 58px;
+  max-width: min(260px, 100%);
   object-fit: contain;
 }
 .nl-login--comunora .nl-login__hero {
   margin: auto 0;
-  max-width: 680px;
+  max-width: 600px;
 }
 .nl-login--comunora .nl-login__hero h2 {
-  max-width: 640px;
+  max-width: 580px;
   color: #fff;
-  font-size: clamp(2.35rem, 4.5vw, 4.1rem);
+  font-size: clamp(2.2rem, 3.35vw, 3.35rem);
   font-weight: 700;
-  line-height: 1.08;
+  line-height: 1.06;
 }
 .nl-login--comunora .nl-login__hero h2 em {
   display: block;
@@ -381,18 +381,18 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   color: transparent;
 }
 .nl-login--comunora .nl-login__hero p {
-  max-width: 58ch;
-  margin-top: 26px;
+  max-width: 54ch;
+  margin-top: 22px;
   color: rgba(255,255,255,.72);
-  font-size: clamp(1rem, 1.5vw, 1.24rem);
+  font-size: clamp(.92rem, 1.15vw, 1.05rem);
   line-height: 1.58;
 }
 .nl-login--comunora .nl-login__features {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px 38px;
-  margin-top: 52px;
-  max-width: 610px;
+  gap: 22px 32px;
+  margin-top: 42px;
+  max-width: 540px;
 }
 .nl-login__feature-card {
   display: flex;
@@ -403,10 +403,10 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   display: grid;
   place-items: center;
   flex: none;
-  width: 72px;
-  height: 72px;
+  width: 58px;
+  height: 58px;
   border: 1px solid rgba(255,255,255,.06);
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(255,255,255,.065);
   box-shadow: 0 12px 40px rgba(0,0,0,.16);
   color: #00C6A9;
@@ -415,12 +415,12 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-login__feature-card:nth-child(3) i { color: #7ED957; }
 .nl-login__feature-card:nth-child(4) i { color: #1565FF; }
 .nl-login__feature-card svg {
-  width: 34px;
-  height: 34px;
+  width: 27px;
+  height: 27px;
 }
 .nl-login__feature-card b {
   color: #fff;
-  font-size: 1.08rem;
+  font-size: .96rem;
   font-weight: 600;
   line-height: 1.35;
 }
@@ -449,12 +449,12 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   min-height: 100vh;
   overflow: hidden;
   background: #f8fafc;
-  padding: 42px;
+  padding: 32px;
 }
 .nl-login__form-wrap {
   position: relative;
   z-index: 1;
-  width: min(100%, 600px);
+  width: min(100%, 500px);
 }
 .nl-login__mobile-logo {
   display: none;
@@ -469,42 +469,42 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-login__orb--top {
   right: -110px;
   top: 84px;
-  width: 340px;
-  height: 340px;
-  border: 36px solid rgba(21,101,255,.045);
+  width: 280px;
+  height: 280px;
+  border: 30px solid rgba(21,101,255,.045);
 }
 .nl-login__orb--bottom {
   left: -170px;
   bottom: -190px;
-  width: 460px;
-  height: 460px;
-  border: 48px solid rgba(0,198,169,.045);
+  width: 390px;
+  height: 390px;
+  border: 40px solid rgba(0,198,169,.045);
 }
 .nl-login__card {
   width: 100%;
-  padding: clamp(28px, 4vw, 52px);
+  padding: clamp(24px, 3vw, 38px);
   border: 1px solid rgba(221,227,234,.9);
-  border-radius: 24px;
+  border-radius: 20px;
   background: rgba(255,255,255,.94);
   box-shadow: 0 24px 80px rgba(11, 19, 43, 0.09);
 }
 .nl-login__card header {
-  margin-bottom: 34px;
+  margin-bottom: 26px;
 }
 .nl-login__card h1 {
   margin: 0;
   color: #0B132B;
-  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-size: clamp(1.75rem, 2.35vw, 2.25rem);
   font-weight: 700;
   line-height: 1.05;
 }
 .nl-login__card header p {
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   color: #526070;
-  font-size: 1.08rem;
+  font-size: .95rem;
 }
 .nl-login__field {
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 .nl-login__label-row {
   display: flex;
@@ -531,19 +531,19 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   position: absolute;
   left: 16px;
   top: 50%;
-  width: 21px;
-  height: 21px;
+  width: 18px;
+  height: 18px;
   transform: translateY(-50%);
   color: #94A3B8;
   pointer-events: none;
 }
 .nl-login__input-wrap .nl-input {
-  height: 58px;
-  padding-left: 48px;
-  padding-right: 48px;
+  height: 48px;
+  padding-left: 44px;
+  padding-right: 44px;
   border-color: #CBD5E1;
   border-radius: 12px;
-  font-size: 1rem;
+  font-size: .92rem;
 }
 .nl-login__eye {
   position: absolute;
@@ -551,8 +551,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   top: 50%;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   transform: translateY(-50%);
   border: 0;
   border-radius: 10px;
@@ -561,14 +561,14 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   cursor: pointer;
 }
 .nl-login__eye svg {
-  width: 21px;
-  height: 21px;
+  width: 18px;
+  height: 18px;
 }
 .nl-login__remember {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  margin: -2px 0 24px;
+  margin: -2px 0 18px;
   color: #334155;
   font-size: .94rem;
   cursor: pointer;
@@ -580,26 +580,26 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 .nl-login__primary {
   width: 100%;
-  height: 58px;
-  font-size: 1rem;
+  height: 50px;
+  font-size: .94rem;
   background: #1565FF;
 }
 .nl-login__google {
   width: 100%;
-  height: 58px;
+  height: 50px;
   background: #fff;
   color: #0B132B;
   border: 1px solid #CBD5E1;
   border-radius: 12px;
   box-shadow: var(--shadow-sm);
-  font-size: 1rem;
+  font-size: .94rem;
 }
 .nl-login__google svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 .nl-login__account {
-  margin: 26px 0 0;
+  margin: 22px 0 0;
   text-align: center;
   color: #526070;
 }
@@ -616,7 +616,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   font-size: .9rem;
 }
 .nl-login__support {
-  margin-top: 30px;
+  margin-top: 24px;
   text-align: center;
   color: #526070;
   font-size: .92rem;
