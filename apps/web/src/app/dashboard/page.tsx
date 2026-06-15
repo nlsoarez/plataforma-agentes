@@ -28,7 +28,7 @@ const DEMO = {
   linha: { ia: [120, 148, 135, 180, 172, 96, 110], humano: [30, 34, 28, 40, 38, 18, 22] },
   campanhasTop: [
     { nome: 'Promo Inverno', enviadas: '1.200', lidas: '78%', status: 'ativa' },
-    { nome: 'Reativacao', enviadas: '860', lidas: '64%', status: 'ativa' },
+    { nome: 'Reativação', enviadas: '860', lidas: '64%', status: 'ativa' },
     { nome: 'Black Friday', enviadas: '540', lidas: '71%', status: 'rascunho' },
     { nome: 'Boas-vindas', enviadas: '320', lidas: '89%', status: 'ativa' },
   ],
@@ -208,9 +208,9 @@ export default function Dashboard() {
       <div className="nl-page-head nl-rise">
         <div>
           <h1>Dashboard</h1>
-          <div className="sub">Comunora � vis�o geral � atualizado agora</div>
+          <div className="sub">Comunora - visão geral - atualizado agora</div>
         </div>
-        <div className="nl-filterbar" aria-label="Periodo">
+        <div className="nl-filterbar" aria-label="Período">
           {['Hoje', '7 dias', '30 dias'].map((item) => (
             <button key={item} className={`nl-pill ${range === item ? 'active' : ''}`} onClick={() => setRange(item)}>
               {item}
@@ -219,13 +219,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {d.demo && <div className="nl-demo-note">Modo demonstra��o - dados de exemplo at� o WhatsApp gerar tr�fego</div>}
+      {d.demo && <div className="nl-demo-note">Modo demonstração - dados de exemplo até o WhatsApp gerar tráfego</div>}
       {setup && !setupComplete(setup) && <SetupGuide setup={setup} />}
 
       <div className="nl-kpis">
-        <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} delta="+12% vs. per�odo anterior" />
+        <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} delta="+12% vs. período anterior" />
         <Kpi label="Leads no funil" value={d.leads.toLocaleString('pt-BR')} delta="+8% novos hoje" />
-        <Kpi label="Fechamento" value={`${d.fechamento}%`} delta="+3pts no mes" />
+        <Kpi label="Fechamento" value={`${d.fechamento}%`} delta="+3pts no mês" />
         <Kpi label="Receita estimada" value={fmtMoney(d.receita)} delta="+15%" />
       </div>
 
@@ -268,7 +268,7 @@ export default function Dashboard() {
         <section className="nl-card nl-panel nl-rise">
           <div className="nl-panel-head">
             <h3>Funil</h3>
-            <span className="meta">convers�o</span>
+            <span className="meta">conversão</span>
           </div>
           {d.funnel.map((f: any) => (
             <div className="nl-funnel-row" key={f.n}>
@@ -315,7 +315,7 @@ function SetupGuide({ setup }: { setup: any }) {
   return (
     <section className="nl-card nl-card--pad nl-rise" style={{ marginBottom: 14 }}>
       <div className="nl-panel-head" style={{ marginBottom: 8 }}>
-        <h3>Pr�ximos passos</h3>
+        <h3>Próximos passos</h3>
         <span className="meta">onboarding</span>
       </div>
       <div className="nl-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
