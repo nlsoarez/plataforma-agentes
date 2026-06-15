@@ -11,6 +11,7 @@ import { useTenantBranding } from '../lib/useTenantBranding';
 const API = BRAND.apiUrl;
 const BILLING_CACHE_KEY = 'comunora.billing.ok';
 const BILLING_CACHE_TTL = 5 * 60 * 1000;
+const SIDEBAR_COLLAPSED_KEY = 'comunora.sidebar.collapsed.v1';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -28,7 +29,6 @@ const NAV = [
   { href: '/integracoes', label: 'Integrações' },
   { href: '/api-docs', label: 'API Docs' },
   { href: '/equipe', label: 'Equipe' },
-  { href: '/configuracoes', label: 'Configurações' },
   { href: '/settings', label: 'Marca' },
   { href: '/billing', label: 'Assinatura' },
   { href: '/onboarding', label: 'Conectar WhatsApp' },
@@ -39,10 +39,16 @@ export default function Shell({ children }: { title: string; children: ReactNode
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [tutorialRequest, setTutorialRequest] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
   const branding = useTenantBranding({ token });
+  const sidebarLogo = branding.logoUrl && branding.logoUrl !== BRAND.logoLight
+    ? branding.logoUrl
+    : (BRAND.symbolLight || BRAND.symbol);
+  const showBrandWord = !branding.logoUrl || branding.logoUrl === BRAND.logoLight;
 
   useEffect(() => {
     setToken(window.localStorage.getItem('token'));
+    setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
   }, []);
 
   useEffect(() => {
@@ -73,6 +79,14 @@ export default function Shell({ children }: { title: string; children: ReactNode
     };
   }, [path, router]);
 
+  function toggleSidebar() {
+    setCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+      return next;
+    });
+  }
+
   function sair() {
     localStorage.removeItem('token');
     clearBillingCache();
@@ -80,28 +94,59 @@ export default function Shell({ children }: { title: string; children: ReactNode
   }
 
   return (
-    <div className="nl-shell" style={{ ['--accent' as any]: branding.primaryColor || '#1565FF' }}>
+    <div
+      className={`nl-shell ${collapsed ? 'nl-shell--collapsed' : ''}`}
+      style={{ ['--accent' as any]: branding.primaryColor || '#1565FF' }}
+    >
       {branding.customCss ? <style dangerouslySetInnerHTML={{ __html: branding.customCss }} /> : null}
-      <aside className="nl-sidebar">
-        <Link href="/dashboard" className="nl-brand" aria-label={branding.name}>
-          <img src={branding.logoUrl || BRAND.logoLight} alt={branding.name} />
-        </Link>
+      <aside className="nl-sidebar" aria-label="Navegação principal">
+        <div className="nl-sidebar-head">
+          <Link href="/dashboard" className="nl-brand" aria-label={branding.name}>
+            <img src={sidebarLogo} alt="" aria-hidden="true" />
+            {showBrandWord ? <span className="nl-brand-word">{branding.name || BRAND.name}</span> : null}
+          </Link>
+          <button
+            className="nl-sidebar-toggle"
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            <span aria-hidden="true">{collapsed ? '›' : '‹'}</span>
+          </button>
+        </div>
+
         <nav className="nl-nav">
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} prefetch className={path === n.href ? 'active' : ''}>
+            <Link key={n.href} href={n.href} prefetch className={path === n.href ? 'active' : ''} title={collapsed ? n.label : undefined}>
               <span className="dot" /> <span className="label">{n.label}</span>
             </Link>
           ))}
         </nav>
+
         <div className="nl-sidebar-foot">
+          <Link
+            href="/configuracoes"
+            prefetch
+            className={`nl-sidebar-action ${path === '/configuracoes' ? 'active' : ''}`}
+            title={collapsed ? 'Configurações' : undefined}
+          >
+            <span className="nl-sidebar-action-icon" aria-hidden="true">⚙</span>
+            <span className="label">Configurações</span>
+          </Link>
           <button
-            className="nl-tutorial-button"
+            className="nl-sidebar-action"
             type="button"
             onClick={() => setTutorialRequest((current) => current + 1)}
+            title={collapsed ? 'Tutorial' : undefined}
           >
-            Tutorial
+            <span className="nl-sidebar-action-icon" aria-hidden="true">?</span>
+            <span className="label">Tutorial</span>
           </button>
-          <button className="nl-signout" onClick={sair}>Sair</button>
+          <button className="nl-signout" onClick={sair} title={collapsed ? 'Sair' : undefined}>
+            <span className="nl-sidebar-action-icon" aria-hidden="true">↗</span>
+            <span className="label">Sair</span>
+          </button>
         </div>
       </aside>
       <div className="nl-main">
