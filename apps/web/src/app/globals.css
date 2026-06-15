@@ -285,7 +285,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-kpi { padding: 18px 20px; }
 .nl-kpi .label { font-size: 0.78rem; color: var(--ink-faint); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .nl-kpi .value { font-family: var(--font-display); font-weight: 800; font-size: 2.1rem; letter-spacing: 0; margin-top: 8px; line-height: 1; }
-.nl-kpi .delta { font-size: .82rem; margin-top: 8px; color: var(--green); font-weight: 800; }
+.nl-kpi .delta { font-size: .82rem; margin-top: 8px; color: var(--green); font-weight: 500; }
 .nl-kpi .delta.bad { color: var(--red); }
 .nl-dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; margin-bottom: 14px; }
 .nl-dashboard-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 14px; }
