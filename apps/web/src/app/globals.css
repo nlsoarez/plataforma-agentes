@@ -239,6 +239,23 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-nav a.active { color: var(--white); background: var(--accent); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
 .nl-nav .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .55; }
 .nl-sidebar-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+.nl-tutorial-button {
+  width: 100%;
+  height: 38px;
+  margin-bottom: 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: rgba(21, 101, 255, 0.12);
+  color: rgba(255,255,255,0.88);
+  border: 1px solid rgba(21, 101, 255, 0.38);
+  font-weight: 800;
+  transition: all .15s ease;
+}
+.nl-tutorial-button:hover {
+  color: var(--white);
+  background: rgba(21, 101, 255, 0.22);
+  border-color: rgba(255,255,255,0.34);
+}
 .nl-signout {
   width: 100%;
   height: 38px;
@@ -255,6 +272,129 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-topbar { display: flex; align-items: center; justify-content: space-between; padding: 22px 28px 12px; }
 .nl-topbar .title { font-family: var(--font-display); font-weight: 800; font-size: 1.7rem; letter-spacing: 0; }
 .nl-content { padding: 8px 28px 44px; }
+
+/* Guided tutorial */
+.nl-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.nl-tour__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 19, 43, 0.42);
+  backdrop-filter: blur(3px);
+}
+.nl-tour__card {
+  position: relative;
+  z-index: 1;
+  width: min(680px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid rgba(221, 227, 234, 0.96);
+  border-radius: var(--radius-modal);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(21, 101, 255, 0.10), transparent 34%),
+    var(--surface);
+  box-shadow: var(--shadow-modal);
+}
+.nl-tour__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.nl-tour__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-right: 42px;
+}
+.nl-tour__eyebrow {
+  color: var(--accent);
+  font-size: .76rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.nl-tour__counter {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(21, 101, 255, 0.10);
+  color: var(--accent);
+  font-size: .76rem;
+  font-weight: 800;
+}
+.nl-tour h2 {
+  margin-top: 14px;
+  max-width: 540px;
+  color: var(--ink);
+  font-size: clamp(1.65rem, 3vw, 2.15rem);
+  line-height: 1.05;
+  font-weight: 800;
+}
+.nl-tour__body {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+.nl-tour__body article {
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.82);
+}
+.nl-tour__body strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--ink);
+  font-size: .82rem;
+  font-weight: 800;
+}
+.nl-tour__body p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: .94rem;
+  line-height: 1.55;
+}
+.nl-tour__progress {
+  display: flex;
+  gap: 7px;
+  margin-top: 20px;
+}
+.nl-tour__progress span {
+  width: 24px;
+  height: 5px;
+  border-radius: 999px;
+  background: #DDE3EA;
+  transition: width .18s ease, background .18s ease;
+}
+.nl-tour__progress span.active {
+  width: 42px;
+  background: var(--accent);
+}
+.nl-tour__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
 
 /* Application surfaces */
 .nl-page-head {
@@ -2546,6 +2686,19 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   .nl-login__brand { min-height: 230px; padding: 32px; }
   .nl-sidebar { width: 84px; }
   .nl-brand b, .nl-nav a span.label { display: none; }
+  .nl-tutorial-button,
+  .nl-signout {
+    font-size: 0;
+    position: relative;
+  }
+  .nl-tutorial-button::after {
+    content: '?';
+    font-size: .95rem;
+  }
+  .nl-signout::after {
+    content: 'S';
+    font-size: .82rem;
+  }
   .nl-topbar { padding: 20px 18px 10px; }
   .nl-content { padding: 8px 18px 34px; }
   .nl-inbox { grid-template-columns: 1fr; height: auto; }

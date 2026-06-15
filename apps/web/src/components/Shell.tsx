@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BRAND } from '../lib/brand';
+import ProductTour from './ProductTour';
 import { useTenantBranding } from '../lib/useTenantBranding';
 
 const API = BRAND.apiUrl;
@@ -36,6 +37,7 @@ export default function Shell({ children }: { title: string; children: ReactNode
   const path = usePathname();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
+  const [tutorialRequest, setTutorialRequest] = useState(0);
   const branding = useTenantBranding({ token });
 
   useEffect(() => {
@@ -91,12 +93,20 @@ export default function Shell({ children }: { title: string; children: ReactNode
           ))}
         </nav>
         <div className="nl-sidebar-foot">
+          <button
+            className="nl-tutorial-button"
+            type="button"
+            onClick={() => setTutorialRequest((current) => current + 1)}
+          >
+            Tutorial
+          </button>
           <button className="nl-signout" onClick={sair}>Sair</button>
         </div>
       </aside>
       <div className="nl-main">
         <div className="nl-content">{children}</div>
       </div>
+      <ProductTour path={path} request={tutorialRequest} />
     </div>
   );
 }
