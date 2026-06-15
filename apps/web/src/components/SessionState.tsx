@@ -8,7 +8,10 @@ type StoredTokenState = {
 };
 
 export function useStoredToken(): StoredTokenState {
-  const [session, setSession] = useState<StoredTokenState>({ token: null, ready: false });
+  const [session, setSession] = useState<StoredTokenState>(() => {
+    if (typeof window === 'undefined') return { token: null, ready: false };
+    return { token: window.localStorage.getItem('token'), ready: true };
+  });
 
   useEffect(() => {
     setSession({ token: window.localStorage.getItem('token'), ready: true });

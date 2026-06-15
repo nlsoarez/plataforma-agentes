@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { BRAND } from '../lib/brand';
 import { useTenantBranding } from '../lib/useTenantBranding';
 
 const API = BRAND.apiUrl;
+const BILLING_CACHE_KEY = 'comunora.billing.ok';
+const BILLING_CACHE_TTL = 5 * 60 * 1000;
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -31,7 +35,7 @@ const NAV = [
 
 export default function Shell({ title: _title, children }: { title: string; children: ReactNode }) {
   const path = usePathname();
-  const [billingChecked, setBillingChecked] = useState(path === '/billing');
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const branding = useTenantBranding({ token });
 
@@ -41,13 +45,15 @@ export default function Shell({ title: _title, children }: { title: string; chil
 
   useEffect(() => {
     if (path === '/billing') {
-      setBillingChecked(true);
+      return;
+    }
+
+    if (hasFreshBillingCache()) {
       return;
     }
 
     const currentToken = window.localStorage.getItem('token');
     if (!currentToken) {
-      setBillingChecked(true);
       return;
     }
 
@@ -59,12 +65,13 @@ export default function Shell({ title: _title, children }: { title: string; chil
       .then((billing) => {
         if (!alive) return;
         if (!billing?.pago) {
-          window.location.href = '/billing';
+          clearBillingCache();
+          router.replace('/billing');
           return;
         }
-        setBillingChecked(true);
+        setBillingCache();
       })
-      .catch(() => setBillingChecked(true));
+      .catch(() => null);
 
     return () => {
       alive = false;
@@ -73,21 +80,22 @@ export default function Shell({ title: _title, children }: { title: string; chil
 
   function sair() {
     localStorage.removeItem('token');
-    window.location.href = '/login';
+    clearBillingCache();
+    router.replace('/login');
   }
 
   return (
     <div className="nl-shell" style={{ ['--accent' as any]: branding.primaryColor || '#1565FF' }}>
       {branding.customCss ? <style dangerouslySetInnerHTML={{ __html: branding.customCss }} /> : null}
       <aside className="nl-sidebar">
-        <a href="/" className="nl-brand" aria-label={branding.name}>
+        <Link href="/dashboard" className="nl-brand" aria-label={branding.name}>
           <img src={branding.logoUrl || BRAND.logoLight} alt={branding.name} />
-        </a>
+        </Link>
         <nav className="nl-nav">
           {NAV.map((n) => (
-            <a key={n.href} href={n.href} className={path === n.href ? 'active' : ''}>
+            <Link key={n.href} href={n.href} prefetch className={path === n.href ? 'active' : ''}>
               <span className="dot" /> <span className="label">{n.label}</span>
-            </a>
+            </Link>
           ))}
         </nav>
         <div className="nl-sidebar-foot">
@@ -96,14 +104,25 @@ export default function Shell({ title: _title, children }: { title: string; chil
       </aside>
       <div className="nl-main">
         <div className="nl-content">
-          {billingChecked ? children : (
-            <div className="nl-card nl-card--pad">
-              <div className="display display-md">Verificando assinatura</div>
-              <p className="muted">Aguarde enquanto validamos seu acesso.</p>
-            </div>
-          )}
+          {children}
         </div>
       </div>
     </div>
   );
+}
+
+function hasFreshBillingCache() {
+  if (typeof window === 'undefined') return false;
+  const raw = window.sessionStorage.getItem(BILLING_CACHE_KEY);
+  if (!raw) return false;
+  const timestamp = Number(raw);
+  return Number.isFinite(timestamp) && Date.now() - timestamp < BILLING_CACHE_TTL;
+}
+
+function setBillingCache() {
+  window.sessionStorage.setItem(BILLING_CACHE_KEY, String(Date.now()));
+}
+
+function clearBillingCache() {
+  if (typeof window !== 'undefined') window.sessionStorage.removeItem(BILLING_CACHE_KEY);
 }
