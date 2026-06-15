@@ -173,10 +173,10 @@ function HeroMockup() {
           </header>
           <div className="nl-site__stats">
             {[
-              ['Conversas', '1.250', '+ 12,5%'],
-              ['Atendimentos', '532', '+ 8,2%'],
-              ['Novos contatos', '842', '+ 16,8%'],
-              ['Negócios', '320', '+ 10,5%'],
+              ['Conversas', '0', 'aguardando'],
+              ['Atendimentos', '0', 'aguardando'],
+              ['Novos contatos', '0', 'aguardando'],
+              ['Negócios', '0', 'aguardando'],
             ].map(([label, value, delta]) => (
               <article key={label}>
                 <span>{label}</span>
@@ -271,7 +271,7 @@ export default function SitePage() {
       <section id="operacao" className="nl-site__band">
         <div>
           <h2>
-            Projetada para <span>operação real</span>, não para demonstração bonita.
+            Projetada para <span>operação real</span>, com controle e organização.
           </h2>
           <p>
             A Comunora combina automação, controle humano, cobrança, integrações e white-label para empresas que precisam

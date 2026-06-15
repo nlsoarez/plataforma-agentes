@@ -8,15 +8,10 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type Automacao = { id: string; nome: string; gatilho: string; condicoes: any; acoes: any[]; ativo: boolean };
 
-const EXEMPLO_ACOES = `[
-  { "tipo": "tag", "tag": "novo-lead" },
-  { "tipo": "pausar_ia" }
-]`;
-
 export default function AutomacoesPage() {
   const { token, ready } = useStoredToken();
   const [items, setItems] = useState<Automacao[]>([]);
-  const [form, setForm] = useState({ nome: '', gatilho: 'lead_criado', acoes: EXEMPLO_ACOES });
+  const [form, setForm] = useState({ nome: '', gatilho: 'lead_criado', acoes: '[]' });
   const [msg, setMsg] = useState('');
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
 

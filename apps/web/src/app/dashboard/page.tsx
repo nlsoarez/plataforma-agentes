@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useRef, useState } from 'react';
 import Shell from '../../components/Shell';
 import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
@@ -12,26 +13,28 @@ const GREEN = '#7ED957';
 const NEUTRAL = '#DDE3EA';
 const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
 
-const DEMO = {
-  conversas: 1284,
-  leads: 342,
-  fechamento: 28,
-  receita: 18200,
-  campanhas: 4,
-  funnel: [
-    { n: 'Novo', v: 342 },
-    { n: 'Qualificado', v: 210 },
-    { n: 'Agendado', v: 96 },
-    { n: 'Fechado', v: 61 },
-  ],
-  donut: [72, 21, 7],
-  linha: { ia: [120, 148, 135, 180, 172, 96, 110], humano: [30, 34, 28, 40, 38, 18, 22] },
-  campanhasTop: [
-    { nome: 'Promo Inverno', enviadas: '1.200', lidas: '78%', status: 'ativa' },
-    { nome: 'Reativação', enviadas: '860', lidas: '64%', status: 'ativa' },
-    { nome: 'Black Friday', enviadas: '540', lidas: '71%', status: 'rascunho' },
-    { nome: 'Boas-vindas', enviadas: '320', lidas: '89%', status: 'ativa' },
-  ],
+type DashboardData = {
+  conversas: number;
+  leads: number;
+  fechamento: number;
+  receita: number;
+  campanhas: number;
+  funnel: { n: string; v: number }[];
+  donut: number[];
+  linha: { ia: number[]; humano: number[] };
+  campanhasTop: { nome: string; enviadas: string; lidas: string; status: string }[];
+};
+
+const EMPTY_DATA: DashboardData = {
+  conversas: 0,
+  leads: 0,
+  fechamento: 0,
+  receita: 0,
+  campanhas: 0,
+  funnel: [],
+  donut: [0, 0, 0],
+  linha: { ia: [0, 0, 0, 0, 0, 0, 0], humano: [0, 0, 0, 0, 0, 0, 0] },
+  campanhasTop: [],
 };
 
 function loadChart(): Promise<any> {
@@ -47,13 +50,21 @@ function loadChart(): Promise<any> {
 }
 
 function fmtMoney(value: number) {
-  return `R$ ${(value / 1000).toFixed(1).replace('.', ',')}k`;
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function weekdayIndex(dateValue: string | null | undefined) {
+  if (!dateValue) return null;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = date.getDay();
+  return day === 0 ? 6 : day - 1;
 }
 
 export default function Dashboard() {
   const { token, ready } = useStoredToken();
   const [range, setRange] = useState('7 dias');
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [setup, setSetup] = useState<any>(null);
   const lineRef = useRef<HTMLCanvasElement | null>(null);
   const barRef = useRef<HTMLCanvasElement | null>(null);
@@ -92,28 +103,32 @@ export default function Dashboard() {
         ]);
       }
 
-      const etapas = pipeline?.etapas || [];
-      const cards = pipeline?.cards || [];
+      const etapas = Array.isArray(pipeline?.etapas) ? pipeline.etapas : [];
+      const cards = Array.isArray(pipeline?.cards) ? pipeline.cards : [];
       const funnel = etapas.map((e: any) => ({ n: e.nome, v: cards.filter((c: any) => c.etapa_pipeline === e.id).length }));
-      const agg = campanhas.reduce((a: any, c: any) => ({
+      const agg = (Array.isArray(campanhas) ? campanhas : []).reduce((a: any, c: any) => ({
         ent: a.ent + (+c.entregues || 0),
         lid: a.lid + (+c.lidas || 0),
         fal: a.fal + (+c.falhas || 0),
       }), { ent: 0, lid: 0, fal: 0 });
-      const vazio = (conversas?.length || 0) === 0 && cards.length <= 2 && campanhas.length === 0;
-      const total = cards.length || 1;
+      const total = cards.length;
       const fechados = funnel.length ? funnel[funnel.length - 1].v : 0;
+      const linha = { ia: [...EMPTY_DATA.linha.ia], humano: [...EMPTY_DATA.linha.humano] };
+      for (const conversa of conversas) {
+        const idx = weekdayIndex(conversa.atualizada_em);
+        if (idx !== null) linha.humano[idx] += 1;
+      }
 
       setData({
-        demo: vazio,
-        conversas: vazio ? DEMO.conversas : conversas.length,
-        leads: vazio ? DEMO.leads : cards.length,
-        fechamento: vazio ? DEMO.fechamento : Math.round((fechados / total) * 100),
-        receita: vazio ? DEMO.receita : Math.max(fechados * 300, 0),
-        campanhas: vazio ? DEMO.campanhas : campanhas.length,
-        funnel: vazio || !funnel.length ? DEMO.funnel : funnel,
-        donut: vazio || (agg.ent + agg.lid + agg.fal) === 0 ? DEMO.donut : [agg.ent, agg.lid, agg.fal],
-        campanhasTop: vazio ? DEMO.campanhasTop : campanhas.slice(0, 4).map((c: any) => ({
+        conversas: conversas.length,
+        leads: cards.length,
+        fechamento: total > 0 ? Math.round((fechados / total) * 100) : 0,
+        receita: 0,
+        campanhas: campanhas.length,
+        funnel,
+        donut: [agg.ent, agg.lid, agg.fal],
+        linha,
+        campanhasTop: campanhas.slice(0, 4).map((c: any) => ({
           nome: c.template_nome || 'Campanha',
           enviadas: String(c.enviados || c.total || 0),
           lidas: `${c.total ? Math.round(((+c.lidas || 0) / +c.total) * 100) : 0}%`,
@@ -136,7 +151,7 @@ export default function Dashboard() {
       Chart.defaults.font.size = 11;
 
       const xAxis = { grid: { display: false }, border: { display: false } };
-      const yAxis = { grid: { color: '#EEF2F6' }, border: { display: false } };
+      const yAxis = { beginAtZero: true, grid: { color: '#EEF2F6' }, border: { display: false } };
 
       if (lineRef.current) {
         charts.current.push(new Chart(lineRef.current, {
@@ -144,8 +159,8 @@ export default function Dashboard() {
           data: {
             labels: DAYS,
             datasets: [
-              { label: 'IA', data: DEMO.linha.ia, borderColor: BLUE, backgroundColor: 'rgba(21,101,255,.10)', fill: true, tension: .4, borderWidth: 2, pointRadius: 0 },
-              { label: 'Humano', data: DEMO.linha.humano, borderColor: TEAL, borderDash: [5, 4], fill: false, tension: .4, borderWidth: 2, pointRadius: 0 },
+              { label: 'IA', data: data.linha.ia, borderColor: BLUE, backgroundColor: 'rgba(21,101,255,.10)', fill: true, tension: .4, borderWidth: 2, pointRadius: 0 },
+              { label: 'Humano', data: data.linha.humano, borderColor: TEAL, borderDash: [5, 4], fill: false, tension: .4, borderWidth: 2, pointRadius: 0 },
             ],
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: yAxis, x: xAxis } },
@@ -156,8 +171,8 @@ export default function Dashboard() {
         charts.current.push(new Chart(barRef.current, {
           type: 'bar',
           data: {
-            labels: data.funnel.map((f: any) => f.n),
-            datasets: [{ data: data.funnel.map((f: any) => f.v), backgroundColor: [BLUE, TEAL, GREEN, '#A7F3D0'], borderRadius: 6 }],
+            labels: data.funnel.map((f) => f.n),
+            datasets: [{ data: data.funnel.map((f) => f.v), backgroundColor: [BLUE, TEAL, GREEN, '#A7F3D0'], borderRadius: 6 }],
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: yAxis, x: xAxis } },
         }));
@@ -184,10 +199,10 @@ export default function Dashboard() {
   if (!ready) return <SessionLoading />;
   if (!token) return <SessionRequired />;
 
-  const d = data || DEMO;
-  const maxFunnel = Math.max(1, ...(d.funnel || []).map((f: any) => f.v));
-  const donutTotal = (d.donut || [0]).reduce((a: number, b: number) => a + b, 0) || 1;
-  const deliveredPct = Math.round(((d.donut?.[0] || 0) / donutTotal) * 100);
+  const d = data || EMPTY_DATA;
+  const maxFunnel = Math.max(1, ...d.funnel.map((f) => f.v));
+  const donutTotal = d.donut.reduce((a, b) => a + b, 0);
+  const deliveredPct = donutTotal > 0 ? Math.round(((d.donut[0] || 0) / donutTotal) * 100) : 0;
 
   return (
     <Shell title="Dashboard">
@@ -205,14 +220,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {d.demo && <div className="nl-demo-note">Modo demonstração - dados de exemplo até o WhatsApp gerar tráfego</div>}
       {setup && !setupComplete(setup) && <SetupGuide setup={setup} />}
 
       <div className="nl-kpis">
-        <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} delta="+12% vs. período anterior" />
-        <Kpi label="Leads no funil" value={d.leads.toLocaleString('pt-BR')} delta="+8% novos hoje" />
-        <Kpi label="Fechamento" value={`${d.fechamento}%`} delta="+3pts no mês" />
-        <Kpi label="Receita estimada" value={fmtMoney(d.receita)} delta="+15%" />
+        <Kpi label="Conversas" value={d.conversas.toLocaleString('pt-BR')} />
+        <Kpi label="Leads no funil" value={d.leads.toLocaleString('pt-BR')} />
+        <Kpi label="Fechamento" value={`${d.fechamento}%`} />
+        <Kpi label="Receita registrada" value={fmtMoney(d.receita)} />
       </div>
 
       <div className="nl-dashboard-grid">
@@ -229,7 +243,11 @@ export default function Dashboard() {
             <h3>Leads por etapa</h3>
             <span className="meta">pipeline</span>
           </div>
-          <div className="nl-chart"><canvas ref={barRef} role="img" aria-label="Leads por etapa" /></div>
+          {d.funnel.length > 0 ? (
+            <div className="nl-chart"><canvas ref={barRef} role="img" aria-label="Leads por etapa" /></div>
+          ) : (
+            <EmptyMetric message="Crie etapas e receba leads para visualizar o funil." />
+          )}
         </section>
       </div>
 
@@ -239,16 +257,20 @@ export default function Dashboard() {
             <h3>Entrega</h3>
             <span className="meta">campanhas</span>
           </div>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <div style={{ width: 130, height: 130, flex: 'none' }}>
-              <canvas ref={donutRef} role="img" aria-label="Status de entrega" />
+          {donutTotal > 0 ? (
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <div style={{ width: 130, height: 130, flex: 'none' }}>
+                <canvas ref={donutRef} role="img" aria-label="Status de entrega" />
+              </div>
+              <div className="nl-legend">
+                <div><i style={{ background: BLUE }} />Entregues {deliveredPct}%</div>
+                <div><i style={{ background: TEAL }} />Lidas</div>
+                <div><i style={{ background: NEUTRAL }} />Falhas</div>
+              </div>
             </div>
-            <div className="nl-legend">
-              <div><i style={{ background: BLUE }} />Entregues {deliveredPct}%</div>
-              <div><i style={{ background: TEAL }} />Lidas</div>
-              <div><i style={{ background: NEUTRAL }} />Falhas</div>
-            </div>
-          </div>
+          ) : (
+            <EmptyMetric message="Nenhuma campanha enviada ainda." />
+          )}
         </section>
 
         <section className="nl-card nl-panel nl-rise">
@@ -256,7 +278,7 @@ export default function Dashboard() {
             <h3>Funil</h3>
             <span className="meta">conversão</span>
           </div>
-          {d.funnel.map((f: any) => (
+          {d.funnel.length > 0 ? d.funnel.map((f) => (
             <div className="nl-funnel-row" key={f.n}>
               <span className="name">{f.n}</span>
               <div className="nl-funnel-track">
@@ -264,7 +286,9 @@ export default function Dashboard() {
               </div>
               <span className="num">{f.v}</span>
             </div>
-          ))}
+          )) : (
+            <EmptyMetric message="O funil será preenchido conforme os contatos entrarem no pipeline." />
+          )}
         </section>
 
         <section className="nl-card nl-panel nl-rise">
@@ -272,19 +296,23 @@ export default function Dashboard() {
             <h3>Top campanhas</h3>
             <span className="meta">{range}</span>
           </div>
-          <table className="nl-table">
-            <thead><tr><th>Campanha</th><th>Enviadas</th><th>Lidas</th><th>Status</th></tr></thead>
-            <tbody>
-              {d.campanhasTop.map((c: any) => (
-                <tr key={c.nome}>
-                  <td>{c.nome}</td>
-                  <td>{c.enviadas}</td>
-                  <td>{c.lidas}</td>
-                  <td><span className={`nl-badge ${c.status === 'ativa' ? 'nl-badge--ok' : ''}`}>{c.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {d.campanhasTop.length > 0 ? (
+            <table className="nl-table">
+              <thead><tr><th>Campanha</th><th>Enviadas</th><th>Lidas</th><th>Status</th></tr></thead>
+              <tbody>
+                {d.campanhasTop.map((c) => (
+                  <tr key={c.nome}>
+                    <td>{c.nome}</td>
+                    <td>{c.enviadas}</td>
+                    <td>{c.lidas}</td>
+                    <td><span className={`nl-badge ${c.status === 'ativa' ? 'nl-badge--ok' : ''}`}>{c.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <EmptyMetric message="As campanhas aparecerão aqui depois do primeiro disparo." />
+          )}
         </section>
       </div>
     </Shell>
@@ -322,12 +350,15 @@ function setupComplete(setup: any) {
   return setup.hasWhatsApp && setup.hasAiKey && setup.hasAgent;
 }
 
-function Kpi({ label, value, delta }: { label: string; value: string; delta: string }) {
+function Kpi({ label, value }: { label: string; value: string }) {
   return (
     <section className="nl-card nl-kpi nl-rise">
       <div className="label">{label}</div>
       <div className="value">{value}</div>
-      <div className="delta">{delta}</div>
     </section>
   );
+}
+
+function EmptyMetric({ message }: { message: string }) {
+  return <div className="nl-empty nl-empty--compact">{message}</div>;
 }

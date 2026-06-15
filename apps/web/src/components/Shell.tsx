@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { BRAND } from '../lib/brand';
 import { useTenantBranding } from '../lib/useTenantBranding';
 
@@ -33,7 +32,7 @@ const NAV = [
   { href: '/onboarding', label: 'Conectar WhatsApp' },
 ];
 
-export default function Shell({ title: _title, children }: { title: string; children: ReactNode }) {
+export default function Shell({ children }: { title: string; children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
@@ -44,18 +43,11 @@ export default function Shell({ title: _title, children }: { title: string; chil
   }, []);
 
   useEffect(() => {
-    if (path === '/billing') {
-      return;
-    }
-
-    if (hasFreshBillingCache()) {
-      return;
-    }
+    if (path === '/billing') return;
+    if (hasFreshBillingCache()) return;
 
     const currentToken = window.localStorage.getItem('token');
-    if (!currentToken) {
-      return;
-    }
+    if (!currentToken) return;
 
     let alive = true;
     fetch(`${API}/billing`, {
@@ -76,7 +68,7 @@ export default function Shell({ title: _title, children }: { title: string; chil
     return () => {
       alive = false;
     };
-  }, [path]);
+  }, [path, router]);
 
   function sair() {
     localStorage.removeItem('token');
@@ -103,9 +95,7 @@ export default function Shell({ title: _title, children }: { title: string; chil
         </div>
       </aside>
       <div className="nl-main">
-        <div className="nl-content">
-          {children}
-        </div>
+        <div className="nl-content">{children}</div>
       </div>
     </div>
   );

@@ -9,42 +9,26 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 type Template = { id: string; nome: string; descricao: string | null; versao: number; origem: string; criado_em: string };
 type Projeto = { id: string; nome: string; phone_number_id: string | null; status: string };
 
-const EXEMPLO = `{
-  "nome": "Sofia Seguro Fácil",
-  "descricao": "Agente comercial para corretora de seguros",
-  "prompt_sistema": "Voce e Sofia, atendente de uma corretora de seguros. Qualifique o lead, colete tipo de seguro, cidade e urgencia. Se pedir humano, faca handoff.",
-  "modelo": "gpt-4o-mini",
-  "provider": "openai",
-  "pipeline": [
-    { "nome": "Novo lead", "ordem": 0 },
-    { "nome": "Em qualificacao", "ordem": 1 },
-    { "nome": "Qualificado", "ordem": 2 },
-    { "nome": "Atendimento humano", "ordem": 3 },
-    { "nome": "Arquivado", "ordem": 4 }
-  ],
-  "tags": [
-    { "nome": "seguro-auto", "cor": "#1565FF" },
-    { "nome": "lead-quente", "cor": "#168c50" }
-  ],
-  "propriedades": [
-    { "nome": "tipo_seguro", "tipo": "texto" },
-    { "nome": "urgencia", "tipo": "texto" }
-  ],
-  "automacoes": [
-    { "nome": "Tag novo lead", "gatilho": "lead_criado", "acoes": [{ "tipo": "tag", "tag": "novo-lead" }] }
-  ],
-  "conhecimento": [
-    { "titulo": "Politica comercial", "conteudo": "Atendimento inicial deve coletar nome, cidade, tipo de seguro e melhor horario de contato." }
-  ]
+const TEMPLATE_VAZIO = `{
+  "nome": "",
+  "descricao": "",
+  "prompt_sistema": "",
+  "modelo": "",
+  "provider": "",
+  "pipeline": [],
+  "tags": [],
+  "propriedades": [],
+  "automacoes": [],
+  "conhecimento": []
 }`;
 
 export default function TemplatesPage() {
   const { token, ready } = useStoredToken();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
-  const [payload, setPayload] = useState(EXEMPLO);
-  const [nomeProjeto, setNomeProjeto] = useState('Sofia Seguro Fácil');
-  const [organizacao, setOrganizacao] = useState('Seguro Fácil');
+  const [payload, setPayload] = useState(TEMPLATE_VAZIO);
+  const [nomeProjeto, setNomeProjeto] = useState('');
+  const [organizacao, setOrganizacao] = useState('');
   const [exportProjetoId, setExportProjetoId] = useState('');
   const [msg, setMsg] = useState('');
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
@@ -74,14 +58,14 @@ export default function TemplatesPage() {
     setMsg('');
     let parsed: any;
     try { parsed = JSON.parse(payload); }
-    catch { setMsg('Template precisa ser JSON valido.'); return; }
+    catch { setMsg('Template precisa ser um JSON válido.'); return; }
     const r = await fetch(`${API}/templates/importar`, {
       method: 'POST',
       headers: auth(token),
       body: JSON.stringify({ payload: parsed, nomeProjeto, organizacao }),
     });
     const d = await r.json();
-    setMsg(r.ok ? `Projeto criado: ${d.projeto?.nome}. Agora conecte o WhatsApp em Conectar WhatsApp.` : JSON.stringify(d));
+    setMsg(r.ok ? `Projeto criado: ${d.projeto?.nome}. Agora conecte o WhatsApp.` : JSON.stringify(d));
     await carregar();
   }
 
@@ -89,7 +73,7 @@ export default function TemplatesPage() {
     if (!token) return;
     let parsed: any;
     try { parsed = JSON.parse(payload); }
-    catch { setMsg('Template precisa ser JSON valido.'); return; }
+    catch { setMsg('Template precisa ser um JSON válido.'); return; }
     const r = await fetch(`${API}/templates`, {
       method: 'POST',
       headers: auth(token),
@@ -160,7 +144,7 @@ export default function TemplatesPage() {
               <tbody>
                 {templates.length === 0 && <tr><td colSpan={2} className="faint" style={{ padding: 24, textAlign: 'center' }}>Nenhum template salvo.</td></tr>}
                 {templates.map((t) => (
-                  <tr key={t.id}><td><b>{t.nome}</b><div className="faint">{t.descricao || 'sem descricao'}</div></td><td>{t.origem}</td></tr>
+                  <tr key={t.id}><td><b>{t.nome}</b><div className="faint">{t.descricao || 'sem descrição'}</div></td><td>{t.origem}</td></tr>
                 ))}
               </tbody>
             </table>
