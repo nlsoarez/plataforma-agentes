@@ -230,6 +230,13 @@ export default function Onboarding() {
 
   return (
     <Shell title="Conectar WhatsApp">
+      <div className="nl-page-head nl-rise">
+        <div>
+          <h1>Conectar WhatsApp</h1>
+          <div className="sub">Crie uma instância Evolution e conecte o número por QR Code</div>
+        </div>
+      </div>
+
       <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(280px, 380px) minmax(280px, 360px)', maxWidth: 800, alignItems: 'start' }}>
         <div className="nl-card nl-card--pad">
           <div className="eyebrow" style={{ marginBottom: 12 }}>Nova conexão</div>

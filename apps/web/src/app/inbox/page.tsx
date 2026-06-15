@@ -77,6 +77,13 @@ export default function Inbox() {
 
   return (
     <Shell title="Inbox">
+      <div className="nl-page-head nl-rise">
+        <div>
+          <h1>Inbox</h1>
+          <div className="sub">Conversas ao vivo, atendimento humano e respostas da IA</div>
+        </div>
+      </div>
+
       <div className="nl-inbox">
         <div className="nl-convos">
           {projetos.length > 1 && (

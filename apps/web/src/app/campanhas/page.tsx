@@ -40,6 +40,13 @@ export default function Campanhas() {
 
   return (
     <Shell title="Campanhas">
+      <div className="nl-page-head nl-rise">
+        <div>
+          <h1>Campanhas</h1>
+          <div className="sub">Disparos segmentados, métricas de entrega e histórico comercial</div>
+        </div>
+      </div>
+
       <div className="nl-card nl-card--pad" style={{ maxWidth: 820, marginBottom: 20 }}>
         <div className="eyebrow" style={{ marginBottom: 14 }}>Novo disparo</div>
         <label className="nl-label">Mensagem <span className="faint">(spintax: {'{Oi|Olá}'} {'{fulano|amigo}'}!)</span></label>

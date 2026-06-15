@@ -48,6 +48,13 @@ export default function Pipeline() {
 
   return (
     <Shell title="Pipeline">
+      <div className="nl-page-head nl-rise">
+        <div>
+          <h1>Pipeline</h1>
+          <div className="sub">Funil comercial para acompanhar e mover oportunidades</div>
+        </div>
+      </div>
+
       <div className="nl-board">
         {etapas.map((e) => {
           const lista = cards.filter((c) => c.etapa_pipeline === e.id);

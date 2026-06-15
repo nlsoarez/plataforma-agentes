@@ -29,7 +29,7 @@ const NAV = [
   { href: '/onboarding', label: 'Conectar WhatsApp' },
 ];
 
-export default function Shell({ title, children }: { title: string; children: ReactNode }) {
+export default function Shell({ title: _title, children }: { title: string; children: ReactNode }) {
   const path = usePathname();
   const [billingChecked, setBillingChecked] = useState(path === '/billing');
   const [token, setToken] = useState<string | null>(null);
@@ -95,9 +95,6 @@ export default function Shell({ title, children }: { title: string; children: Re
         </div>
       </aside>
       <div className="nl-main">
-        <header className="nl-topbar">
-          <div className="title">{title}</div>
-        </header>
         <div className="nl-content">
           {billingChecked ? children : (
             <div className="nl-card nl-card--pad">
