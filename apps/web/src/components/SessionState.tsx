@@ -7,20 +7,26 @@ type StoredTokenState = {
   ready: boolean;
 };
 
+let cachedToken: string | null = null;
+let cachedTokenReady = false;
+
 export function useStoredToken(): StoredTokenState {
   const [session, setSession] = useState<StoredTokenState>(() => {
-    if (typeof window === 'undefined') return { token: null, ready: false };
-    return { token: window.localStorage.getItem('token'), ready: true };
+    return { token: cachedToken, ready: cachedTokenReady };
   });
 
   useEffect(() => {
-    setSession({ token: window.localStorage.getItem('token'), ready: true });
+    cachedToken = window.localStorage.getItem('token');
+    cachedTokenReady = true;
+    setSession({ token: cachedToken, ready: true });
   }, []);
 
   return session;
 }
 
 export function expireSession() {
+  cachedToken = null;
+  cachedTokenReady = true;
   window.localStorage.removeItem('token');
   window.location.href = '/login';
 }
