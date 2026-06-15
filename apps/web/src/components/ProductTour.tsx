@@ -291,6 +291,29 @@ const TOURS: Record<string, TourConfig> = {
       },
     ],
   },
+  '/configuracoes': {
+    section: 'Configurações',
+    steps: [
+      {
+        title: 'Perfil do usuário',
+        what: 'Esta tela guarda seus dados pessoais dentro da plataforma.',
+        how: 'Atualize nome, telefone, cargo, foto por URL, idioma e fuso horario.',
+        why: 'Esses dados ajudam a identificar quem esta operando a conta e preparar recursos futuros de notificacao e auditoria.',
+      },
+      {
+        title: 'Segurança da conta',
+        what: 'Voce pode trocar sua senha de acesso.',
+        how: 'Contas com senha pedem a senha atual. Contas criadas pelo Google podem adicionar uma senha local.',
+        why: 'Isso reduz dependencia de um unico metodo de login e melhora o controle de acesso.',
+      },
+      {
+        title: 'Assinatura e preferências',
+        what: 'A tela mostra status da assinatura e preferencias basicas da sua conta.',
+        how: 'Revise o plano, acesse a pagina de assinatura e ajuste notificacoes ou modo compacto.',
+        why: 'Configuracao de usuario deve ser separada da Marca, que controla o white-label da empresa.',
+      },
+    ],
+  },
   '/equipe': {
     section: 'Equipe',
     steps: [

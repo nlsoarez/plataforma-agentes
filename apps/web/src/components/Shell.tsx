@@ -28,6 +28,7 @@ const NAV = [
   { href: '/integracoes', label: 'Integrações' },
   { href: '/api-docs', label: 'API Docs' },
   { href: '/equipe', label: 'Equipe' },
+  { href: '/configuracoes', label: 'Configurações' },
   { href: '/settings', label: 'Marca' },
   { href: '/billing', label: 'Assinatura' },
   { href: '/onboarding', label: 'Conectar WhatsApp' },
