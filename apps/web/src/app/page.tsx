@@ -15,10 +15,10 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'dashboard') {
     return (
       <svg className="nl-app-icon nl-app-icon--feature" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="6" y="6" width="8" height="8" rx="2.2" />
-        <rect x="18" y="6" width="8" height="5.8" rx="2" />
-        <rect x="6" y="18" width="8" height="8" rx="2.2" />
-        <rect x="18" y="16" width="8" height="10" rx="2.2" />
+        <rect x="5" y="5" width="9" height="9" rx="2.5" />
+        <rect x="18" y="5" width="9" height="7" rx="2.5" />
+        <rect x="5" y="18" width="9" height="9" rx="2.5" />
+        <rect x="18" y="16" width="9" height="11" rx="2.5" />
       </svg>
     );
   }
@@ -26,8 +26,8 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'sessions') {
     return (
       <svg className="nl-app-icon nl-app-icon--feature" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M16 5.7c5.8 0 10.5 4.35 10.5 9.72 0 5.36-4.7 9.72-10.5 9.72-1.45 0-2.82-.27-4.07-.76L6.8 27l1.42-5.03a9.24 9.24 0 0 1-2.72-6.55C5.5 10.05 10.2 5.7 16 5.7Z" />
-        <path d="M12.38 11.45c.42 5.25 3.45 8.2 8.25 8.75l1.74-2.18-3.25-1.55-1.08 1.35c-1.9-.62-3.28-1.9-3.94-3.9l1.35-1.08-1.62-3.24-1.45 1.85Z" />
+        <path d="M16 4.5C9.65 4.5 4.5 9.2 4.5 15c0 2.72 1.14 5.2 3 7.05L6.1 27.5l5.62-1.5A12.4 12.4 0 0 0 16 26.5c6.35 0 11.5-4.7 11.5-10.5S22.35 4.5 16 4.5Z" />
+        <path className="nl-app-icon__knockout" d="M12.6 10.65c-.55.35-1.35 1.18-1.35 2.55 0 3.55 3.82 7.55 7.4 7.55 1.42 0 2.3-.78 2.65-1.35l-2.3-2.15-1.25 1.05c-1.6-.58-3-1.98-3.58-3.58l1.05-1.25-2.62-2.82Z" />
       </svg>
     );
   }
@@ -35,9 +35,10 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'agent') {
     return (
       <svg className="nl-app-icon nl-app-icon--feature" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="9" y="9" width="14" height="14" rx="3.5" />
-        <path d="M16 4.8V9M16 23v4.2M4.8 16H9M23 16h4.2M8.2 8.2l3 3M20.8 20.8l3 3M23.8 8.2l-3 3M11.2 20.8l-3 3" />
-        <circle cx="16" cy="16" r="3.2" />
+        <path d="M8.7 7.2A5.2 5.2 0 0 1 13.9 2h4.2a5.2 5.2 0 0 1 5.2 5.2v1.2h.8A4.9 4.9 0 0 1 29 13.3v6.2a4.9 4.9 0 0 1-4.9 4.9h-1.9L17.8 29a2.55 2.55 0 0 1-3.6 0l-4.4-4.6H7.9A4.9 4.9 0 0 1 3 19.5v-6.2a4.9 4.9 0 0 1 4.9-4.9h.8V7.2Z" />
+        <circle className="nl-app-icon__knockout" cx="12.2" cy="16.1" r="2" />
+        <circle className="nl-app-icon__knockout" cx="19.8" cy="16.1" r="2" />
+        <path className="nl-app-icon__knockout" d="M12.4 20.2h7.2a3.9 3.9 0 0 1-7.2 0Z" />
       </svg>
     );
   }
@@ -45,8 +46,9 @@ function AppHomeIcon({ name }: { name: string }) {
   if (name === 'inbox') {
     return (
       <svg className="nl-app-icon nl-app-icon--feature" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M7 9.2A4.2 4.2 0 0 1 11.2 5h9.6A4.2 4.2 0 0 1 25 9.2v5.9a4.2 4.2 0 0 1-4.2 4.2h-4.3L10 25v-6.2a4.2 4.2 0 0 1-3-4V9.2Z" />
-        <path d="M12 11h8M12 15h5.8" />
+        <path d="M6 8.8A5.8 5.8 0 0 1 11.8 3h8.4A5.8 5.8 0 0 1 26 8.8v5.7a5.8 5.8 0 0 1-5.8 5.8h-3.85L9 27v-7.15a5.78 5.78 0 0 1-3-5.08V8.8Z" />
+        <rect className="nl-app-icon__knockout" x="11.2" y="10.4" width="10" height="2.5" rx="1.25" />
+        <rect className="nl-app-icon__knockout" x="11.2" y="15" width="7" height="2.5" rx="1.25" />
       </svg>
     );
   }
@@ -55,7 +57,7 @@ function AppHomeIcon({ name }: { name: string }) {
     return (
       <svg className="nl-app-icon nl-app-icon--feature" viewBox="0 0 32 32" aria-hidden="true">
         <path d="M7 8h18l-7.2 8.4v6.2L14.2 25v-8.6L7 8Z" />
-        <path d="M22.5 22h4M24.5 20v4" />
+        <path className="nl-app-icon__line" d="M22.5 22h4M24.5 20v4" />
       </svg>
     );
   }
@@ -64,15 +66,17 @@ function AppHomeIcon({ name }: { name: string }) {
     return (
       <svg className="nl-app-icon nl-app-icon--feature" viewBox="0 0 32 32" aria-hidden="true">
         <rect x="5.5" y="8" width="21" height="16" rx="4" />
-        <path d="M6 13h20M11 19h7" />
-        <path d="m21 20 2 2 4-4" />
+        <path className="nl-app-icon__line" d="M7.5 13.5h17M11 19h7" />
+        <path className="nl-app-icon__line" d="m21 20 2 2 4-4" />
       </svg>
     );
   }
 
   return (
     <svg className="nl-app-icon nl-app-icon--feature" viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M8 24V12M16 24V8M24 24v-9M6 24h20" />
+      <rect x="7" y="14" width="4" height="10" rx="2" />
+      <rect x="14" y="8" width="4" height="16" rx="2" />
+      <rect x="21" y="11" width="4" height="13" rx="2" />
     </svg>
   );
 }
@@ -163,7 +167,7 @@ export default function Home() {
               <path d="M7 15H5.5A2.5 2.5 0 0 0 3 17.5v1A2.5 2.5 0 0 0 5.5 21H7M25 15h1.5a2.5 2.5 0 0 1 2.5 2.5v1a2.5 2.5 0 0 1-2.5 2.5H25" />
             </svg>
           </span>
-          <img className="nl-app-entry__operator" src="/brand/comunora/comunora-app-operator-cutout.png" alt="" />
+          <img className="nl-app-entry__operator" src="/brand/comunora/comunora-app-operator.png" alt="" />
         </div>
       </section>
 

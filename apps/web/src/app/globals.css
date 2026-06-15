@@ -1088,22 +1088,22 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(520px, .88fr) minmax(700px, 1.12fr);
-  align-items: center;
+  grid-template-columns: minmax(500px, .82fr) minmax(760px, 1.18fr);
+  align-items: start;
   gap: clamp(18px, 2.6vw, 42px);
   width: min(1540px, calc(100% - 72px));
-  min-height: 610px;
+  min-height: 660px;
   margin: 0 auto;
-  padding: clamp(44px, 6vw, 88px) 0 18px;
+  padding: clamp(28px, 3.8vw, 52px) 0 18px;
 }
 .nl-app-entry__copy {
   position: relative;
   z-index: 3;
 }
 .nl-app-entry__logo {
-  width: 184px;
+  width: 176px;
   height: auto;
-  margin-bottom: clamp(36px, 3.6vw, 52px);
+  margin-bottom: clamp(42px, 4.4vw, 72px);
 }
 .nl-app-entry__copy h1 {
   max-width: 790px;
@@ -1138,11 +1138,12 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-app-entry__visual {
   position: relative;
   min-height: 640px;
+  margin-top: 22px;
 }
 .nl-app-entry__visual::before {
   content: "";
   position: absolute;
-  inset: 28px -10px 40px 40px;
+  inset: 22px -18px 56px 36px;
   border-radius: 38px;
   background:
     radial-gradient(circle at 78% 18%, rgba(21, 101, 255, .15), transparent 24%),
@@ -1152,23 +1153,23 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-app-entry__visual::after {
   content: "";
   position: absolute;
-  left: 24%;
+  left: 30%;
   right: 0;
-  bottom: 16px;
-  height: 132px;
+  bottom: 34px;
+  height: 110px;
   background: radial-gradient(ellipse at center, rgba(11, 19, 43, .24), transparent 72%);
   filter: blur(16px);
   opacity: .42;
 }
 .nl-app-entry__mockup {
   position: absolute;
-  top: 8px;
-  left: 18px;
+  top: 10px;
+  left: 0;
   z-index: 2;
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  width: min(810px, 100%);
-  height: 392px;
+  grid-template-columns: 142px minmax(0, 1fr);
+  width: min(820px, 100%);
+  height: 390px;
   overflow: hidden;
   border: 1px solid rgba(221, 227, 234, .9);
   border-radius: 18px;
@@ -1181,7 +1182,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   color: rgba(255, 255, 255, .78);
 }
 .nl-app-entry__mockup aside img {
-  width: 106px;
+  width: 102px;
   height: auto;
   margin-bottom: 22px;
 }
@@ -1334,17 +1335,17 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 .nl-app-entry__operator {
   position: absolute;
-  right: -58px;
-  bottom: 4px;
+  right: -8px;
+  bottom: -10px;
   z-index: 4;
-  width: clamp(510px, 39vw, 640px);
+  width: clamp(460px, 36vw, 590px);
   height: auto;
-  filter: drop-shadow(0 26px 30px rgba(11, 19, 43, .14));
+  filter: drop-shadow(0 24px 28px rgba(11, 19, 43, .12));
 }
 .nl-app-entry__bot-orb {
   position: absolute;
-  top: 230px;
-  right: -8px;
+  top: 252px;
+  right: 8px;
   z-index: 5;
   display: grid;
   place-items: center;
@@ -1370,13 +1371,13 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
-  width: min(960px, calc(100% - 72px));
-  margin: -34px 0 52px max(36px, calc((100% - 1540px) / 2));
+  width: min(980px, calc(100% - 72px));
+  margin: -18px 0 52px max(36px, calc((100% - 1540px) / 2));
 }
 .nl-app-entry__card {
   display: block;
-  min-height: 148px;
-  padding: 20px;
+  min-height: 158px;
+  padding: 22px;
   border: 1px solid rgba(221, 227, 234, .95);
   border-radius: 14px;
   background: rgba(255, 255, 255, .93);
@@ -1391,38 +1392,34 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-app-entry__card i {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  margin-bottom: 18px;
-  border: 1px solid rgba(21, 101, 255, .16);
-  border-radius: 15px;
-  background: #f4f8ff;
-  color: #1565ff;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
+  width: 60px;
+  height: 60px;
+  margin-bottom: 20px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1565ff 0%, #0f7cff 100%);
+  color: #fff;
+  box-shadow: 0 16px 34px rgba(21, 101, 255, .18);
 }
 .nl-app-entry__card--sessions i,
 .nl-app-entry__card--inbox i {
-  border-color: rgba(34, 197, 94, .18);
-  background: #f2fbf6;
-  color: #22c55e;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
+  background: linear-gradient(135deg, #22c55e 0%, #00c6a9 100%);
+  color: #fff;
+  box-shadow: 0 16px 34px rgba(0, 198, 169, .18);
 }
 .nl-app-entry__card--pipeline i,
 .nl-app-entry__card--billing i {
-  border-color: rgba(0, 198, 169, .18);
-  background: #f0fbf9;
-  color: #00a991;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
+  background: linear-gradient(135deg, #00c6a9 0%, #1565ff 100%);
+  color: #fff;
+  box-shadow: 0 16px 34px rgba(0, 198, 169, .18);
 }
 .nl-app-entry__card--agent i {
-  border-color: rgba(21, 101, 255, .16);
-  background: #f4f8ff;
-  color: #1565ff;
+  background: linear-gradient(135deg, #1565ff 0%, #00c6a9 100%);
+  color: #fff;
 }
 .nl-app-entry__card--pipeline i {
-  border-color: rgba(245, 158, 11, .22);
-  background: #fff8ec;
-  color: #f59e0b;
+  background: linear-gradient(135deg, #f59e0b 0%, #00c6a9 100%);
+  color: #fff;
 }
 .nl-app-entry__card h2 {
   margin: 0 0 8px;
@@ -1433,19 +1430,30 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-app-entry__card p {
   margin: 0;
   color: #526070;
-  font-size: .78rem;
-  line-height: 1.5;
+  font-size: .82rem;
+  line-height: 1.48;
 }
 .nl-app-entry__card svg {
-  width: 28px;
-  height: 28px;
+  width: 33px;
+  height: 33px;
 }
 .nl-app-icon {
   display: block;
   overflow: visible;
-  fill: none;
-  stroke: currentColor;
+  fill: currentColor;
+  stroke: none;
   stroke-width: 2.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.nl-app-icon__knockout {
+  fill: #fff;
+  stroke: none;
+}
+.nl-app-icon__line {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.25;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
