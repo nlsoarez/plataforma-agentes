@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 
@@ -264,7 +264,7 @@ const TOURS: Record<string, TourConfig> = {
         title: 'Servicos conectados',
         what: 'Integracoes ligam a Comunora a Google Calendar, webhooks, APIs e outros servicos.',
         how: 'Conecte cada servico com a conta correta e confira se os callbacks usam o dominio atual.',
-        why: 'Integrações quebradas afetam agenda, cobranca, automacoes e dados externos.',
+        why: 'IntegraÃ§Ãµes quebradas afetam agenda, cobranca, automacoes e dados externos.',
       },
       {
         title: 'Tokens e seguranca',
@@ -297,31 +297,30 @@ const TOURS: Record<string, TourConfig> = {
       {
         title: 'Perfil do usuário',
         what: 'Esta tela guarda seus dados pessoais dentro da plataforma.',
-        how: 'Atualize nome, telefone, cargo, foto por URL, idioma e fuso horario.',
-        why: 'Esses dados ajudam a identificar quem esta operando a conta e preparar recursos futuros de notificacao e auditoria.',
+        how: 'Atualize nome, telefone, cargo, idioma e envie uma foto do seu computador quando quiser trocar o avatar.',
+        why: 'Esses dados ajudam a identificar quem está operando a conta e preparar recursos futuros de notificação e auditoria.',
       },
       {
         title: 'Segurança da conta',
-        what: 'Voce pode trocar sua senha de acesso.',
+        what: 'Você pode trocar sua senha de acesso.',
         how: 'Contas com senha pedem a senha atual. Contas criadas pelo Google podem adicionar uma senha local.',
-        why: 'Isso reduz dependencia de um unico metodo de login e melhora o controle de acesso.',
+        why: 'Isso reduz dependência de um único método de login e melhora o controle de acesso.',
       },
       {
         title: 'Assinatura e preferências',
-        what: 'A tela mostra status da assinatura e preferencias basicas da sua conta.',
-        how: 'Revise o plano, acesse a pagina de assinatura e ajuste notificacoes ou modo compacto.',
-        why: 'Configuracao de usuario deve ser separada da Marca, que controla o white-label da empresa.',
+        what: 'A tela mostra status da assinatura e preferências básicas da sua conta.',
+        how: 'Revise o plano, acesse a página de assinatura e ajuste notificações por e-mail.',
+        why: 'Configuração de usuário deve ser separada da Marca, que controla o white-label da empresa.',
       },
     ],
-  },
-  '/equipe': {
+  },  '/equipe': {
     section: 'Equipe',
     steps: [
       {
         title: 'Usuarios e acesso',
         what: 'Equipe controla quem pode operar a conta.',
         how: 'Convide usuarios, revise papeis e remova acessos que nao devem continuar.',
-        why: 'Permissao correta evita que pessoas erradas alterem agentes, cobranças ou dados de clientes.',
+        why: 'Permissao correta evita que pessoas erradas alterem agentes, cobranÃ§as ou dados de clientes.',
       },
       {
         title: 'Atendimento humano',
@@ -448,7 +447,7 @@ export default function ProductTour({ path, request }: { path: string | null; re
       <div className="nl-tour__backdrop" onClick={closeTour} />
       <section className="nl-tour__card">
         <button className="nl-tour__close" type="button" onClick={closeTour} aria-label="Fechar tutorial">
-          ×
+          Ã—
         </button>
         <div className="nl-tour__header">
           <span className="nl-tour__eyebrow">Tutorial de {config.section}</span>
@@ -494,3 +493,4 @@ function normalizePath(path: string | null) {
   const clean = path.split('?')[0].replace(/\/$/, '');
   return clean || '/dashboard';
 }
+

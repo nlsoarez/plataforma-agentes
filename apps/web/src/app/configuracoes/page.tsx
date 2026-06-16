@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Shell from '../../components/Shell';
 import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
 import { BRAND } from '../../lib/brand';
 
 const API = BRAND.apiUrl || 'http://localhost:3000';
+
+const LANGUAGE_OPTIONS = [
+  { value: 'pt-BR', label: 'Português (Brasil)' },
+  { value: 'en-US', label: 'English (United States)' },
+  { value: 'es-ES', label: 'Español' },
+];
 
 type AccountResponse = {
   usuario: {
@@ -50,11 +56,11 @@ type ProfileForm = {
   locale: string;
   emailNotifications: boolean;
   productUpdates: boolean;
-  compactMode: boolean;
 };
 
 export default function ConfiguracoesPage() {
   const { token, ready } = useStoredToken();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [account, setAccount] = useState<AccountResponse | null>(null);
   const [form, setForm] = useState<ProfileForm>(emptyForm());
   const [password, setPassword] = useState({ senhaAtual: '', novaSenha: '', confirmar: '' });
@@ -75,7 +81,7 @@ export default function ConfiguracoesPage() {
     const r = await fetch(`${API}/account`, { headers: auth(token) });
     const data = await r.json();
     if (!r.ok) {
-      setProfileMsg(data?.message || 'Erro ao carregar configuracoes.');
+      setProfileMsg(data?.message || 'Erro ao carregar configurações.');
       return;
     }
     setAccount(data);
@@ -94,12 +100,11 @@ export default function ConfiguracoesPage() {
         telefone: form.telefone,
         cargo: form.cargo,
         avatarUrl: form.avatarUrl,
-        timezone: form.timezone,
+        timezone: form.timezone || 'America/Sao_Paulo',
         locale: form.locale,
         preferencias: {
           emailNotifications: form.emailNotifications,
           productUpdates: form.productUpdates,
-          compactMode: form.compactMode,
         },
       }),
     });
@@ -110,7 +115,7 @@ export default function ConfiguracoesPage() {
       return;
     }
     setAccount((current) => current ? { ...current, usuario: { ...current.usuario, ...data } } : current);
-    setProfileMsg('Configuracoes salvas.');
+    setProfileMsg('Configurações salvas.');
   }
 
   async function alterarSenha() {
@@ -121,7 +126,7 @@ export default function ConfiguracoesPage() {
       return;
     }
     if (password.novaSenha !== password.confirmar) {
-      setPasswordMsg('A confirmacao da senha nao confere.');
+      setPasswordMsg('A confirmação da senha não confere.');
       return;
     }
     setSavingPassword(true);
@@ -138,6 +143,19 @@ export default function ConfiguracoesPage() {
     }
     setPassword({ senhaAtual: '', novaSenha: '', confirmar: '' });
     setPasswordMsg('Senha alterada.');
+  }
+
+  async function escolherFoto(file: File | null) {
+    if (!file) return;
+    setProfileMsg('');
+    try {
+      const dataUrl = await imageFileToAvatarDataUrl(file);
+      setForm((current) => ({ ...current, avatarUrl: dataUrl }));
+    } catch (error) {
+      setProfileMsg(error instanceof Error ? error.message : 'Não foi possível carregar a foto.');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   }
 
   const initials = useMemo(() => {
@@ -169,7 +187,7 @@ export default function ConfiguracoesPage() {
             <div className="nl-avatar-preview">
               {form.avatarUrl ? <img src={form.avatarUrl} alt="Foto do perfil" /> : <span>{initials}</span>}
             </div>
-            <div>
+            <div className="nl-profile-identity">
               <h2>{form.nome || user?.email || 'Seu perfil'}</h2>
               <p>{user?.email || 'Carregando e-mail...'}</p>
               <div className="nl-row" style={{ marginTop: 10, gap: 8 }}>
@@ -179,15 +197,36 @@ export default function ConfiguracoesPage() {
                 </span>
               </div>
             </div>
+            <div className="nl-avatar-controls">
+              <input
+                ref={fileInputRef}
+                className="nl-avatar-file"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => void escolherFoto(event.target.files?.[0] || null)}
+              />
+              <button className="nl-btn nl-btn--ghost nl-btn--sm" type="button" onClick={() => fileInputRef.current?.click()}>
+                Enviar foto
+              </button>
+              {form.avatarUrl ? (
+                <button className="nl-btn nl-btn--ghost nl-btn--sm" type="button" onClick={() => setForm({ ...form, avatarUrl: '' })}>
+                  Remover
+                </button>
+              ) : null}
+              <small>PNG, JPG ou WEBP. A imagem é ajustada automaticamente.</small>
+            </div>
           </div>
 
           <div className="nl-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginTop: 22 }}>
             <Field label="Nome completo" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
             <Field label="Telefone" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} placeholder="(00) 00000-0000" />
             <Field label="Cargo ou função" value={form.cargo} onChange={(v) => setForm({ ...form, cargo: v })} placeholder="Ex: gestor comercial" />
-            <Field label="URL da foto" value={form.avatarUrl} onChange={(v) => setForm({ ...form, avatarUrl: v })} placeholder="https://..." />
-            <Field label="Fuso horário" value={form.timezone} onChange={(v) => setForm({ ...form, timezone: v })} />
-            <Field label="Idioma" value={form.locale} onChange={(v) => setForm({ ...form, locale: v })} />
+            <SelectField
+              label="Idioma"
+              value={form.locale}
+              onChange={(v) => setForm({ ...form, locale: v })}
+              options={LANGUAGE_OPTIONS}
+            />
           </div>
 
           <div className="nl-settings-actions">
@@ -236,7 +275,7 @@ export default function ConfiguracoesPage() {
           <p className="muted" style={{ marginTop: 6, marginBottom: 18 }}>
             {needsCurrentPassword
               ? 'Informe a senha atual para proteger a troca.'
-              : 'Sua conta veio do Google. Voce pode criar uma senha local para tambem entrar por e-mail.'}
+              : 'Sua conta veio do Google. Você pode criar uma senha local para também entrar por e-mail.'}
           </p>
           {needsCurrentPassword ? (
             <Field
@@ -270,7 +309,7 @@ export default function ConfiguracoesPage() {
 
         <section className="nl-card nl-card--pad">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Preferências</div>
-          <h3 className="nl-settings-card-title">Notificações e uso</h3>
+          <h3 className="nl-settings-card-title">Notificações</h3>
           <div className="nl-settings-switches">
             <CheckRow
               title="Receber alertas por e-mail"
@@ -283,12 +322,6 @@ export default function ConfiguracoesPage() {
               text="Atualizações de recursos, melhorias e comunicados da Comunora."
               checked={form.productUpdates}
               onChange={(checked) => setForm({ ...form, productUpdates: checked })}
-            />
-            <CheckRow
-              title="Modo compacto"
-              text="Preferência visual para telas com mais densidade de informação."
-              checked={form.compactMode}
-              onChange={(checked) => setForm({ ...form, compactMode: checked })}
             />
           </div>
           <button className="nl-btn nl-btn--ghost" onClick={salvarPerfil} disabled={savingProfile} style={{ marginTop: 18 }}>
@@ -327,6 +360,27 @@ function Field({
   );
 }
 
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div>
+      <label className="nl-label">{label}</label>
+      <select className="nl-select" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function CheckRow({
   title,
   text,
@@ -359,7 +413,6 @@ function emptyForm(): ProfileForm {
     locale: 'pt-BR',
     emailNotifications: true,
     productUpdates: true,
-    compactMode: false,
   };
 }
 
@@ -374,8 +427,47 @@ function fromAccount(account: AccountResponse): ProfileForm {
     locale: account.usuario.locale || 'pt-BR',
     emailNotifications: prefs.emailNotifications !== false,
     productUpdates: prefs.productUpdates !== false,
-    compactMode: prefs.compactMode === true,
   };
+}
+
+function imageFileToAvatarDataUrl(file: File): Promise<string> {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    return Promise.reject(new Error('Use uma imagem PNG, JPG ou WEBP.'));
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return Promise.reject(new Error('A imagem deve ter no máximo 5 MB.'));
+  }
+
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Não foi possível processar a imagem.');
+
+        const sourceSize = Math.min(image.width, image.height);
+        const sourceX = (image.width - sourceSize) / 2;
+        const sourceY = (image.height - sourceSize) / 2;
+        ctx.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      } catch (error) {
+        URL.revokeObjectURL(url);
+        reject(error);
+      }
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Não foi possível carregar a imagem escolhida.'));
+    };
+    image.src = url;
+  });
 }
 
 function formatDate(value?: string | null) {

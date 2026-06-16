@@ -79,7 +79,7 @@ export class AccountController {
           clean(body.nome),
           clean(body.telefone),
           clean(body.cargo),
-          cleanUrl(body.avatarUrl),
+          cleanAvatar(body.avatarUrl),
           clean(body.timezone) || 'America/Sao_Paulo',
           clean(body.locale) || 'pt-BR',
           JSON.stringify(preferencias),
@@ -133,11 +133,12 @@ function clean(value: unknown): string | null {
   return text || null;
 }
 
-function cleanUrl(value: unknown): string | null {
+function cleanAvatar(value: unknown): string | null {
   const text = clean(value);
   if (!text) return null;
-  if (!/^https?:\/\//i.test(text)) throw new BadRequestException('foto deve ser uma URL http ou https');
-  return text;
+  if (/^https?:\/\//i.test(text)) return text;
+  if (/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(text) && text.length <= 180_000) return text;
+  throw new BadRequestException('foto deve ser uma URL http/https ou uma imagem enviada pelo perfil');
 }
 
 function sanitizePreferences(value: ProfileInput['preferencias']) {
