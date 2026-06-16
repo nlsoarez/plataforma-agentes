@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
 import { hashSenha, verificarSenha } from '../auth/senha';
@@ -17,6 +17,22 @@ type ProfileInput = {
     compactMode?: boolean;
   };
 };
+
+type SupportTicketInput = {
+  topic?: string;
+  description?: string;
+};
+
+const SUPPORT_TOPICS = new Map([
+  ['whatsapp', 'WhatsApp, QR Code ou instância'],
+  ['agent', 'Agente de IA não responde'],
+  ['inbox', 'Mensagens não chegam no Inbox'],
+  ['billing', 'Assinatura, pagamento ou acesso'],
+  ['calendar', 'Google Calendar ou integrações'],
+  ['profile', 'Perfil, senha ou acesso'],
+  ['bug', 'Erro ou tela quebrada'],
+  ['other', 'Outra dúvida'],
+]);
 
 @Controller('account')
 @UseGuards(AuthGuard)
@@ -124,6 +140,44 @@ export class AccountController {
         [req.user.sub, hashSenha(novaSenha)],
       );
       return { ok: true };
+    });
+  }
+
+  @Post('support-ticket')
+  async abrirChamado(@Body() body: SupportTicketInput, @Req() req: any) {
+    const topic = String(body.topic || '').trim();
+    const subject = SUPPORT_TOPICS.get(topic);
+    if (!subject) throw new BadRequestException('assunto do chamado invalido');
+
+    const description = String(body.description || '').trim();
+    if (description.length < 10) throw new BadRequestException('descreva a duvida com pelo menos 10 caracteres');
+    if (description.length > 2000) throw new BadRequestException('descricao do chamado deve ter no maximo 2000 caracteres');
+
+    return comTenant(req.user.tenantId, async (q) => {
+      const r = await q(
+        `insert into support_tickets (tenant_id, usuario_id, topic, subject, description, metadata)
+         values ($1, $2, $3, $4, $5, $6::jsonb)
+         returning id, status, created_at`,
+        [
+          req.user.tenantId,
+          req.user.sub,
+          topic,
+          subject,
+          description,
+          JSON.stringify({
+            email: req.user.email || null,
+            source: 'account_settings',
+          }),
+        ],
+      );
+
+      return {
+        ok: true,
+        chamado: {
+          ...r.rows[0],
+          subject,
+        },
+      };
     });
   }
 }

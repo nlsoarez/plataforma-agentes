@@ -7,10 +7,47 @@ import { BRAND } from '../../lib/brand';
 
 const API = BRAND.apiUrl || 'http://localhost:3000';
 
-const LANGUAGE_OPTIONS = [
-  { value: 'pt-BR', label: 'Português (Brasil)' },
-  { value: 'en-US', label: 'English (United States)' },
-  { value: 'es-ES', label: 'Español' },
+const SUPPORT_TOPICS = [
+  {
+    value: 'whatsapp',
+    label: 'WhatsApp, QR Code ou instância',
+    hint: 'Use para erro ao conectar número, QR Code que não aparece, instância caindo ou webhook sem receber mensagem.',
+  },
+  {
+    value: 'agent',
+    label: 'Agente de IA não responde',
+    hint: 'Use quando a conversa chega no Inbox, mas o agente não responde ou responde fora do esperado.',
+  },
+  {
+    value: 'inbox',
+    label: 'Mensagens não chegam no Inbox',
+    hint: 'Use quando a mensagem chega no WhatsApp/Evolution, mas não aparece dentro da plataforma.',
+  },
+  {
+    value: 'billing',
+    label: 'Assinatura, pagamento ou acesso',
+    hint: 'Use para pagamento, plano, bloqueio indevido, liberação de acesso ou dúvidas financeiras.',
+  },
+  {
+    value: 'calendar',
+    label: 'Google Calendar ou integrações',
+    hint: 'Use para conexão com Google Calendar, callbacks, permissões OAuth ou integrações externas.',
+  },
+  {
+    value: 'profile',
+    label: 'Perfil, senha ou login',
+    hint: 'Use para troca de senha, login com Google, foto de perfil, dados da conta ou acesso de usuário.',
+  },
+  {
+    value: 'bug',
+    label: 'Erro ou tela quebrada',
+    hint: 'Use quando aparecer erro, layout quebrado, tela em branco ou comportamento inesperado.',
+  },
+  {
+    value: 'other',
+    label: 'Outra dúvida',
+    hint: 'Use quando o assunto não se encaixar nas opções acima.',
+  },
 ];
 
 type AccountResponse = {
@@ -53,7 +90,6 @@ type ProfileForm = {
   cargo: string;
   avatarUrl: string;
   timezone: string;
-  locale: string;
   emailNotifications: boolean;
   productUpdates: boolean;
 };
@@ -64,10 +100,13 @@ export default function ConfiguracoesPage() {
   const [account, setAccount] = useState<AccountResponse | null>(null);
   const [form, setForm] = useState<ProfileForm>(emptyForm());
   const [password, setPassword] = useState({ senhaAtual: '', novaSenha: '', confirmar: '' });
+  const [ticket, setTicket] = useState({ topic: SUPPORT_TOPICS[0].value, description: '' });
   const [profileMsg, setProfileMsg] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
+  const [ticketMsg, setTicketMsg] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [sendingTicket, setSendingTicket] = useState(false);
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
 
@@ -101,7 +140,6 @@ export default function ConfiguracoesPage() {
         cargo: form.cargo,
         avatarUrl: form.avatarUrl,
         timezone: form.timezone || 'America/Sao_Paulo',
-        locale: form.locale,
         preferencias: {
           emailNotifications: form.emailNotifications,
           productUpdates: form.productUpdates,
@@ -145,6 +183,30 @@ export default function ConfiguracoesPage() {
     setPasswordMsg('Senha alterada.');
   }
 
+  async function abrirChamado() {
+    if (!token) return;
+    setTicketMsg('');
+    if (ticket.description.trim().length < 10) {
+      setTicketMsg('Descreva a dúvida com pelo menos 10 caracteres.');
+      return;
+    }
+
+    setSendingTicket(true);
+    const r = await fetch(`${API}/account/support-ticket`, {
+      method: 'POST',
+      headers: auth(token),
+      body: JSON.stringify(ticket),
+    });
+    const data = await r.json();
+    setSendingTicket(false);
+    if (!r.ok) {
+      setTicketMsg(data?.message || JSON.stringify(data));
+      return;
+    }
+    setTicket({ topic: SUPPORT_TOPICS[0].value, description: '' });
+    setTicketMsg(`Chamado registrado: ${data?.chamado?.subject || 'suporte'}.`);
+  }
+
   async function escolherFoto(file: File | null) {
     if (!file) return;
     setProfileMsg('');
@@ -171,13 +233,14 @@ export default function ConfiguracoesPage() {
   const subscriptionStatus = account?.assinatura?.assinatura?.status || account?.assinatura?.acesso || '-';
   const canUse = account?.assinatura?.pode_usar;
   const needsCurrentPassword = user?.auth_provider?.includes('password') ?? true;
+  const selectedTopic = SUPPORT_TOPICS.find((topic) => topic.value === ticket.topic) || SUPPORT_TOPICS[0];
 
   return (
     <Shell title="Configurações">
       <div className="nl-page-head nl-rise">
         <div>
           <h1>Configurações</h1>
-          <div className="sub">Perfil, segurança, assinatura e preferências da sua conta</div>
+          <div className="sub">Perfil, segurança, assinatura e suporte da sua conta</div>
         </div>
       </div>
 
@@ -221,12 +284,6 @@ export default function ConfiguracoesPage() {
             <Field label="Nome completo" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
             <Field label="Telefone" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} placeholder="(00) 00000-0000" />
             <Field label="Cargo ou função" value={form.cargo} onChange={(v) => setForm({ ...form, cargo: v })} placeholder="Ex: gestor comercial" />
-            <SelectField
-              label="Idioma"
-              value={form.locale}
-              onChange={(v) => setForm({ ...form, locale: v })}
-              options={LANGUAGE_OPTIONS}
-            />
           </div>
 
           <div className="nl-settings-actions">
@@ -329,6 +386,44 @@ export default function ConfiguracoesPage() {
           </button>
         </section>
       </div>
+
+      <section className="nl-card nl-card--pad nl-support-card" style={{ marginTop: 14 }}>
+        <div className="eyebrow" style={{ marginBottom: 14 }}>Suporte</div>
+        <h3 className="nl-settings-card-title">Abrir chamado</h3>
+        <p className="muted" style={{ marginTop: 6, marginBottom: 18 }}>
+          Escolha o assunto mais próximo do problema. Isso evita chamado genérico e acelera a análise.
+        </p>
+        <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(260px, 420px) 1fr', alignItems: 'stretch' }}>
+          <div>
+            <label className="nl-label">Motivo do chamado</label>
+            <select className="nl-select" value={ticket.topic} onChange={(e) => setTicket({ ...ticket, topic: e.target.value })}>
+              {SUPPORT_TOPICS.map((topic) => (
+                <option key={topic.value} value={topic.value}>{topic.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="nl-support-topic-help">
+            <b>{selectedTopic.label}</b>
+            <span>{selectedTopic.hint}</span>
+          </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <label className="nl-label">Descrição</label>
+          <textarea
+            className="nl-textarea nl-support-textarea"
+            value={ticket.description}
+            maxLength={2000}
+            placeholder="Explique o que aconteceu, em qual tela, com qual número/projeto e o que você esperava que ocorresse."
+            onChange={(e) => setTicket({ ...ticket, description: e.target.value })}
+          />
+        </div>
+        <div className="nl-settings-actions">
+          <button className="nl-btn nl-btn--accent" onClick={abrirChamado} disabled={sendingTicket}>
+            {sendingTicket ? 'Enviando...' : 'Abrir chamado'}
+          </button>
+          {ticketMsg ? <span className={ticketMsg.includes('registrado') ? 'nl-success' : 'nl-error'}>{ticketMsg}</span> : null}
+        </div>
+      </section>
     </Shell>
   );
 }
@@ -356,27 +451,6 @@ function Field({
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <div>
-      <label className="nl-label">{label}</label>
-      <select className="nl-select" value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
     </div>
   );
 }
@@ -410,7 +484,6 @@ function emptyForm(): ProfileForm {
     cargo: '',
     avatarUrl: '',
     timezone: 'America/Sao_Paulo',
-    locale: 'pt-BR',
     emailNotifications: true,
     productUpdates: true,
   };
@@ -424,7 +497,6 @@ function fromAccount(account: AccountResponse): ProfileForm {
     cargo: account.usuario.cargo || '',
     avatarUrl: account.usuario.avatar_url || '',
     timezone: account.usuario.timezone || 'America/Sao_Paulo',
-    locale: account.usuario.locale || 'pt-BR',
     emailNotifications: prefs.emailNotifications !== false,
     productUpdates: prefs.productUpdates !== false,
   };

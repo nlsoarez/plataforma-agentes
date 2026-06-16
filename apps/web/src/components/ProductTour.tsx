@@ -45,7 +45,7 @@ const TOURS: Record<string, TourConfig> = {
         why: 'Ele existe para mostrar rapidamente se o atendimento esta gerando demanda, organizacao e resultado.',
       },
       {
-        title: 'Proximos passos',
+        title: 'Próximos passos',
         what: 'Esta area mostra o que ainda precisa ser configurado.',
         how: 'Conecte o WhatsApp, configure a chave de IA, ative o agente e acompanhe a primeira conversa.',
         why: 'Sem esses passos, a plataforma pode abrir normalmente, mas nao automatiza o atendimento de ponta a ponta.',
@@ -264,7 +264,7 @@ const TOURS: Record<string, TourConfig> = {
         title: 'Servicos conectados',
         what: 'Integracoes ligam a Comunora a Google Calendar, webhooks, APIs e outros servicos.',
         how: 'Conecte cada servico com a conta correta e confira se os callbacks usam o dominio atual.',
-        why: 'IntegraÃ§Ãµes quebradas afetam agenda, cobranca, automacoes e dados externos.',
+        why: 'Integrações quebradas afetam agenda, cobrança, automações e dados externos.',
       },
       {
         title: 'Tokens e seguranca',
@@ -313,14 +313,15 @@ const TOURS: Record<string, TourConfig> = {
         why: 'Configuração de usuário deve ser separada da Marca, que controla o white-label da empresa.',
       },
     ],
-  },  '/equipe': {
+  },
+  '/equipe': {
     section: 'Equipe',
     steps: [
       {
         title: 'Usuarios e acesso',
         what: 'Equipe controla quem pode operar a conta.',
         how: 'Convide usuarios, revise papeis e remova acessos que nao devem continuar.',
-        why: 'Permissao correta evita que pessoas erradas alterem agentes, cobranÃ§as ou dados de clientes.',
+        why: 'Permissão correta evita que pessoas erradas alterem agentes, cobranças ou dados de clientes.',
       },
       {
         title: 'Atendimento humano',
@@ -447,7 +448,7 @@ export default function ProductTour({ path, request }: { path: string | null; re
       <div className="nl-tour__backdrop" onClick={closeTour} />
       <section className="nl-tour__card">
         <button className="nl-tour__close" type="button" onClick={closeTour} aria-label="Fechar tutorial">
-          Ã—
+          <CloseIcon />
         </button>
         <div className="nl-tour__header">
           <span className="nl-tour__eyebrow">Tutorial de {config.section}</span>
@@ -458,7 +459,7 @@ export default function ProductTour({ path, request }: { path: string | null; re
         <h2 id="nl-tour-title">{step.title}</h2>
         <div className="nl-tour__body">
           <article>
-            <strong>O que e</strong>
+            <strong>O que é</strong>
             <p>{step.what}</p>
           </article>
           <article>
@@ -480,7 +481,7 @@ export default function ProductTour({ path, request }: { path: string | null; re
             Voltar
           </button>
           <button type="button" className="nl-btn nl-btn--accent" onClick={nextStep}>
-            {isLast ? 'Concluir' : 'Proximo'}
+            {isLast ? 'Concluir' : 'Próximo'}
           </button>
         </footer>
       </section>
@@ -492,5 +493,13 @@ function normalizePath(path: string | null) {
   if (!path) return '/dashboard';
   const clean = path.split('?')[0].replace(/\/$/, '');
   return clean || '/dashboard';
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
 }
 

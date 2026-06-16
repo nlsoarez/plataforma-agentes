@@ -470,6 +470,15 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   font-size: 1.25rem;
   line-height: 1;
 }
+.nl-tour__close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .nl-tour__header {
   display: flex;
   align-items: center;
@@ -746,6 +755,29 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   color: var(--ink-faint);
   font-size: .82rem;
   line-height: 1.35;
+}
+.nl-support-topic-help {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 12px 14px;
+  border: 1px solid rgba(21, 101, 255, 0.12);
+  border-radius: var(--radius-sm);
+  background: rgba(21, 101, 255, 0.045);
+}
+.nl-support-topic-help b {
+  color: var(--ink);
+  font-size: .9rem;
+}
+.nl-support-topic-help span {
+  color: var(--ink-muted);
+  font-size: .84rem;
+  line-height: 1.35;
+}
+.nl-support-textarea {
+  min-height: 128px;
 }
 
 /* Login */
@@ -2957,6 +2989,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   .nl-dashboard-grid, .nl-dashboard-grid-3 { grid-template-columns: 1fr; }
   .nl-agents-grid { grid-template-columns: 1fr; }
   .nl-settings-layout { grid-template-columns: 1fr; }
+  .nl-support-card .nl-grid { grid-template-columns: 1fr !important; }
   .nl-site__hero {
     grid-template-columns: 1fr;
     min-height: auto;
