@@ -18,7 +18,9 @@ export default function EquipePage() {
   const [msg, setMsg] = useState('');
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
 
-  useEffect(() => { if (token) carregar(); }, [token]);
+  useEffect(() => {
+    if (token) void carregar();
+  }, [token]);
 
   async function carregar() {
     if (!token) return;
@@ -32,7 +34,11 @@ export default function EquipePage() {
 
   async function criarDepartamento() {
     if (!token || !dep.nome.trim()) return;
-    const r = await fetch(`${API}/equipe/departamentos`, { method: 'POST', headers: auth(token), body: JSON.stringify(dep) });
+    const r = await fetch(`${API}/equipe/departamentos`, {
+      method: 'POST',
+      headers: auth(token),
+      body: JSON.stringify(dep),
+    });
     setMsg(r.ok ? 'Departamento criado.' : JSON.stringify(await r.json()));
     setDep({ nome: '', descricao: '' });
     await carregar();
@@ -41,7 +47,11 @@ export default function EquipePage() {
   async function criarUsuario() {
     if (!token || !user.email.trim() || !user.senha.trim()) return;
     const body = { ...user, departamentoId: user.departamentoId || undefined };
-    const r = await fetch(`${API}/equipe/usuarios`, { method: 'POST', headers: auth(token), body: JSON.stringify(body) });
+    const r = await fetch(`${API}/equipe/usuarios`, {
+      method: 'POST',
+      headers: auth(token),
+      body: JSON.stringify(body),
+    });
     setMsg(r.ok ? 'Usuário criado/atualizado.' : JSON.stringify(await r.json()));
     setUser({ nome: '', email: '', senha: '', papel: 'atendente', departamentoId: '' });
     await carregar();
@@ -101,7 +111,11 @@ export default function EquipePage() {
           <table className="nl-table">
             <thead><tr><th>Nome</th><th>Descrição</th></tr></thead>
             <tbody>
-              {departamentos.map((d) => <tr key={d.id}><td>{d.nome}</td><td>{d.descricao || '-'}</td></tr>)}
+              {departamentos.length > 0 ? (
+                departamentos.map((d) => <tr key={d.id}><td>{d.nome}</td><td>{d.descricao || '-'}</td></tr>)
+              ) : (
+                <tr><td colSpan={2}><span className="faint">Nenhum departamento cadastrado.</span></td></tr>
+              )}
             </tbody>
           </table>
         </section>
@@ -111,14 +125,18 @@ export default function EquipePage() {
         <table className="nl-table">
           <thead><tr><th>Usuário</th><th>Papel</th><th>Departamento</th><th>Status</th></tr></thead>
           <tbody>
-            {usuarios.map((u) => (
-              <tr key={u.id}>
-                <td><b>{u.nome || u.email}</b><div className="faint">{u.email}</div></td>
-                <td>{u.papel}</td>
-                <td>{u.departamento_nome || '-'}</td>
-                <td><span className={`nl-badge ${u.status === 'ativo' ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{u.status}</span></td>
-              </tr>
-            ))}
+            {usuarios.length > 0 ? (
+              usuarios.map((u) => (
+                <tr key={u.id}>
+                  <td><b>{u.nome || u.email}</b><div className="faint">{u.email}</div></td>
+                  <td>{u.papel}</td>
+                  <td>{u.departamento_nome || '-'}</td>
+                  <td><span className={`nl-badge ${u.status === 'ativo' ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{u.status}</span></td>
+                </tr>
+              ))
+            ) : (
+              <tr><td colSpan={4}><span className="faint">Nenhum usuário cadastrado.</span></td></tr>
+            )}
           </tbody>
         </table>
       </section>
