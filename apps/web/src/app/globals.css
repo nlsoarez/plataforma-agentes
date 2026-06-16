@@ -206,7 +206,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 
 /* Shell */
 .nl-shell {
-  display: flex;
+  display: block;
   min-height: 100vh;
   --sidebar-w: 248px;
 }
@@ -215,7 +215,6 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 }
 .nl-sidebar {
   width: var(--sidebar-w);
-  flex-shrink: 0;
   background:
     radial-gradient(circle at 18% 8%, rgba(0, 198, 169, .12), transparent 30%),
     linear-gradient(180deg, #0B132B 0%, #081126 100%);
@@ -224,10 +223,13 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: sticky;
+  position: fixed;
   top: 0;
-  height: 100vh;
-  overflow-y: auto;
+  left: 0;
+  bottom: 0;
+  z-index: 60;
+  height: 100dvh;
+  overflow-y: hidden;
   overflow-x: hidden;
   transition: width var(--transition-base), padding var(--transition-base);
 }
@@ -235,6 +237,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
   padding: 2px 2px 16px;
 }
 .nl-brand {
@@ -287,7 +290,19 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.22) transparent;
+}
+.nl-nav::-webkit-scrollbar { width: 6px; }
+.nl-nav::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.20);
+  border-radius: 999px;
 }
 .nl-nav a,
 .nl-sidebar-action,
@@ -349,6 +364,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-sidebar-foot {
   display: grid;
   gap: 8px;
+  flex: 0 0 auto;
   margin-top: auto;
   padding-top: 14px;
   border-top: 1px solid rgba(255,255,255,0.10);
@@ -420,7 +436,14 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   width: 22px;
   height: 22px;
 }
-.nl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.nl-main {
+  min-width: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--sidebar-w);
+  transition: margin-left var(--transition-base);
+}
 .nl-topbar { display: flex; align-items: center; justify-content: space-between; padding: 22px 28px 12px; }
 .nl-topbar .title { font-family: var(--font-display); font-weight: 800; font-size: 1.7rem; letter-spacing: 0; }
 .nl-content { padding: 8px 28px 44px; }
