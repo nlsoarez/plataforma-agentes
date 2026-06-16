@@ -50,7 +50,13 @@ export async function tratarMensagemRecebida(ev: {
     if (payload) await dispararWebhooks(q, tenantId, 'LEAD_INTERACTION', { ...payload, message: { from: ev.de, text: ev.conteudo, direction: 'inbound' } });
     await executarAutomacoes({ q, tenantId, projetoId, conversaId: conversa.id, contatoId, phoneNumberId: ev.phoneNumberId }, contato.criado ? 'lead_criado' : 'mensagem_recebida');
 
-    if (conversa.ia_pausada) return; // humano cuida
+    if (conversa.ia_pausada) {
+      await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'info', 'IA_PAUSADA', 'Mensagem recebida, mas a IA esta pausada nesta conversa', {
+        conversaId: conversa.id,
+        contatoId,
+      });
+      return; // humano cuida
+    }
 
     try {
       const agente = await carregarAgente(q, projetoId);
@@ -75,6 +81,13 @@ export async function tratarMensagemRecebida(ev: {
         await publicar(tenantId, { tipo: 'mensagem', conversaId: conversa.id, autor: 'ia', conteudo: resultado.texto });
         const updatedPayload = await leadPayload(q, contatoId);
         if (updatedPayload) await dispararWebhooks(q, tenantId, 'AI_RESPONSE', { ...updatedPayload, message: { text: resultado.texto, direction: 'outbound' } });
+      } else {
+        await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'warn', 'AI_EMPTY_RESPONSE', 'IA processou a mensagem, mas nao retornou texto para envio', {
+          conversaId: conversa.id,
+          contatoId,
+          provider: agente.provider,
+          modelo: agente.modelo,
+        });
       }
 
       if (resultado.handoff) {

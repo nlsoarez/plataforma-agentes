@@ -23,14 +23,26 @@ type AgenteRuntime = {
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
+function pareceChaveDireta(ref?: string | null) {
+  const value = String(ref || '').trim();
+  return /^(sk-|sk-ant-|AIza|ya29\.)/.test(value);
+}
+
+async function resolverApiKey(agente: AgenteRuntime) {
+  if (agente.encrypted_api_key) return decryptSecret(agente.encrypted_api_key);
+  const ref = String(agente.byok_key_ref || '').trim();
+  if (!ref) return null;
+  // Compatibilidade com agentes antigos onde o campo de referencia recebeu a chave em texto puro.
+  if (pareceChaveDireta(ref)) return ref;
+  return resolverSegredo(ref);
+}
+
 export async function rodarAgente(opts: {
   agente: AgenteRuntime;
   historico: { autor: string; conteudo: string }[];
   ctx: Omit<ToolCtx, 'handoff'>;
 }): Promise<ResultadoAgente> {
-  const apiKey = opts.agente.encrypted_api_key
-    ? decryptSecret(opts.agente.encrypted_api_key)
-    : await resolverSegredo(opts.agente.byok_key_ref || '');
+  const apiKey = await resolverApiKey(opts.agente);
   if (!apiKey) throw new Error(`chave ${opts.agente.provider} nao configurada`);
 
   const ctx: ToolCtx = { ...opts.ctx, handoff: false };

@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, Param, Put, Req, UseGuards 
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
 import { assertLimit } from '../billing/entitlements';
+import { encryptSecret } from '../secrets/crypto';
 
 type SalvarAgenteDto = {
   prompt_sistema?: string;
@@ -11,9 +12,9 @@ type SalvarAgenteDto = {
 };
 
 const PROVIDERS = {
-  openai: { defaultModel: 'gpt-4o-mini' },
-  anthropic: { defaultModel: 'claude-3-5-haiku-20241022' },
-  google: { defaultModel: 'gemini-1.5-flash' },
+  openai: { nome: 'OpenAI', defaultModel: 'gpt-4o-mini', embeddingModel: 'text-embedding-3-small' },
+  anthropic: { nome: 'Anthropic', defaultModel: 'claude-3-5-haiku-20241022', embeddingModel: '' },
+  google: { nome: 'Google Gemini', defaultModel: 'gemini-1.5-flash', embeddingModel: '' },
 } as const;
 
 type Provider = keyof typeof PROVIDERS;
@@ -21,6 +22,11 @@ type Provider = keyof typeof PROVIDERS;
 function normalizarProvider(provider: string): Provider {
   if (provider === 'openai' || provider === 'anthropic' || provider === 'google') return provider;
   return 'openai';
+}
+
+function pareceChaveDireta(ref?: string | null) {
+  const value = String(ref || '').trim();
+  return /^(sk-|sk-ant-|AIza|ya29\.)/.test(value);
 }
 
 @Controller('agentes')
@@ -40,7 +46,10 @@ export class AgentesController {
           a.prompt_sistema,
           a.modelo,
           a.provider,
-          a.byok_key_ref,
+          case
+            when a.byok_key_ref ~ '^(sk-|sk-ant-|AIza|ya29\\.)' then null
+            else a.byok_key_ref
+          end as byok_key_ref,
           a.status as agente_status,
           s.default_model as provider_default_model,
           s.key_last4 as provider_key_last4
@@ -78,8 +87,46 @@ export class AgentesController {
       const prompt = (body.prompt_sistema ?? '').trim();
       const provider = normalizarProvider((body.provider ?? 'openai').trim());
       const modelo = (body.modelo ?? '').trim();
-      const byok = (body.byok_key_ref ?? '').trim() || null;
-      const setting = (await q(`select id, default_model from ai_provider_settings where provider=$1 and ativo=true limit 1`, [provider])).rows[0];
+      const requestedByok = (body.byok_key_ref ?? '').trim();
+      const existing = (await q(
+        `select byok_key_ref from agentes where projeto_id=$1 and status='ativo' order by id limit 1`,
+        [projetoId],
+      )).rows[0];
+
+      let byok = requestedByok || null;
+      let setting = (await q(`select id, default_model from ai_provider_settings where provider=$1 and ativo=true limit 1`, [provider])).rows[0];
+      const directKey = pareceChaveDireta(requestedByok)
+        ? requestedByok
+        : (!requestedByok && pareceChaveDireta(existing?.byok_key_ref) ? existing.byok_key_ref : null);
+
+      if (directKey) {
+        const defaults = PROVIDERS[provider];
+        setting = (await q(
+          `insert into ai_provider_settings (
+             tenant_id, provider, nome, encrypted_api_key, key_last4, default_model, embedding_model, ativo
+           )
+           values ($1,$2,$3,$4,$5,$6,$7,true)
+           on conflict (tenant_id, provider) do update
+             set encrypted_api_key=excluded.encrypted_api_key,
+                 key_last4=excluded.key_last4,
+                 default_model=coalesce(nullif(ai_provider_settings.default_model,''), excluded.default_model),
+                 embedding_model=coalesce(ai_provider_settings.embedding_model, excluded.embedding_model),
+                 ativo=true,
+                 atualizado_em=now()
+           returning id, default_model`,
+          [
+            req.user.tenantId,
+            provider,
+            defaults.nome,
+            encryptSecret(directKey),
+            directKey.slice(-4),
+            modelo || defaults.defaultModel,
+            defaults.embeddingModel,
+          ],
+        )).rows[0];
+        byok = null;
+      }
+
       if (!setting && !byok) {
         throw new BadRequestException(`Configure e salve a chave ${provider} em IA e Custos antes de ativar o agente`);
       }
