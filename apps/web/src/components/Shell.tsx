@@ -13,25 +13,48 @@ const BILLING_CACHE_KEY = 'comunora.billing.ok';
 const BILLING_CACHE_TTL = 5 * 60 * 1000;
 const SIDEBAR_COLLAPSED_KEY = 'comunora.sidebar.collapsed.v1';
 
-const NAV = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/sessoes', label: 'Conexões' },
-  { href: '/agentes', label: 'Agentes' },
-  { href: '/templates', label: 'Templates' },
-  { href: '/ai-settings', label: 'IA e Custos' },
-  { href: '/leads', label: 'Leads' },
-  { href: '/inbox', label: 'Inbox' },
-  { href: '/pipeline', label: 'Pipeline' },
-  { href: '/agenda', label: 'Agenda' },
-  { href: '/knowledge', label: 'Conhecimento' },
-  { href: '/automacoes', label: 'Automações' },
-  { href: '/campanhas', label: 'Campanhas' },
-  { href: '/integracoes', label: 'Integrações' },
-  { href: '/api-docs', label: 'API Docs' },
-  { href: '/equipe', label: 'Equipe' },
-  { href: '/settings', label: 'Marca' },
-  { href: '/billing', label: 'Assinatura' },
-  { href: '/onboarding', label: 'Conectar WhatsApp' },
+type IconName =
+  | 'dashboard'
+  | 'sessions'
+  | 'agents'
+  | 'templates'
+  | 'ai'
+  | 'leads'
+  | 'inbox'
+  | 'pipeline'
+  | 'calendar'
+  | 'knowledge'
+  | 'automation'
+  | 'campaigns'
+  | 'integrations'
+  | 'api'
+  | 'team'
+  | 'brand'
+  | 'billing'
+  | 'whatsapp'
+  | 'settings'
+  | 'help'
+  | 'logout';
+
+const NAV: Array<{ href: string; label: string; icon: IconName }> = [
+  { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { href: '/sessoes', label: 'Conexões', icon: 'sessions' },
+  { href: '/agentes', label: 'Agentes', icon: 'agents' },
+  { href: '/templates', label: 'Templates', icon: 'templates' },
+  { href: '/ai-settings', label: 'IA e Custos', icon: 'ai' },
+  { href: '/leads', label: 'Leads', icon: 'leads' },
+  { href: '/inbox', label: 'Inbox', icon: 'inbox' },
+  { href: '/pipeline', label: 'Pipeline', icon: 'pipeline' },
+  { href: '/agenda', label: 'Agenda', icon: 'calendar' },
+  { href: '/knowledge', label: 'Conhecimento', icon: 'knowledge' },
+  { href: '/automacoes', label: 'Automações', icon: 'automation' },
+  { href: '/campanhas', label: 'Campanhas', icon: 'campaigns' },
+  { href: '/integracoes', label: 'Integrações', icon: 'integrations' },
+  { href: '/api-docs', label: 'API Docs', icon: 'api' },
+  { href: '/equipe', label: 'Equipe', icon: 'team' },
+  { href: '/settings', label: 'Marca', icon: 'brand' },
+  { href: '/billing', label: 'Assinatura', icon: 'billing' },
+  { href: '/onboarding', label: 'Conectar WhatsApp', icon: 'whatsapp' },
 ];
 
 export default function Shell({ children }: { title: string; children: ReactNode }) {
@@ -101,7 +124,7 @@ export default function Shell({ children }: { title: string; children: ReactNode
       {branding.customCss ? <style dangerouslySetInnerHTML={{ __html: branding.customCss }} /> : null}
       <aside className="nl-sidebar" aria-label="Navegação principal">
         <div className="nl-sidebar-head">
-          <Link href="/dashboard" className="nl-brand" aria-label={branding.name}>
+          <Link href="/dashboard" className="nl-brand" aria-label={branding.name || BRAND.name}>
             <img src={sidebarLogo} alt="" aria-hidden="true" />
             {showBrandWord ? <span className="nl-brand-word">{branding.name || BRAND.name}</span> : null}
           </Link>
@@ -118,8 +141,16 @@ export default function Shell({ children }: { title: string; children: ReactNode
 
         <nav className="nl-nav">
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} prefetch className={path === n.href ? 'active' : ''} title={collapsed ? n.label : undefined}>
-              <span className="dot" /> <span className="label">{n.label}</span>
+            <Link
+              key={n.href}
+              href={n.href}
+              prefetch
+              className={path === n.href ? 'active' : ''}
+              title={collapsed ? n.label : undefined}
+              aria-label={n.label}
+            >
+              <span className="nl-nav-icon" aria-hidden="true"><SidebarIcon name={n.icon} /></span>
+              <span className="label">{n.label}</span>
             </Link>
           ))}
         </nav>
@@ -130,8 +161,9 @@ export default function Shell({ children }: { title: string; children: ReactNode
             prefetch
             className={`nl-sidebar-action ${path === '/configuracoes' ? 'active' : ''}`}
             title={collapsed ? 'Configurações' : undefined}
+            aria-label="Configurações"
           >
-            <span className="nl-sidebar-action-icon" aria-hidden="true">⚙</span>
+            <span className="nl-sidebar-action-icon" aria-hidden="true"><SidebarIcon name="settings" /></span>
             <span className="label">Configurações</span>
           </Link>
           <button
@@ -139,12 +171,13 @@ export default function Shell({ children }: { title: string; children: ReactNode
             type="button"
             onClick={() => setTutorialRequest((current) => current + 1)}
             title={collapsed ? 'Tutorial' : undefined}
+            aria-label="Tutorial"
           >
-            <span className="nl-sidebar-action-icon" aria-hidden="true">?</span>
+            <span className="nl-sidebar-action-icon" aria-hidden="true"><SidebarIcon name="help" /></span>
             <span className="label">Tutorial</span>
           </button>
-          <button className="nl-signout" onClick={sair} title={collapsed ? 'Sair' : undefined}>
-            <span className="nl-sidebar-action-icon" aria-hidden="true">↗</span>
+          <button className="nl-signout" onClick={sair} title={collapsed ? 'Sair' : undefined} aria-label="Sair">
+            <span className="nl-sidebar-action-icon" aria-hidden="true"><SidebarIcon name="logout" /></span>
             <span className="label">Sair</span>
           </button>
         </div>
@@ -155,6 +188,64 @@ export default function Shell({ children }: { title: string; children: ReactNode
       <ProductTour path={path} request={tutorialRequest} />
     </div>
   );
+}
+
+function SidebarIcon({ name }: { name: IconName }) {
+  const common = {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+
+  switch (name) {
+    case 'dashboard':
+      return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
+    case 'sessions':
+      return <svg {...common}><path d="M7 8h10" /><path d="M7 12h10" /><path d="M9 16h6" /><rect x="4" y="4" width="16" height="16" rx="4" /></svg>;
+    case 'agents':
+      return <svg {...common}><rect x="5" y="8" width="14" height="10" rx="4" /><path d="M12 8V5" /><path d="M9 12h.01" /><path d="M15 12h.01" /><path d="M10 16h4" /><path d="M8 21h8" /></svg>;
+    case 'templates':
+      return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h5" /></svg>;
+    case 'ai':
+      return <svg {...common}><path d="M12 3v3" /><path d="M12 18v3" /><path d="M3 12h3" /><path d="M18 12h3" /><path d="m5.6 5.6 2.1 2.1" /><path d="m16.3 16.3 2.1 2.1" /><path d="m18.4 5.6-2.1 2.1" /><path d="m7.7 16.3-2.1 2.1" /><circle cx="12" cy="12" r="4" /></svg>;
+    case 'leads':
+      return <svg {...common}><circle cx="9" cy="8" r="3" /><path d="M4 20a5 5 0 0 1 10 0" /><path d="M16 7h4" /><path d="M16 12h4" /><path d="M16 17h4" /></svg>;
+    case 'inbox':
+      return <svg {...common}><path d="M4 13h4l2 3h4l2-3h4" /><path d="M5 6h14l2 14H3L5 6Z" /></svg>;
+    case 'pipeline':
+      return <svg {...common}><path d="M4 5h16l-6 7v5l-4 2v-7L4 5Z" /></svg>;
+    case 'calendar':
+      return <svg {...common}><rect x="4" y="5" width="16" height="16" rx="3" /><path d="M8 3v4" /><path d="M16 3v4" /><path d="M4 10h16" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" /></svg>;
+    case 'knowledge':
+      return <svg {...common}><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22V5.5Z" /><path d="M8 6h8" /><path d="M8 10h7" /></svg>;
+    case 'automation':
+      return <svg {...common}><path d="M7 7h10v10H7z" /><path d="M4 12H2" /><path d="M22 12h-2" /><path d="M12 4V2" /><path d="M12 22v-2" /><path d="M9 7V5" /><path d="M15 7V5" /><path d="M9 19v-2" /><path d="M15 19v-2" /></svg>;
+    case 'campaigns':
+      return <svg {...common}><path d="M4 13V8a2 2 0 0 1 2-2h3l9-3v18l-9-3H6a2 2 0 0 1-2-2v-3Z" /><path d="M9 18v3" /><path d="M18 9a4 4 0 0 1 0 6" /></svg>;
+    case 'integrations':
+      return <svg {...common}><path d="M9 7H7a4 4 0 0 0 0 8h2" /><path d="M15 7h2a4 4 0 0 1 0 8h-2" /><path d="M8 12h8" /></svg>;
+    case 'api':
+      return <svg {...common}><path d="m8 9-3 3 3 3" /><path d="m16 9 3 3-3 3" /><path d="m14 5-4 14" /></svg>;
+    case 'team':
+      return <svg {...common}><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.5" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M14 17a5 5 0 0 1 7 3" /></svg>;
+    case 'brand':
+      return <svg {...common}><path d="M12 3 3 8l9 5 9-5-9-5Z" /><path d="M3 12l9 5 9-5" /><path d="M3 16l9 5 9-5" /></svg>;
+    case 'billing':
+      return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M3 10h18" /><path d="M7 15h3" /></svg>;
+    case 'whatsapp':
+      return <svg {...common}><path d="M4 12a8 8 0 1 1 3.2 6.4L4 20l1.6-3.2A7.96 7.96 0 0 1 4 12Z" /><path d="M9 9c.4 3 2.1 4.7 5 5" /><path d="M9 9h1.2l.8 1.8-.7.7" /><path d="M14 14l.7-.7 1.8.8V15" /></svg>;
+    case 'settings':
+      return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 3-.2-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21h-3.4v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.2.1-2-3 .1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5v-3.4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.2 2-2.9.2.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3h3.4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.2-.1 2 2.9-.1.2a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v3.4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>;
+    case 'help':
+      return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M9.8 9a2.4 2.4 0 1 1 3.8 2c-.9.6-1.6 1.1-1.6 2.4" /><path d="M12 17h.01" /></svg>;
+    case 'logout':
+      return <svg {...common}><path d="M10 6H5v12h5" /><path d="M14 16l4-4-4-4" /><path d="M18 12H9" /></svg>;
+    default:
+      return null;
+  }
 }
 
 function hasFreshBillingCache() {
