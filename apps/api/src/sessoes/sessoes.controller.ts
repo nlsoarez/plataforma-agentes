@@ -20,6 +20,14 @@ async function readJson(r: Response) {
   }
 }
 
+function asArray(value: any): any[] {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.instances)) return value.instances;
+  if (Array.isArray(value?.data)) return value.data;
+  if (value && typeof value === 'object') return [value];
+  return [];
+}
+
 @Controller('sessoes')
 @UseGuards(AuthGuard)
 export class SessoesController {
@@ -42,12 +50,41 @@ export class SessoesController {
       },
     };
   }
+  private async buscarDetalhesInstancia(instanceName: string) {
+    if (!this.base || !this.apikey) return null;
+    try {
+      const res = await fetch(`${this.base}/instance/fetchInstances`, { headers: this.headers() });
+      const data = await readJson(res);
+      if (!res.ok) return null;
+      return asArray(data).find((item) => {
+        const name = item?.name ?? item?.instanceName ?? item?.instance?.instanceName ?? item?.instance?.name;
+        return name === instanceName;
+      }) ?? null;
+    } catch {
+      return null;
+    }
+  }
 
   @Get()
   listar(@Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(
-        `select id, nome, phone_number_id, status, transporte_driver, connection_state,
+        `select id, nome, phone_number_id,
+                coalesce(
+                  session_meta #>> '{instance,ownerJid}',
+                  session_meta #>> '{instance,owner}',
+                  session_meta #>> '{instance,number}',
+                  session_meta #>> '{instance,phone}',
+                  session_meta #>> '{evolution_instance,ownerJid}',
+                  session_meta #>> '{evolution_instance,owner}',
+                  session_meta #>> '{evolution_instance,number}',
+                  session_meta #>> '{data,ownerJid}',
+                  session_meta #>> '{data,owner}',
+                  session_meta #>> '{data,number}',
+                  session_meta #>> '{ownerJid}',
+                  session_meta #>> '{number}'
+                ) as whatsapp_number,
+                status, transporte_driver, connection_state,
                 last_connection_update, session_meta, last_error, last_error_at, criado_em
          from projetos
          order by criado_em desc`,
@@ -120,6 +157,8 @@ export class SessoesController {
         }
 
         const state = normalizarEstado(data?.instance?.state ?? data?.state ?? data?.status ?? 'unknown');
+        const instanceDetails = await this.buscarDetalhesInstancia(p.phone_number_id);
+        const meta = { ...data, evolution_instance: instanceDetails };
         await q(
           `update projetos
            set connection_state=$2,
@@ -133,9 +172,9 @@ export class SessoesController {
                last_error=case when $2='open' then null else last_error end,
                last_error_at=case when $2='open' then null else last_error_at end
            where id=$1`,
-          [id, state, JSON.stringify(data)],
+          [id, state, JSON.stringify(meta)],
         );
-        return { ok: true, state, webhookOk, raw: data };
+        return { ok: true, state, webhookOk, raw: meta };
       } catch (err: any) {
         const message = err?.message || 'Falha ao consultar Evolution API';
         await q(`update projetos set last_error=$2, last_error_at=now() where id=$1`, [id, message]);

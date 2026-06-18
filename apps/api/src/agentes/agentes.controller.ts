@@ -49,6 +49,20 @@ export class AgentesController {
           p.id as projeto_id,
           p.nome as projeto_nome,
           p.phone_number_id,
+          coalesce(
+            p.session_meta #>> '{instance,ownerJid}',
+            p.session_meta #>> '{instance,owner}',
+            p.session_meta #>> '{instance,number}',
+            p.session_meta #>> '{instance,phone}',
+            p.session_meta #>> '{evolution_instance,ownerJid}',
+            p.session_meta #>> '{evolution_instance,owner}',
+            p.session_meta #>> '{evolution_instance,number}',
+            p.session_meta #>> '{data,ownerJid}',
+            p.session_meta #>> '{data,owner}',
+            p.session_meta #>> '{data,number}',
+            p.session_meta #>> '{ownerJid}',
+            p.session_meta #>> '{number}'
+          ) as whatsapp_number,
           p.status as projeto_status,
           p.transporte_driver,
           a.id as agente_id,
@@ -192,8 +206,8 @@ export class AgentesController {
       const projeto = await q(`select id from projetos where id=$1`, [projetoId]);
       if (!projeto.rows[0]) return { ok: false, message: 'Projeto nao encontrado' };
 
-      await q(`delete from agentes where projeto_id=$1`, [projetoId]);
-      return { ok: true };
+      const deleted = await q(`delete from agentes where tenant_id=$1 and projeto_id=$2 returning id`, [req.user.tenantId, projetoId]);
+      return { ok: true, deleted: deleted.rowCount ?? deleted.rows.length };
     });
   }
 }

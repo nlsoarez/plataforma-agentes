@@ -10,6 +10,7 @@ type AgentRow = {
   projeto_id: string;
   projeto_nome: string;
   phone_number_id: string | null;
+  whatsapp_number: string | null;
   projeto_status: string;
   transporte_driver: string;
   agente_id: string | null;
@@ -61,6 +62,22 @@ function badgeClass(status?: string | null) {
   if (status === 'inativo') return 'nl-badge--off';
   if (status === 'pausado') return 'nl-badge--warn';
   return 'nl-badge--muted';
+}
+
+function formatPhone(value?: string | null) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('55') && digits.length >= 12) {
+    const ddd = digits.slice(2, 4);
+    const rest = digits.slice(4);
+    if (rest.length === 9) return `+55 (${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
+    if (rest.length === 8) return `+55 (${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  }
+  return `+${digits}`;
+}
+
+function connectionTitle(row: AgentRow) {
+  return formatPhone(row.whatsapp_number) || 'Número não identificado';
 }
 
 export default function AgentesPage() {
@@ -160,7 +177,7 @@ export default function AgentesPage() {
 
   async function excluirAgente() {
     if (!token || !selected || !selected.agente_id || deleting) return;
-    if (!confirm(`Excluir a configuração do agente do número "${selected.phone_number_id || selected.projeto_nome}"? A conexão WhatsApp será mantida.`)) return;
+    if (!confirm(`Excluir a configuração do agente de "${connectionTitle(selected)}"? A conexão WhatsApp será mantida.`)) return;
 
     setDeleting(true);
     setMsg('');
@@ -171,7 +188,7 @@ export default function AgentesPage() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao excluir agente');
-      setMsg('Agente excluído. A conexão WhatsApp foi mantida.');
+      setMsg(Number(d.deleted || 0) > 0 ? 'Agente excluído. A conexão WhatsApp foi mantida.' : 'Nenhuma configuração de agente encontrada para excluir.');
       setForm({
         prompt_sistema: DEFAULT_PROMPT,
         modelo: PROVIDERS.openai.model,
@@ -223,7 +240,8 @@ export default function AgentesPage() {
               >
                 <span>
                   <b>{row.projeto_nome}</b>
-                  <small>{row.phone_number_id || 'sem conexão'}</small>
+                  <small>{connectionTitle(row)}</small>
+                  <small>Instância: {row.phone_number_id || 'sem conexão'}</small>
                   <small>{row.transporte_driver}</small>
                 </span>
                 <i className={row.agente_status === 'ativo' ? 'ok' : row.agente_status === 'inativo' ? 'off' : ''}>
@@ -240,7 +258,8 @@ export default function AgentesPage() {
                   <div>
                     <div className="eyebrow">Agente do número</div>
                     <h2>{selected.projeto_nome}</h2>
-                    <p className="muted">WhatsApp / {selected.phone_number_id || 'sem rota'}</p>
+                    <p className="muted">WhatsApp / {connectionTitle(selected)}</p>
+                    <p className="faint">Instância Evolution: {selected.phone_number_id || 'sem rota'}</p>
                   </div>
                   <span className={`nl-badge ${badgeClass(selected.agente_status)}`}>
                     {selected.agente_status || 'sem agente'}
@@ -256,6 +275,7 @@ export default function AgentesPage() {
                     {rows.map((row) => (
                       <option key={row.projeto_id} value={row.projeto_id}>
                         {row.projeto_nome} - {row.phone_number_id || 'sem conexão'}
+                        {formatPhone(row.whatsapp_number) ? ` - ${formatPhone(row.whatsapp_number)}` : ' - número não identificado'}
                       </option>
                     ))}
                   </select>

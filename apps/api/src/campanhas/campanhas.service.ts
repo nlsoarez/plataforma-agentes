@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { comTenant } from '@plataforma/db';
 import { assertFeature, assertLimit, incrementUsage } from '../billing/entitlements';
@@ -8,7 +8,7 @@ export class CampanhasService {
   private fila = new Queue('campanhas-envio', { connection: { url: process.env.REDIS_URL } as any });
 
   // Cria a campanha e enfileira um envio por contato do segmento.
-  async criar(tenantId: string, dto: { projetoId: string; texto: string; segmento?: { tags?: string[] } }) {
+  async criar(tenantId: string, dto: { projetoId: string; texto: string; segmento?: { tags?: string[]; contatoIds?: string[] } }) {
     await assertFeature(tenantId, 'campaigns');
     await assertLimit(tenantId, 'campaigns_monthly', 1);
 
@@ -23,12 +23,19 @@ export class CampanhasService {
         [tenantId, dto.projetoId, dto.texto, JSON.stringify(dto.segmento ?? {})]);
       const campanhaId = camp.rows[0].id;
 
+      const contatoIds = (dto.segmento?.contatoIds || []).filter(Boolean);
       const tags = dto.segmento?.tags;
       const contatos = (await q(
-        tags?.length
-          ? `select id, telefone from contatos where projeto_id=$1 and tags && $2::text[]`
-          : `select id, telefone from contatos where projeto_id=$1`,
-        tags?.length ? [dto.projetoId, tags] : [dto.projetoId])).rows;
+        contatoIds.length
+          ? `select id, telefone from contatos where projeto_id=$1 and id = any($2::uuid[])`
+          : tags?.length
+            ? `select id, telefone from contatos where projeto_id=$1 and tags && $2::text[]`
+            : `select id, telefone from contatos where projeto_id=$1`,
+        contatoIds.length ? [dto.projetoId, contatoIds] : tags?.length ? [dto.projetoId, tags] : [dto.projetoId])).rows;
+
+      if (!contatos.length) {
+        throw new BadRequestException('Nenhum lead encontrado para esta campanha');
+      }
 
       await assertLimit(tenantId, 'campaign_recipients_monthly', contatos.length);
 
