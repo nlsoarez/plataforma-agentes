@@ -130,6 +130,15 @@ export async function tratarMensagemRecebida(ev: {
         return;
       }
 
+      if (!String(ev.conteudo || '').trim()) {
+        await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'info', 'AGENTE_MENSAGEM_SEM_TEXTO', 'Mensagem recebida sem texto; IA nao foi acionada', {
+          conversaId: conversa.id,
+          contatoId,
+          midia: ev.midia?.tipo || null,
+        });
+        return;
+      }
+
       const historico = await carregarHistorico(q, conversa.id);
       const resultado = await rodarAgente({
         agente, historico,
