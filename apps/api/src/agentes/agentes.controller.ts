@@ -9,6 +9,10 @@ type SalvarAgenteDto = {
   modelo?: string;
   provider?: string;
   byok_key_ref?: string;
+  status?: string;
+  horario_ativo?: boolean;
+  horario_inicio?: string | null;
+  horario_fim?: string | null;
 };
 
 const PROVIDERS = {
@@ -51,6 +55,10 @@ export class AgentesController {
             else a.byok_key_ref
           end as byok_key_ref,
           a.status as agente_status,
+          a.horario_ativo,
+          to_char(a.horario_inicio, 'HH24:MI') as horario_inicio,
+          to_char(a.horario_fim, 'HH24:MI') as horario_fim,
+          a.horario_timezone,
           s.default_model as provider_default_model,
           s.key_last4 as provider_key_last4
         from projetos p
@@ -58,6 +66,7 @@ export class AgentesController {
           select *
           from agentes
           where projeto_id = p.id
+            and status in ('ativo', 'pausado')
           order by case when status = 'ativo' then 0 else 1 end, id
           limit 1
         ) a on true
@@ -74,11 +83,11 @@ export class AgentesController {
 
   @Put(':projetoId')
   async salvar(@Param('projetoId') projetoId: string, @Body() body: SalvarAgenteDto, @Req() req: any) {
-    const hasActive = await comTenant(req.user.tenantId, async (q) => {
-      const r = await q(`select 1 from agentes where projeto_id=$1 and status='ativo' limit 1`, [projetoId]);
+    const hasConfigured = await comTenant(req.user.tenantId, async (q) => {
+      const r = await q(`select 1 from agentes where projeto_id=$1 and status in ('ativo','pausado') limit 1`, [projetoId]);
       return Boolean(r.rows[0]);
     });
-    if (!hasActive) await assertLimit(req.user.tenantId, 'ai_agents', 1);
+    if (!hasConfigured) await assertLimit(req.user.tenantId, 'ai_agents', 1);
 
     return comTenant(req.user.tenantId, async (q) => {
       const projeto = await q(`select id from projetos where id=$1`, [projetoId]);
@@ -88,8 +97,15 @@ export class AgentesController {
       const provider = normalizarProvider((body.provider ?? 'openai').trim());
       const modelo = (body.modelo ?? '').trim();
       const requestedByok = (body.byok_key_ref ?? '').trim();
+      const status = body.status === 'pausado' ? 'pausado' : 'ativo';
+      const horarioAtivo = Boolean(body.horario_ativo);
+      const horarioInicio = normalizarHorario(body.horario_inicio);
+      const horarioFim = normalizarHorario(body.horario_fim);
+      if (horarioAtivo && (!horarioInicio || !horarioFim)) {
+        throw new BadRequestException('Informe horario de inicio e fim para ativar a janela de funcionamento');
+      }
       const existing = (await q(
-        `select byok_key_ref from agentes where projeto_id=$1 and status='ativo' order by id limit 1`,
+        `select byok_key_ref from agentes where projeto_id=$1 and status in ('ativo','pausado') order by case when status='ativo' then 0 else 1 end, id limit 1`,
         [projetoId],
       )).rows[0];
 
@@ -131,13 +147,31 @@ export class AgentesController {
         throw new BadRequestException(`Configure e salve a chave ${provider} em IA e Custos antes de ativar o agente`);
       }
 
-      await q(`update agentes set status='inativo' where projeto_id=$1 and status='ativo'`, [projetoId]);
+      await q(`update agentes set status='inativo' where projeto_id=$1 and status in ('ativo','pausado')`, [projetoId]);
 
       const r = await q(
-        `insert into agentes (tenant_id, projeto_id, prompt_sistema, modelo, provider, byok_key_ref, ai_provider_setting_id, status)
-         values ($1,$2,$3,$4,$5,$6,$7,'ativo')
-         returning id, prompt_sistema, modelo, provider, byok_key_ref, status`,
-        [req.user.tenantId, projetoId, prompt, modelo || setting?.default_model || PROVIDERS[provider].defaultModel, provider, byok, setting?.id || null],
+        `insert into agentes (
+           tenant_id, projeto_id, prompt_sistema, modelo, provider, byok_key_ref, ai_provider_setting_id,
+           status, horario_ativo, horario_inicio, horario_fim, horario_timezone
+         )
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::time,$11::time,'America/Sao_Paulo')
+         returning id, prompt_sistema, modelo, provider, byok_key_ref, status, horario_ativo,
+                   to_char(horario_inicio, 'HH24:MI') as horario_inicio,
+                   to_char(horario_fim, 'HH24:MI') as horario_fim,
+                   horario_timezone`,
+        [
+          req.user.tenantId,
+          projetoId,
+          prompt,
+          modelo || setting?.default_model || PROVIDERS[provider].defaultModel,
+          provider,
+          byok,
+          setting?.id || null,
+          status,
+          horarioAtivo,
+          horarioAtivo ? horarioInicio : null,
+          horarioAtivo ? horarioFim : null,
+        ],
       );
 
       return { ok: true, agente: r.rows[0] };
@@ -154,4 +188,13 @@ export class AgentesController {
       return { ok: true };
     });
   }
+}
+
+function normalizarHorario(value?: string | null) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  if (!/^\d{2}:\d{2}$/.test(raw)) throw new BadRequestException('Horario invalido. Use HH:MM');
+  const [hh, mm] = raw.split(':').map(Number);
+  if (hh > 23 || mm > 59) throw new BadRequestException('Horario invalido. Use HH:MM');
+  return raw;
 }

@@ -18,6 +18,10 @@ type AgentRow = {
   provider: string | null;
   byok_key_ref: string | null;
   agente_status: string | null;
+  horario_ativo: boolean | null;
+  horario_inicio: string | null;
+  horario_fim: string | null;
+  horario_timezone: string | null;
   provider_default_model: string | null;
   provider_key_last4: string | null;
 };
@@ -43,6 +47,10 @@ export default function AgentesPage() {
     modelo: PROVIDERS.openai.model,
     provider: 'openai',
     byok_key_ref: '',
+    status: 'ativo',
+    horario_ativo: false,
+    horario_inicio: '08:00',
+    horario_fim: '18:00',
   });
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -63,6 +71,10 @@ export default function AgentesPage() {
       modelo: selected.modelo || selected.provider_default_model || PROVIDERS[selected.provider || 'openai']?.model || PROVIDERS.openai.model,
       provider: selected.provider || 'openai',
       byok_key_ref: selected.byok_key_ref || '',
+      status: selected.agente_status === 'pausado' ? 'pausado' : 'ativo',
+      horario_ativo: Boolean(selected.horario_ativo),
+      horario_inicio: selected.horario_inicio || '08:00',
+      horario_fim: selected.horario_fim || '18:00',
     });
   }, [selected?.projeto_id]);
 
@@ -103,7 +115,7 @@ export default function AgentesPage() {
       });
       const d = await r.json();
       if (!r.ok || d.ok === false) throw new Error(d?.message || JSON.stringify(d));
-      setMsg('Agente salvo e ativado.');
+      setMsg(form.status === 'pausado' ? 'Agente salvo e pausado.' : 'Agente salvo e ativado.');
       await carregar();
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao salvar agente');
@@ -131,6 +143,10 @@ export default function AgentesPage() {
         modelo: PROVIDERS.openai.model,
         provider: 'openai',
         byok_key_ref: '',
+        status: 'ativo',
+        horario_ativo: false,
+        horario_inicio: '08:00',
+        horario_fim: '18:00',
       });
       await carregar();
     } catch (e: any) {
@@ -190,6 +206,56 @@ export default function AgentesPage() {
                   </span>
                 </div>
 
+                <div className="nl-agent-runtime">
+                  <label className="nl-agent-toggle">
+                    <input
+                      type="checkbox"
+                      checked={form.status === 'pausado'}
+                      onChange={(e) => setForm({ ...form, status: e.target.checked ? 'pausado' : 'ativo' })}
+                    />
+                    <span>
+                      <b>Pausar agente</b>
+                      <small>Quando pausado, novas mensagens continuam chegando no Inbox, mas a IA nao responde automaticamente.</small>
+                    </span>
+                  </label>
+
+                  <div className="nl-agent-schedule">
+                    <label className="nl-agent-toggle">
+                      <input
+                        type="checkbox"
+                        checked={form.horario_ativo}
+                        onChange={(e) => setForm({ ...form, horario_ativo: e.target.checked })}
+                      />
+                      <span>
+                        <b>Usar horario de funcionamento</b>
+                        <small>Fora desse periodo, o atendimento fica humano/manual. Horario de Brasilia.</small>
+                      </span>
+                    </label>
+                    <div className="nl-agent-schedule__times">
+                      <div>
+                        <label className="nl-label">Inicio</label>
+                        <input
+                          className="nl-input"
+                          type="time"
+                          value={form.horario_inicio}
+                          disabled={!form.horario_ativo}
+                          onChange={(e) => setForm({ ...form, horario_inicio: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="nl-label">Fim</label>
+                        <input
+                          className="nl-input"
+                          type="time"
+                          value={form.horario_fim}
+                          disabled={!form.horario_ativo}
+                          onChange={(e) => setForm({ ...form, horario_fim: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {form.provider !== 'openai' && !selected.provider_key_last4 && !form.byok_key_ref && (
                   <div className="nl-error" style={{ marginBottom: 14 }}>
                     Chave {PROVIDERS[form.provider]?.keyPageLabel || form.provider} ainda não foi salva em IA e Custos.
@@ -237,7 +303,7 @@ export default function AgentesPage() {
                 />
 
                 <div className="nl-agent-actions">
-                  <span className="faint">O worker usa somente o agente com status ativo.</span>
+                  <span className="faint">O worker responde somente quando o agente esta ativo e dentro do horario configurado.</span>
                   <div className="nl-row" style={{ gap: 8 }}>
                     <button
                       className="nl-btn nl-btn--danger"

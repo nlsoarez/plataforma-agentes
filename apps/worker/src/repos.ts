@@ -61,6 +61,11 @@ export async function carregarAgente(q: QueryFn, projetoId: string) {
             a.provider,
             a.byok_key_ref,
             a.funcoes,
+            a.status,
+            a.horario_ativo,
+            to_char(a.horario_inicio, 'HH24:MI') as horario_inicio,
+            to_char(a.horario_fim, 'HH24:MI') as horario_fim,
+            a.horario_timezone,
             s.encrypted_api_key,
             s.default_model,
             s.embedding_model,
@@ -71,7 +76,8 @@ export async function carregarAgente(q: QueryFn, projetoId: string) {
        on s.tenant_id=a.tenant_id
       and s.provider=a.provider
       and s.ativo=true
-     where a.projeto_id=$1 and a.status='ativo'
+     where a.projeto_id=$1 and a.status in ('ativo','pausado')
+     order by case when a.status='ativo' then 0 else 1 end, a.id
      limit 1`,
     [projetoId],
   );

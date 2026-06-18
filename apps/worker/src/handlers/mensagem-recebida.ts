@@ -11,6 +11,43 @@ import { dispararWebhooks, leadPayload } from '../integrations/webhooks';
 
 const driver = criarDriver();
 
+type AgentRuntimeControl = {
+  status?: string | null;
+  horario_ativo?: boolean | null;
+  horario_inicio?: string | null;
+  horario_fim?: string | null;
+  horario_timezone?: string | null;
+};
+
+function minutosHorario(value?: string | null) {
+  const match = String(value || '').match(/^(\d{2}):(\d{2})/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function minutosAgora(timeZone = 'America/Sao_Paulo') {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+  return hour * 60 + minute;
+}
+
+function agenteDentroDoHorario(agente: AgentRuntimeControl) {
+  if (!agente.horario_ativo) return true;
+  const inicio = minutosHorario(agente.horario_inicio);
+  const fim = minutosHorario(agente.horario_fim);
+  if (inicio === null || fim === null) return true;
+  const agora = minutosAgora(agente.horario_timezone || 'America/Sao_Paulo');
+  if (inicio === fim) return true;
+  if (inicio < fim) return agora >= inicio && agora <= fim;
+  return agora >= inicio || agora <= fim;
+}
+
 export async function tratarMensagemRecebida(ev: {
   phoneNumberId: string; de: string; conteudo: string; metaId: string;
   midia?: { tipo?: string; url?: string; mime?: string; raw?: unknown };
@@ -63,6 +100,25 @@ export async function tratarMensagemRecebida(ev: {
       if (!agente) {
         await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'warn', 'AGENTE_AUSENTE', 'Nenhum agente ativo no projeto', { conversaId: conversa.id });
         console.warn('[agente] nenhum agente ativo no projeto', projetoId);
+        return;
+      }
+
+      if (agente.status === 'pausado') {
+        await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'info', 'AGENTE_PAUSADO', 'Mensagem recebida, mas o agente esta pausado manualmente', {
+          conversaId: conversa.id,
+          contatoId,
+        });
+        return;
+      }
+
+      if (!agenteDentroDoHorario(agente)) {
+        await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'info', 'AGENTE_FORA_HORARIO', 'Mensagem recebida fora da janela de funcionamento do agente', {
+          conversaId: conversa.id,
+          contatoId,
+          horario_inicio: agente.horario_inicio,
+          horario_fim: agente.horario_fim,
+          horario_timezone: agente.horario_timezone || 'America/Sao_Paulo',
+        });
         return;
       }
 

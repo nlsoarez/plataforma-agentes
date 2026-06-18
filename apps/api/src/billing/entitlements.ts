@@ -333,7 +333,7 @@ function usageSql(featureKey: string): string | null {
     case 'team_users':
       return `select count(*)::int as n from usuarios where coalesce(status,'ativo')='ativo'`;
     case 'ai_agents':
-      return `select count(*)::int as n from agentes where status='ativo'`;
+      return `select count(*)::int as n from agentes where status in ('ativo','pausado')`;
     case 'contacts':
       return `select count(*)::int as n from contatos`;
     case 'pipelines':
