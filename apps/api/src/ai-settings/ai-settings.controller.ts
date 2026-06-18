@@ -5,7 +5,7 @@ import { decryptSecret, encryptSecret } from '../secrets/crypto';
 
 const PROVIDERS = {
   openai: { nome: 'OpenAI', defaultModel: 'gpt-4o-mini', embeddingModel: 'text-embedding-3-small' },
-  anthropic: { nome: 'Anthropic', defaultModel: 'claude-3-5-haiku-20241022', embeddingModel: null },
+  anthropic: { nome: 'Anthropic', defaultModel: 'claude-haiku-4-5-20251001', embeddingModel: null },
   google: { nome: 'Google Gemini', defaultModel: 'gemini-1.5-flash', embeddingModel: null },
 } as const;
 

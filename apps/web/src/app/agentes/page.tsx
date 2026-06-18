@@ -30,7 +30,7 @@ Nunca invente preço, prazo ou política que não esteja no contexto.`;
 
 const PROVIDERS: Record<string, { label: string; model: string; keyPageLabel: string }> = {
   openai: { label: 'OpenAI', model: 'gpt-4o-mini', keyPageLabel: 'OpenAI' },
-  anthropic: { label: 'Anthropic Claude', model: 'claude-3-5-haiku-20241022', keyPageLabel: 'Anthropic' },
+  anthropic: { label: 'Anthropic Claude', model: 'claude-haiku-4-5-20251001', keyPageLabel: 'Anthropic' },
   google: { label: 'Google Gemini', model: 'gemini-1.5-flash', keyPageLabel: 'Google Gemini' },
 };
 

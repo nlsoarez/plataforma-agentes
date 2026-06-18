@@ -8,7 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 const DEFAULTS: Record<string, { label: string; model: string; embedding: string; keyHint: string }> = {
   openai: { label: 'OpenAI', model: 'gpt-4o-mini', embedding: 'text-embedding-3-small', keyHint: 'sk-...' },
-  anthropic: { label: 'Anthropic', model: 'claude-3-5-haiku-20241022', embedding: '', keyHint: 'sk-ant-...' },
+  anthropic: { label: 'Anthropic', model: 'claude-haiku-4-5-20251001', embedding: '', keyHint: 'sk-ant-...' },
   google: { label: 'Google Gemini', model: 'gemini-1.5-flash', embedding: '', keyHint: 'AIza...' },
 };
 

@@ -13,7 +13,7 @@ type SalvarAgenteDto = {
 
 const PROVIDERS = {
   openai: { nome: 'OpenAI', defaultModel: 'gpt-4o-mini', embeddingModel: 'text-embedding-3-small' },
-  anthropic: { nome: 'Anthropic', defaultModel: 'claude-3-5-haiku-20241022', embeddingModel: '' },
+  anthropic: { nome: 'Anthropic', defaultModel: 'claude-haiku-4-5-20251001', embeddingModel: '' },
   google: { nome: 'Google Gemini', defaultModel: 'gemini-1.5-flash', embeddingModel: '' },
 } as const;
 

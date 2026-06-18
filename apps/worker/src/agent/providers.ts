@@ -2,12 +2,42 @@ import type { RespostaLlm } from './openai';
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
-export async function chamarAnthropic(opts: { apiKey: string; modelo: string; messages: ChatMessage[] }): Promise<RespostaLlm> {
-  const system = opts.messages.find((m) => m.role === 'system')?.content ?? '';
-  const messages = opts.messages
-    .filter((m) => m.role !== 'system')
-    .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
+let anthropicModelFallback: string | null = null;
 
+async function lerJsonOuTexto(r: Response) {
+  const text = await r.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
+function escolherModeloAnthropic(modelos: string[]) {
+  return modelos.find((id) => id === DEFAULT_ANTHROPIC_MODEL)
+    ?? modelos.find((id) => id.includes('haiku'))
+    ?? modelos.find((id) => id.includes('sonnet'))
+    ?? modelos[0]
+    ?? DEFAULT_ANTHROPIC_MODEL;
+}
+
+async function resolverFallbackAnthropic(apiKey: string) {
+  if (anthropicModelFallback) return anthropicModelFallback;
+  const r = await fetch('https://api.anthropic.com/v1/models?limit=100', {
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+  });
+  const data = await lerJsonOuTexto(r) as any;
+  if (!r.ok) throw new Error(`anthropic models ${r.status}: ${JSON.stringify(data)}`);
+  const modelos = Array.isArray(data?.data)
+    ? data.data.map((item: any) => String(item.id || '')).filter(Boolean)
+    : [];
+  anthropicModelFallback = escolherModeloAnthropic(modelos);
+  return anthropicModelFallback;
+}
+
+async function postAnthropic(opts: { apiKey: string; modelo: string; system: string; messages: { role: string; content: string }[] }) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -16,14 +46,35 @@ export async function chamarAnthropic(opts: { apiKey: string; modelo: string; me
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: opts.modelo || 'claude-3-5-haiku-20241022',
+      model: opts.modelo,
       max_tokens: 800,
-      system,
-      messages,
+      system: opts.system,
+      messages: opts.messages,
     }),
   });
-  if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
-  const data = await res.json() as any;
+  const data = await lerJsonOuTexto(res);
+  if (!res.ok) {
+    throw new Error(`anthropic ${res.status}: ${JSON.stringify(data)}`);
+  }
+  return data as any;
+}
+
+export async function chamarAnthropic(opts: { apiKey: string; modelo: string; messages: ChatMessage[] }): Promise<RespostaLlm> {
+  const system = opts.messages.find((m) => m.role === 'system')?.content ?? '';
+  const messages = opts.messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+
+  const modelo = opts.modelo || DEFAULT_ANTHROPIC_MODEL;
+  let data: any;
+  try {
+    data = await postAnthropic({ apiKey: opts.apiKey, modelo, system, messages });
+  } catch (err: any) {
+    const message = String(err?.message || '');
+    if (!message.includes('anthropic 404') || !message.includes('model')) throw err;
+    const fallback = await resolverFallbackAnthropic(opts.apiKey);
+    data = await postAnthropic({ apiKey: opts.apiKey, modelo: fallback, system, messages });
+  }
   const texto = (data.content ?? [])
     .filter((item: any) => item.type === 'text')
     .map((item: any) => item.text)
