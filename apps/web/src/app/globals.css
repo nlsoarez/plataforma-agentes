@@ -214,6 +214,8 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-badge--accent { background: rgba(21, 101, 255, 0.12); color: #16A34A; }
 .nl-badge--ok { background: rgba(22, 140, 80, 0.12); color: var(--green); }
 .nl-badge--warn { background: rgba(196, 120, 0, 0.14); color: #b4690e; }
+.nl-badge--off,
+.nl-badge--muted { background: rgba(82, 96, 112, 0.12); color: var(--ink-faint); }
 
 /* Shell */
 .nl-shell {
@@ -1444,6 +1446,22 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   gap: 14px;
   align-items: start;
 }
+.nl-agent-list-head {
+  padding: 4px 4px 2px;
+}
+.nl-agent-list-head span {
+  display: block;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+.nl-agent-list-head small {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
 .nl-agent-session {
   width: 100%;
   display: flex;
@@ -1487,6 +1505,10 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   background: rgba(22,140,80,0.12);
   color: var(--green);
 }
+.nl-agent-session i.off {
+  background: rgba(82,96,112,0.12);
+  color: var(--ink-faint);
+}
 .nl-agent-head {
   display: flex;
   justify-content: space-between;
@@ -1511,10 +1533,83 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-agent-actions .faint {
   font-size: 0.82rem;
 }
+.nl-agent-link-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(21, 101, 255, 0.05);
+}
+.nl-agent-link-card p {
+  margin: 5px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
 .nl-agent-runtime {
   display: grid;
   gap: 12px;
   margin: 0 0 14px;
+}
+.nl-agent-state-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+.nl-agent-state-card > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.nl-agent-state-card small {
+  color: var(--ink-soft);
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+.nl-agent-status-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.nl-agent-status-option {
+  display: grid;
+  gap: 5px;
+  min-height: 106px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.nl-agent-status-option span {
+  font-weight: 800;
+}
+.nl-agent-status-option small {
+  color: var(--ink-soft);
+}
+.nl-agent-status-option.active {
+  border-color: var(--accent);
+  background: rgba(21, 101, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(21,101,255,0.10);
+}
+.nl-agent-status-option.active.pausado {
+  border-color: rgba(245, 158, 11, 0.75);
+  background: rgba(245, 158, 11, 0.09);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+.nl-agent-status-option.active.inativo {
+  border-color: rgba(82, 96, 112, 0.45);
+  background: rgba(82, 96, 112, 0.08);
+  box-shadow: 0 0 0 3px rgba(82, 96, 112, 0.10);
 }
 .nl-agent-toggle {
   display: flex;

@@ -76,8 +76,8 @@ export async function carregarAgente(q: QueryFn, projetoId: string) {
        on s.tenant_id=a.tenant_id
       and s.provider=a.provider
       and s.ativo=true
-     where a.projeto_id=$1 and a.status in ('ativo','pausado')
-     order by case when a.status='ativo' then 0 else 1 end, a.id
+     where a.projeto_id=$1 and a.status in ('ativo','pausado','inativo')
+     order by case when a.status='ativo' then 0 when a.status='pausado' then 1 else 2 end, a.id desc
      limit 1`,
     [projetoId],
   );

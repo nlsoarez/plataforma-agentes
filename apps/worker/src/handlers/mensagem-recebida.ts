@@ -111,6 +111,14 @@ export async function tratarMensagemRecebida(ev: {
         return;
       }
 
+      if (agente.status === 'inativo') {
+        await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'info', 'AGENTE_DESATIVADO', 'Mensagem recebida, mas o agente esta desativado', {
+          conversaId: conversa.id,
+          contatoId,
+        });
+        return;
+      }
+
       if (!agenteDentroDoHorario(agente)) {
         await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'info', 'AGENTE_FORA_HORARIO', 'Mensagem recebida fora da janela de funcionamento do agente', {
           conversaId: conversa.id,

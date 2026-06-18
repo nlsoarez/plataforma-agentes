@@ -28,6 +28,11 @@ function normalizarProvider(provider: string): Provider {
   return 'openai';
 }
 
+function normalizarStatus(status?: string | null): 'ativo' | 'pausado' | 'inativo' {
+  if (status === 'pausado' || status === 'inativo') return status;
+  return 'ativo';
+}
+
 function pareceChaveDireta(ref?: string | null) {
   const value = String(ref || '').trim();
   return /^(sk-|sk-ant-|AIza|ya29\.)/.test(value);
@@ -66,8 +71,8 @@ export class AgentesController {
           select *
           from agentes
           where projeto_id = p.id
-            and status in ('ativo', 'pausado')
-          order by case when status = 'ativo' then 0 else 1 end, id
+            and status in ('ativo', 'pausado', 'inativo')
+          order by case when status = 'ativo' then 0 when status = 'pausado' then 1 else 2 end, id desc
           limit 1
         ) a on true
         left join ai_provider_settings s
@@ -83,11 +88,12 @@ export class AgentesController {
 
   @Put(':projetoId')
   async salvar(@Param('projetoId') projetoId: string, @Body() body: SalvarAgenteDto, @Req() req: any) {
+    const status = normalizarStatus(body.status);
     const hasConfigured = await comTenant(req.user.tenantId, async (q) => {
       const r = await q(`select 1 from agentes where projeto_id=$1 and status in ('ativo','pausado') limit 1`, [projetoId]);
       return Boolean(r.rows[0]);
     });
-    if (!hasConfigured) await assertLimit(req.user.tenantId, 'ai_agents', 1);
+    if (!hasConfigured && status !== 'inativo') await assertLimit(req.user.tenantId, 'ai_agents', 1);
 
     return comTenant(req.user.tenantId, async (q) => {
       const projeto = await q(`select id from projetos where id=$1`, [projetoId]);
@@ -97,7 +103,6 @@ export class AgentesController {
       const provider = normalizarProvider((body.provider ?? 'openai').trim());
       const modelo = (body.modelo ?? '').trim();
       const requestedByok = (body.byok_key_ref ?? '').trim();
-      const status = body.status === 'pausado' ? 'pausado' : 'ativo';
       const horarioAtivo = Boolean(body.horario_ativo);
       const horarioInicio = normalizarHorario(body.horario_inicio);
       const horarioFim = normalizarHorario(body.horario_fim);
@@ -105,7 +110,10 @@ export class AgentesController {
         throw new BadRequestException('Informe horario de inicio e fim para ativar a janela de funcionamento');
       }
       const existing = (await q(
-        `select byok_key_ref from agentes where projeto_id=$1 and status in ('ativo','pausado') order by case when status='ativo' then 0 else 1 end, id limit 1`,
+        `select byok_key_ref from agentes
+          where projeto_id=$1 and status in ('ativo','pausado','inativo')
+          order by case when status='ativo' then 0 when status='pausado' then 1 else 2 end, id desc
+          limit 1`,
         [projetoId],
       )).rows[0];
 
@@ -143,11 +151,11 @@ export class AgentesController {
         byok = null;
       }
 
-      if (!setting && !byok) {
+      if (status !== 'inativo' && !setting && !byok) {
         throw new BadRequestException(`Configure e salve a chave ${provider} em IA e Custos antes de ativar o agente`);
       }
 
-      await q(`update agentes set status='inativo' where projeto_id=$1 and status in ('ativo','pausado')`, [projetoId]);
+      await q(`update agentes set status='inativo' where projeto_id=$1 and status in ('ativo','pausado','inativo')`, [projetoId]);
 
       const r = await q(
         `insert into agentes (

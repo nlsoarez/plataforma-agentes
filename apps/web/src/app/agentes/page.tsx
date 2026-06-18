@@ -38,6 +38,31 @@ const PROVIDERS: Record<string, { label: string; model: string; keyPageLabel: st
   google: { label: 'Google Gemini', model: 'gemini-1.5-flash', keyPageLabel: 'Google Gemini' },
 };
 
+const STATUS_OPTIONS = [
+  {
+    value: 'ativo',
+    label: 'Ativo',
+    description: 'Responde automaticamente quando chegar mensagem e estiver dentro do horário.',
+  },
+  {
+    value: 'pausado',
+    label: 'Pausado',
+    description: 'Pausa temporária: novas mensagens continuam no Inbox, sem resposta da IA.',
+  },
+  {
+    value: 'inativo',
+    label: 'Desativado',
+    description: 'Mantém a configuração salva, mas este número fica sem agente automático.',
+  },
+] as const;
+
+function badgeClass(status?: string | null) {
+  if (status === 'ativo') return 'nl-badge--ok';
+  if (status === 'inativo') return 'nl-badge--off';
+  if (status === 'pausado') return 'nl-badge--warn';
+  return 'nl-badge--muted';
+}
+
 export default function AgentesPage() {
   const { token, ready } = useStoredToken();
   const [rows, setRows] = useState<AgentRow[]>([]);
@@ -66,12 +91,15 @@ export default function AgentesPage() {
   useEffect(() => {
     if (!selected) return;
     setSelectedId(selected.projeto_id);
+    const currentStatus = selected.agente_status === 'pausado' || selected.agente_status === 'inativo'
+      ? selected.agente_status
+      : 'ativo';
     setForm({
       prompt_sistema: selected.prompt_sistema || DEFAULT_PROMPT,
       modelo: selected.modelo || selected.provider_default_model || PROVIDERS[selected.provider || 'openai']?.model || PROVIDERS.openai.model,
       provider: selected.provider || 'openai',
       byok_key_ref: selected.byok_key_ref || '',
-      status: selected.agente_status === 'pausado' ? 'pausado' : 'ativo',
+      status: currentStatus,
       horario_ativo: Boolean(selected.horario_ativo),
       horario_inicio: selected.horario_inicio || '08:00',
       horario_fim: selected.horario_fim || '18:00',
@@ -115,7 +143,13 @@ export default function AgentesPage() {
       });
       const d = await r.json();
       if (!r.ok || d.ok === false) throw new Error(d?.message || JSON.stringify(d));
-      setMsg(form.status === 'pausado' ? 'Agente salvo e pausado.' : 'Agente salvo e ativado.');
+
+      const statusMsg = form.status === 'inativo'
+        ? 'Agente salvo e desativado.'
+        : form.status === 'pausado'
+          ? 'Agente salvo e pausado.'
+          : 'Agente salvo e ativado.';
+      setMsg(statusMsg);
       await carregar();
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao salvar agente');
@@ -126,7 +160,7 @@ export default function AgentesPage() {
 
   async function excluirAgente() {
     if (!token || !selected || !selected.agente_id || deleting) return;
-    if (!confirm(`Excluir a configuracao do agente do projeto "${selected.projeto_nome}"? A conexao WhatsApp sera mantida.`)) return;
+    if (!confirm(`Excluir a configuração do agente do número "${selected.phone_number_id || selected.projeto_nome}"? A conexão WhatsApp será mantida.`)) return;
 
     setDeleting(true);
     setMsg('');
@@ -137,7 +171,7 @@ export default function AgentesPage() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao excluir agente');
-      setMsg('Agente excluido. A conexao WhatsApp foi mantida.');
+      setMsg('Agente excluído. A conexão WhatsApp foi mantida.');
       setForm({
         prompt_sistema: DEFAULT_PROMPT,
         modelo: PROVIDERS.openai.model,
@@ -163,8 +197,8 @@ export default function AgentesPage() {
     <Shell title="Agentes">
       <div className="nl-page-head nl-rise">
         <div>
-          <h1>Agentes e conexões</h1>
-          <div className="sub">Números conectados, roteamento e configuração do agente ativo</div>
+          <h1>Agentes</h1>
+          <div className="sub">Configure qual agente responde em cada número conectado.</div>
         </div>
         <button className="nl-btn nl-btn--ghost" onClick={carregar} disabled={loading}>Atualizar</button>
       </div>
@@ -177,6 +211,10 @@ export default function AgentesPage() {
       ) : (
         <div className="nl-agents-grid">
           <section className="nl-stack">
+            <div className="nl-agent-list-head">
+              <span>Números WhatsApp</span>
+              <small>Cada conexão pode ter um agente próprio.</small>
+            </div>
             {rows.map((row) => (
               <button
                 key={row.projeto_id}
@@ -186,8 +224,11 @@ export default function AgentesPage() {
                 <span>
                   <b>{row.projeto_nome}</b>
                   <small>{row.phone_number_id || 'sem conexão'}</small>
+                  <small>{row.transporte_driver}</small>
                 </span>
-                <i className={row.projeto_status === 'ativo' ? 'ok' : ''}>{row.projeto_status}</i>
+                <i className={row.agente_status === 'ativo' ? 'ok' : row.agente_status === 'inativo' ? 'off' : ''}>
+                  {row.agente_status || 'sem agente'}
+                </i>
               </button>
             ))}
           </section>
@@ -197,27 +238,49 @@ export default function AgentesPage() {
               <>
                 <div className="nl-agent-head">
                   <div>
-                    <div className="eyebrow">Projeto ativo</div>
+                    <div className="eyebrow">Agente do número</div>
                     <h2>{selected.projeto_nome}</h2>
                     <p className="muted">WhatsApp / {selected.phone_number_id || 'sem rota'}</p>
                   </div>
-                  <span className={`nl-badge ${selected.agente_status === 'ativo' ? 'nl-badge--ok' : 'nl-badge--warn'}`}>
+                  <span className={`nl-badge ${badgeClass(selected.agente_status)}`}>
                     {selected.agente_status || 'sem agente'}
                   </span>
                 </div>
 
+                <div className="nl-agent-link-card">
+                  <div>
+                    <div className="eyebrow">Número vinculado</div>
+                    <p>Este agente responde somente pelo número selecionado. Para outro WhatsApp, selecione outra conexão e salve uma configuração própria.</p>
+                  </div>
+                  <select className="nl-select" value={selected.projeto_id} onChange={(e) => setSelectedId(e.target.value)}>
+                    {rows.map((row) => (
+                      <option key={row.projeto_id} value={row.projeto_id}>
+                        {row.projeto_nome} - {row.phone_number_id || 'sem conexão'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="nl-agent-runtime">
-                  <label className="nl-agent-toggle">
-                    <input
-                      type="checkbox"
-                      checked={form.status === 'pausado'}
-                      onChange={(e) => setForm({ ...form, status: e.target.checked ? 'pausado' : 'ativo' })}
-                    />
-                    <span>
-                      <b>Pausar agente</b>
-                      <small>Quando pausado, novas mensagens continuam chegando no Inbox, mas a IA nao responde automaticamente.</small>
-                    </span>
-                  </label>
+                  <div className="nl-agent-state-card">
+                    <div>
+                      <b>Estado do agente</b>
+                      <small>Controla se a IA pode responder automaticamente neste número.</small>
+                    </div>
+                    <div className="nl-agent-status-options">
+                      {STATUS_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`nl-agent-status-option ${form.status === option.value ? 'active' : ''} ${option.value}`}
+                          onClick={() => setForm({ ...form, status: option.value })}
+                        >
+                          <span>{option.label}</span>
+                          <small>{option.description}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   <div className="nl-agent-schedule">
                     <label className="nl-agent-toggle">
@@ -227,13 +290,13 @@ export default function AgentesPage() {
                         onChange={(e) => setForm({ ...form, horario_ativo: e.target.checked })}
                       />
                       <span>
-                        <b>Usar horario de funcionamento</b>
-                        <small>Fora desse periodo, o atendimento fica humano/manual. Horario de Brasilia.</small>
+                        <b>Usar horário de funcionamento</b>
+                        <small>Fora desse período, o atendimento fica humano/manual. Horário de Brasília.</small>
                       </span>
                     </label>
                     <div className="nl-agent-schedule__times">
                       <div>
-                        <label className="nl-label">Inicio</label>
+                        <label className="nl-label">Início</label>
                         <input
                           className="nl-input"
                           type="time"
@@ -256,7 +319,7 @@ export default function AgentesPage() {
                   </div>
                 </div>
 
-                {form.provider !== 'openai' && !selected.provider_key_last4 && !form.byok_key_ref && (
+                {form.status !== 'inativo' && form.provider !== 'openai' && !selected.provider_key_last4 && !form.byok_key_ref && (
                   <div className="nl-error" style={{ marginBottom: 14 }}>
                     Chave {PROVIDERS[form.provider]?.keyPageLabel || form.provider} ainda não foi salva em IA e Custos.
                   </div>
@@ -303,7 +366,7 @@ export default function AgentesPage() {
                 />
 
                 <div className="nl-agent-actions">
-                  <span className="faint">O worker responde somente quando o agente esta ativo e dentro do horario configurado.</span>
+                  <span className="faint">O worker responde somente quando o agente está ativo e dentro do horário configurado.</span>
                   <div className="nl-row" style={{ gap: 8 }}>
                     <button
                       className="nl-btn nl-btn--danger"
@@ -316,7 +379,7 @@ export default function AgentesPage() {
                   </div>
                 </div>
 
-                {msg && <p className={msg.includes('salvo') || msg.includes('excluido') ? 'nl-success' : 'nl-error'}>{msg}</p>}
+                {msg && <p className={msg.includes('salvo') || msg.includes('excluído') ? 'nl-success' : 'nl-error'}>{msg}</p>}
               </>
             )}
           </section>
