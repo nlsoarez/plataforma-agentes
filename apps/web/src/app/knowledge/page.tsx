@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Shell from '../../components/Shell';
 import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
 
@@ -25,14 +25,18 @@ export default function KnowledgePage() {
   const [form, setForm] = useState({ titulo: '', conteudo: '' });
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
+
+  const totalChunks = useMemo(() => docs.reduce((sum, doc) => sum + Number(doc.chunk_count || 0), 0), [docs]);
 
   useEffect(() => { if (token) carregar(); }, [token]);
 
   async function carregar() {
     if (!token) return;
     const r = await fetch(`${API}/knowledge`, { headers: auth(token) });
-    setDocs(await r.json());
+    const data = await r.json();
+    setDocs(Array.isArray(data) ? data : []);
   }
 
   async function salvar() {
@@ -59,8 +63,22 @@ export default function KnowledgePage() {
 
   async function remover(id: string) {
     if (!token) return;
-    await fetch(`${API}/knowledge/${id}`, { method: 'DELETE', headers: auth(token) });
-    await carregar();
+    const doc = docs.find((item) => item.id === id);
+    if (!confirm(`Excluir definitivamente "${doc?.titulo || 'este documento'}" da base de conhecimento?`)) return;
+
+    setRemovingId(id);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/knowledge/${id}`, { method: 'DELETE', headers: auth(token) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao excluir documento');
+      setDocs((current) => current.filter((item) => item.id !== id));
+      setMsg('Documento excluido da base de conhecimento.');
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao excluir documento');
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   async function importarArquivo(e: ChangeEvent<HTMLInputElement>) {
@@ -69,13 +87,13 @@ export default function KnowledgePage() {
     setMsg('');
 
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-      setMsg('PDF ainda precisa de parser dedicado. Use TXT/MD/JSON/CSV por enquanto.');
+      setMsg('PDF ainda precisa de parser dedicado. Use TXT, MD, JSON ou CSV por enquanto.');
       e.target.value = '';
       return;
     }
 
     if (file.type && !SUPPORTED.includes(file.type) && !/\.(txt|md|markdown|json|csv)$/i.test(file.name)) {
-      setMsg('Formato não suportado. Use TXT, MD, JSON ou CSV.');
+      setMsg('Formato nao suportado. Use TXT, MD, JSON ou CSV.');
       e.target.value = '';
       return;
     }
@@ -93,43 +111,90 @@ export default function KnowledgePage() {
       <div className="nl-page-head nl-rise">
         <div>
           <h1>Base de conhecimento</h1>
-          <div className="sub">Chunking, embeddings opcionais e fallback textual para o agente</div>
+          <div className="sub">Documentos que o agente pode consultar antes de responder.</div>
         </div>
       </div>
 
-      <div className="nl-dashboard-grid">
-        <section className="nl-card nl-card--pad">
-          <div className="eyebrow" style={{ marginBottom: 14 }}>Novo documento</div>
-          <label className="nl-label">Upload TXT / MD / JSON / CSV</label>
-          <input className="nl-input" type="file" accept=".txt,.md,.markdown,.json,.csv,text/plain,text/markdown,application/json,text/csv" onChange={importarArquivo} style={{ paddingTop: 9, marginBottom: 12 }} />
+      <div className="nl-knowledge-layout">
+        <section className="nl-card nl-card--pad nl-knowledge-form">
+          <div className="nl-panel-head">
+            <div>
+              <div className="eyebrow">Novo documento</div>
+              <h3>Adicionar conteudo</h3>
+            </div>
+            <span className="nl-badge">TXT / MD / JSON / CSV</span>
+          </div>
+
+          <label className="nl-label">Upload</label>
+          <input
+            className="nl-input"
+            type="file"
+            accept=".txt,.md,.markdown,.json,.csv,text/plain,text/markdown,application/json,text/csv"
+            onChange={importarArquivo}
+            style={{ paddingTop: 9, marginBottom: 12 }}
+          />
           <label className="nl-label">Titulo</label>
-          <input className="nl-input" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} style={{ marginBottom: 12 }} />
+          <input
+            className="nl-input"
+            value={form.titulo}
+            onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+            placeholder="Ex: Politica comercial, FAQ, regras de atendimento"
+            style={{ marginBottom: 12 }}
+          />
           <label className="nl-label">Conteudo</label>
-          <textarea className="nl-textarea" value={form.conteudo} onChange={(e) => setForm({ ...form, conteudo: e.target.value })} />
+          <textarea
+            className="nl-textarea nl-knowledge-textarea"
+            value={form.conteudo}
+            onChange={(e) => setForm({ ...form, conteudo: e.target.value })}
+            placeholder="Cole aqui as informacoes que o agente deve usar nas respostas."
+          />
           <button className="nl-btn nl-btn--accent" disabled={loading} style={{ width: '100%', marginTop: 14 }} onClick={salvar}>
             {loading ? 'Indexando...' : 'Indexar conhecimento'}
           </button>
-          {msg && <p className={msg.includes('indexado') ? 'nl-success' : 'nl-error'}>{msg}</p>}
+          {msg && <p className={msg.includes('indexado') || msg.includes('excluido') ? 'nl-success' : 'nl-error'}>{msg}</p>}
         </section>
 
-        <section className="nl-card" style={{ overflow: 'hidden' }}>
-          <table className="nl-table">
-            <thead><tr><th>Documento</th><th>Indice</th><th>Status</th><th>Ação</th></tr></thead>
-            <tbody>
-              {docs.length === 0 && <tr><td colSpan={4} className="faint" style={{ padding: 24, textAlign: 'center' }}>Nenhum documento.</td></tr>}
+        <section className="nl-card nl-card--pad nl-knowledge-list">
+          <div className="nl-panel-head">
+            <div>
+              <div className="eyebrow">Documentos indexados</div>
+              <h3>{docs.length} {docs.length === 1 ? 'documento' : 'documentos'}</h3>
+              <p className="muted" style={{ marginTop: 4 }}>{totalChunks} chunks disponiveis para busca.</p>
+            </div>
+            <button className="nl-btn nl-btn--ghost nl-btn--sm" onClick={carregar}>Atualizar</button>
+          </div>
+
+          {docs.length === 0 ? (
+            <div className="nl-empty" style={{ padding: 28 }}>
+              <div className="display display-sm">Nenhum documento</div>
+              <p className="muted">Adicione instrucoes, politicas, respostas ou arquivos para o agente consultar.</p>
+            </div>
+          ) : (
+            <div className="nl-knowledge-docs">
               {docs.map((doc) => (
-                <tr key={doc.id}>
-                  <td><b>{doc.titulo}</b><div className="faint">{doc.preview}</div></td>
-                  <td>
-                    <b>{doc.chunk_count || 0} chunks</b>
-                    <div className="faint">{doc.embedding_model || 'busca textual'}</div>
-                  </td>
-                  <td><span className={`nl-badge ${doc.status === 'ativo' ? 'nl-badge--ok' : ''}`}>{doc.status}</span></td>
-                  <td><button className="nl-btn nl-btn--ghost nl-btn--sm" onClick={() => remover(doc.id)}>Desativar</button></td>
-                </tr>
+                <article key={doc.id} className="nl-knowledge-doc">
+                  <div className="nl-knowledge-doc__main">
+                    <div className="nl-knowledge-doc__top">
+                      <h3>{doc.titulo}</h3>
+                      <span className={`nl-badge ${doc.status === 'ativo' ? 'nl-badge--ok' : ''}`}>{doc.status}</span>
+                    </div>
+                    <p>{doc.preview || 'Sem previa disponivel.'}</p>
+                    <div className="nl-knowledge-doc__meta">
+                      <span>{doc.chunk_count || 0} chunks</span>
+                      <span>{doc.embedding_model || 'busca textual'}</span>
+                    </div>
+                  </div>
+                  <button
+                    className="nl-btn nl-btn--danger nl-btn--sm"
+                    onClick={() => remover(doc.id)}
+                    disabled={removingId === doc.id}
+                  >
+                    {removingId === doc.id ? 'Excluindo...' : 'Excluir'}
+                  </button>
+                </article>
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
         </section>
       </div>
     </Shell>

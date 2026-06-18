@@ -75,9 +75,10 @@ export class KnowledgeService {
     });
   }
 
-  async desativar(tenantId: string, id: string) {
+  async excluir(tenantId: string, id: string) {
     return comTenant(tenantId, async (q) => {
-      await q(`update knowledge_documents set status='inativo' where id=$1`, [id]);
+      await q(`delete from knowledge_chunks where document_id=$1`, [id]);
+      await q(`delete from knowledge_documents where id=$1`, [id]);
       return { ok: true };
     });
   }

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Put, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Put, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
 import { assertLimit } from '../billing/entitlements';
@@ -141,6 +141,17 @@ export class AgentesController {
       );
 
       return { ok: true, agente: r.rows[0] };
+    });
+  }
+
+  @Delete(':projetoId')
+  async excluir(@Param('projetoId') projetoId: string, @Req() req: any) {
+    return comTenant(req.user.tenantId, async (q) => {
+      const projeto = await q(`select id from projetos where id=$1`, [projetoId]);
+      if (!projeto.rows[0]) return { ok: false, message: 'Projeto nao encontrado' };
+
+      await q(`delete from agentes where projeto_id=$1`, [projetoId]);
+      return { ok: true };
     });
   }
 }

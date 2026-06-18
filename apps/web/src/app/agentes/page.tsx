@@ -45,6 +45,7 @@ export default function AgentesPage() {
     byok_key_ref: '',
   });
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState('');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
@@ -108,6 +109,34 @@ export default function AgentesPage() {
       setMsg(e?.message || 'Falha ao salvar agente');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function excluirAgente() {
+    if (!token || !selected || !selected.agente_id || deleting) return;
+    if (!confirm(`Excluir a configuracao do agente do projeto "${selected.projeto_nome}"? A conexao WhatsApp sera mantida.`)) return;
+
+    setDeleting(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/agentes/${selected.projeto_id}`, {
+        method: 'DELETE',
+        headers: auth(token),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao excluir agente');
+      setMsg('Agente excluido. A conexao WhatsApp foi mantida.');
+      setForm({
+        prompt_sistema: DEFAULT_PROMPT,
+        modelo: PROVIDERS.openai.model,
+        provider: 'openai',
+        byok_key_ref: '',
+      });
+      await carregar();
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao excluir agente');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -207,12 +236,21 @@ export default function AgentesPage() {
                   onChange={(e) => setForm({ ...form, prompt_sistema: e.target.value })}
                 />
 
-                <div className="nl-row" style={{ justifyContent: 'space-between', marginTop: 14, alignItems: 'center' }}>
-                  <span className="faint" style={{ fontSize: '0.82rem' }}>O worker usa somente o agente com status ativo.</span>
-                  <button className="nl-btn nl-btn--accent" onClick={salvar} disabled={loading}>Salvar agente</button>
+                <div className="nl-agent-actions">
+                  <span className="faint">O worker usa somente o agente com status ativo.</span>
+                  <div className="nl-row" style={{ gap: 8 }}>
+                    <button
+                      className="nl-btn nl-btn--danger"
+                      onClick={excluirAgente}
+                      disabled={loading || deleting || !selected.agente_id}
+                    >
+                      {deleting ? 'Excluindo...' : 'Excluir agente'}
+                    </button>
+                    <button className="nl-btn nl-btn--accent" onClick={salvar} disabled={loading || deleting}>Salvar agente</button>
+                  </div>
                 </div>
 
-                {msg && <p className={msg.includes('salvo') ? 'nl-success' : 'nl-error'}>{msg}</p>}
+                {msg && <p className={msg.includes('salvo') || msg.includes('excluido') ? 'nl-success' : 'nl-error'}>{msg}</p>}
               </>
             )}
           </section>

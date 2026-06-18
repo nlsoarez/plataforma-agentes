@@ -23,7 +23,7 @@ export class KnowledgeController {
   }
 
   @Delete(':id')
-  desativar(@Param('id') id: string, @Req() req: any) {
-    return this.svc.desativar(req.user.tenantId, id);
+  excluir(@Param('id') id: string, @Req() req: any) {
+    return this.svc.excluir(req.user.tenantId, id);
   }
 }
