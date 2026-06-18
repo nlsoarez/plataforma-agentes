@@ -274,8 +274,8 @@ export default function AgentesPage() {
                   <select className="nl-select" value={selected.projeto_id} onChange={(e) => setSelectedId(e.target.value)}>
                     {rows.map((row) => (
                       <option key={row.projeto_id} value={row.projeto_id}>
-                        {row.projeto_nome} - {row.phone_number_id || 'sem conexão'}
-                        {formatPhone(row.whatsapp_number) ? ` - ${formatPhone(row.whatsapp_number)}` : ' - número não identificado'}
+                        {row.projeto_nome} - {connectionTitle(row)}
+                        {row.phone_number_id ? ` - instância ${row.phone_number_id}` : ''}
                       </option>
                     ))}
                   </select>
