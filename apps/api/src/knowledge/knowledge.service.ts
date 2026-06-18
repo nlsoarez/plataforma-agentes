@@ -23,6 +23,20 @@ export class KnowledgeService {
     });
   }
 
+  async obter(tenantId: string, id: string) {
+    return comTenant(tenantId, async (q) => {
+      const r = await q(
+        `select id, projeto_id, titulo, tipo, status, conteudo, metadata, criado_em, chunk_count,
+                embedding_model, indexado_em
+         from knowledge_documents
+         where id=$1
+         limit 1`,
+        [id],
+      );
+      return r.rows[0] ?? { ok: false, message: 'Documento nao encontrado' };
+    });
+  }
+
   async criar(tenantId: string, body: { projetoId?: string; titulo: string; conteudo: string; tipo?: string; metadata?: any }) {
     return comTenant(tenantId, async (q) => {
       const doc = await q(
@@ -32,46 +46,31 @@ export class KnowledgeService {
         [tenantId, body.projetoId || null, body.titulo, body.tipo || 'text', body.conteudo, JSON.stringify(body.metadata ?? {})],
       );
       const documentId = doc.rows[0].id;
-      const chunks = chunkText(body.conteudo);
-      const embeddings = await this.embedMany(chunks).catch(() => null);
-      const vectorEnabled = embeddings ? await pgvectorEnabled(q) : false;
+      const indexed = await this.reindexar(q, tenantId, documentId, body.projetoId || null, body.conteudo);
 
-      for (let i = 0; i < chunks.length; i++) {
-        const embedding = embeddings?.[i] ?? null;
-        const baseParams = [
-          tenantId,
-          documentId,
-          body.projetoId || null,
-          i,
-          chunks[i],
-          Math.ceil(chunks[i].length / 4),
-          embedding ? JSON.stringify(embedding) : null,
-        ];
-        if (vectorEnabled && embedding?.length === EMBEDDING_DIMENSIONS) {
-          await q(
-            `insert into knowledge_chunks (
-               tenant_id, document_id, projeto_id, chunk_index, conteudo, token_est, embedding, embedding_vector
-             )
-             values ($1,$2,$3,$4,$5,$6,$7,$8::vector)`,
-            [...baseParams, toVectorLiteral(embedding)],
-          );
-        } else {
-          await q(
-            `insert into knowledge_chunks (tenant_id, document_id, projeto_id, chunk_index, conteudo, token_est, embedding)
-             values ($1,$2,$3,$4,$5,$6,$7)`,
-            baseParams,
-          );
-        }
-      }
+      return { ...doc.rows[0], chunk_count: indexed.chunk_count, embedding_model: indexed.embedding_model };
+    });
+  }
+
+  async atualizar(tenantId: string, id: string, body: { titulo: string; conteudo: string; tipo?: string; metadata?: any }) {
+    return comTenant(tenantId, async (q) => {
+      const current = await q(`select id, projeto_id from knowledge_documents where id=$1 limit 1`, [id]);
+      if (!current.rows[0]) return { ok: false, message: 'Documento nao encontrado' };
 
       await q(
         `update knowledge_documents
-         set chunk_count=$2, embedding_model=$3, indexado_em=now()
+         set titulo=$2,
+             tipo=$3,
+             conteudo=$4,
+             metadata=coalesce($5::jsonb, metadata),
+             status='ativo'
          where id=$1`,
-        [documentId, chunks.length, embeddings ? EMBEDDING_MODEL : null],
+        [id, body.titulo, body.tipo || 'text', body.conteudo, body.metadata ? JSON.stringify(body.metadata) : null],
       );
 
-      return { ...doc.rows[0], chunk_count: chunks.length, embedding_model: embeddings ? EMBEDDING_MODEL : null };
+      await q(`delete from knowledge_chunks where document_id=$1`, [id]);
+      const indexed = await this.reindexar(q, tenantId, id, current.rows[0].projeto_id || null, body.conteudo);
+      return { ok: true, id, chunk_count: indexed.chunk_count, embedding_model: indexed.embedding_model };
     });
   }
 
@@ -150,6 +149,49 @@ export class KnowledgeService {
     if (!r.ok) throw new Error(`embedding ${r.status}: ${await r.text()}`);
     const d = await r.json() as any;
     return d.data?.map((item: any) => item.embedding) ?? null;
+  }
+
+  private async reindexar(q: QueryFn, tenantId: string, documentId: string, projetoId: string | null, conteudo: string) {
+    const chunks = chunkText(conteudo);
+    const embeddings = await this.embedMany(chunks).catch(() => null);
+    const vectorEnabled = embeddings ? await pgvectorEnabled(q) : false;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const embedding = embeddings?.[i] ?? null;
+      const baseParams = [
+        tenantId,
+        documentId,
+        projetoId,
+        i,
+        chunks[i],
+        Math.ceil(chunks[i].length / 4),
+        embedding ? JSON.stringify(embedding) : null,
+      ];
+      if (vectorEnabled && embedding?.length === EMBEDDING_DIMENSIONS) {
+        await q(
+          `insert into knowledge_chunks (
+             tenant_id, document_id, projeto_id, chunk_index, conteudo, token_est, embedding, embedding_vector
+           )
+           values ($1,$2,$3,$4,$5,$6,$7,$8::vector)`,
+          [...baseParams, toVectorLiteral(embedding)],
+        );
+      } else {
+        await q(
+          `insert into knowledge_chunks (tenant_id, document_id, projeto_id, chunk_index, conteudo, token_est, embedding)
+           values ($1,$2,$3,$4,$5,$6,$7)`,
+          baseParams,
+        );
+      }
+    }
+
+    await q(
+      `update knowledge_documents
+       set chunk_count=$2, embedding_model=$3, indexado_em=now()
+       where id=$1`,
+      [documentId, chunks.length, embeddings ? EMBEDDING_MODEL : null],
+    );
+
+    return { chunk_count: chunks.length, embedding_model: embeddings ? EMBEDDING_MODEL : null };
   }
 }
 

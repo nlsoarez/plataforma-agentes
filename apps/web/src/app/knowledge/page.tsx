@@ -25,6 +25,8 @@ export default function KnowledgePage() {
   const [form, setForm] = useState({ titulo: '', conteudo: '' });
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
 
@@ -44,21 +46,50 @@ export default function KnowledgePage() {
     setLoading(true);
     setMsg('');
     try {
-      const r = await fetch(`${API}/knowledge`, {
-        method: 'POST',
+      const r = await fetch(editingId ? `${API}/knowledge/${editingId}` : `${API}/knowledge`, {
+        method: editingId ? 'PUT' : 'POST',
         headers: auth(token),
         body: JSON.stringify({ titulo: form.titulo, conteudo: form.conteudo, tipo: 'text' }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d?.message || JSON.stringify(d));
-      setMsg(`Documento indexado: ${d.chunk_count} chunks${d.embedding_model ? ` / ${d.embedding_model}` : ' / busca textual'}.`);
+      if (!r.ok || d.ok === false) throw new Error(d?.message || JSON.stringify(d));
+      setMsg(
+        editingId
+          ? `Documento atualizado: ${d.chunk_count} chunks${d.embedding_model ? ` / ${d.embedding_model}` : ' / busca textual'}.`
+          : `Documento indexado: ${d.chunk_count} chunks${d.embedding_model ? ` / ${d.embedding_model}` : ' / busca textual'}.`,
+      );
       setForm({ titulo: '', conteudo: '' });
+      setEditingId(null);
       await carregar();
     } catch (e: any) {
-      setMsg(e?.message || 'Falha ao indexar documento');
+      setMsg(e?.message || (editingId ? 'Falha ao atualizar documento' : 'Falha ao indexar documento'));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function editar(id: string) {
+    if (!token || loadingEditId) return;
+    setLoadingEditId(id);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/knowledge/${id}`, { headers: auth(token) });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao carregar documento');
+      setEditingId(id);
+      setForm({ titulo: d.titulo || '', conteudo: d.conteudo || '' });
+      setMsg('Documento carregado para edicao.');
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao carregar documento');
+    } finally {
+      setLoadingEditId(null);
+    }
+  }
+
+  function cancelarEdicao() {
+    setEditingId(null);
+    setForm({ titulo: '', conteudo: '' });
+    setMsg('');
   }
 
   async function remover(id: string) {
@@ -120,9 +151,9 @@ export default function KnowledgePage() {
           <div className="nl-panel-head">
             <div>
               <div className="eyebrow">Novo documento</div>
-              <h3>Adicionar conteudo</h3>
+              <h3>{editingId ? 'Editar conteudo' : 'Adicionar conteudo'}</h3>
             </div>
-            <span className="nl-badge">TXT / MD / JSON / CSV</span>
+            <span className="nl-badge">{editingId ? 'Reindexacao' : 'TXT / MD / JSON / CSV'}</span>
           </div>
 
           <label className="nl-label">Upload</label>
@@ -148,10 +179,17 @@ export default function KnowledgePage() {
             onChange={(e) => setForm({ ...form, conteudo: e.target.value })}
             placeholder="Cole aqui as informacoes que o agente deve usar nas respostas."
           />
-          <button className="nl-btn nl-btn--accent" disabled={loading} style={{ width: '100%', marginTop: 14 }} onClick={salvar}>
-            {loading ? 'Indexando...' : 'Indexar conhecimento'}
-          </button>
-          {msg && <p className={msg.includes('indexado') || msg.includes('excluido') ? 'nl-success' : 'nl-error'}>{msg}</p>}
+          <div className="nl-knowledge-form__actions">
+            {editingId && (
+              <button className="nl-btn nl-btn--ghost" disabled={loading} onClick={cancelarEdicao}>
+                Cancelar edicao
+              </button>
+            )}
+            <button className="nl-btn nl-btn--accent" disabled={loading} onClick={salvar}>
+              {loading ? (editingId ? 'Salvando...' : 'Indexando...') : (editingId ? 'Salvar alteracoes' : 'Indexar conhecimento')}
+            </button>
+          </div>
+          {msg && <p className={msg.includes('indexado') || msg.includes('atualizado') || msg.includes('excluido') || msg.includes('carregado') ? 'nl-success' : 'nl-error'}>{msg}</p>}
         </section>
 
         <section className="nl-card nl-card--pad nl-knowledge-list">
@@ -184,13 +222,22 @@ export default function KnowledgePage() {
                       <span>{doc.embedding_model || 'busca textual'}</span>
                     </div>
                   </div>
-                  <button
-                    className="nl-btn nl-btn--danger nl-btn--sm"
-                    onClick={() => remover(doc.id)}
-                    disabled={removingId === doc.id}
-                  >
-                    {removingId === doc.id ? 'Excluindo...' : 'Excluir'}
-                  </button>
+                  <div className="nl-knowledge-doc__actions">
+                    <button
+                      className="nl-btn nl-btn--ghost nl-btn--sm"
+                      onClick={() => editar(doc.id)}
+                      disabled={loadingEditId === doc.id || removingId === doc.id}
+                    >
+                      {loadingEditId === doc.id ? 'Abrindo...' : 'Editar'}
+                    </button>
+                    <button
+                      className="nl-btn nl-btn--danger nl-btn--sm"
+                      onClick={() => remover(doc.id)}
+                      disabled={removingId === doc.id || loadingEditId === doc.id}
+                    >
+                      {removingId === doc.id ? 'Excluindo...' : 'Excluir'}
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
