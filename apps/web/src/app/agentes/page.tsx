@@ -176,7 +176,7 @@ export default function AgentesPage() {
   }
 
   async function excluirAgente() {
-    if (!token || !selected || !selected.agente_id || deleting) return;
+    if (!token || !selected || deleting) return;
     if (!confirm(`Excluir a configuração do agente de "${connectionTitle(selected)}"? A conexão WhatsApp será mantida.`)) return;
 
     setDeleting(true);
@@ -391,7 +391,7 @@ export default function AgentesPage() {
                     <button
                       className="nl-btn nl-btn--danger"
                       onClick={excluirAgente}
-                      disabled={loading || deleting || !selected.agente_id}
+                      disabled={loading || deleting}
                     >
                       {deleting ? 'Excluindo...' : 'Excluir agente'}
                     </button>
