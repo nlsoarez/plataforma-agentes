@@ -85,6 +85,7 @@ export class AgentesController {
           select *
           from agentes
           where projeto_id = p.id
+            and tenant_id = p.tenant_id
             and status in ('ativo', 'pausado', 'inativo')
           order by case when status = 'ativo' then 0 when status = 'pausado' then 1 else 2 end, id desc
           limit 1
@@ -93,8 +94,9 @@ export class AgentesController {
           on s.tenant_id=p.tenant_id
          and s.provider=coalesce(a.provider, 'openai')
          and s.ativo=true
+        where p.tenant_id=$1
         order by p.criado_em desc
-      `);
+      `, [req.user.tenantId]);
 
       return r.rows;
     });
@@ -104,13 +106,13 @@ export class AgentesController {
   async salvar(@Param('projetoId') projetoId: string, @Body() body: SalvarAgenteDto, @Req() req: any) {
     const status = normalizarStatus(body.status);
     const hasConfigured = await comTenant(req.user.tenantId, async (q) => {
-      const r = await q(`select 1 from agentes where projeto_id=$1 and status in ('ativo','pausado') limit 1`, [projetoId]);
+      const r = await q(`select 1 from agentes where tenant_id=$1 and projeto_id=$2 and status in ('ativo','pausado') limit 1`, [req.user.tenantId, projetoId]);
       return Boolean(r.rows[0]);
     });
     if (!hasConfigured && status !== 'inativo') await assertLimit(req.user.tenantId, 'ai_agents', 1);
 
     return comTenant(req.user.tenantId, async (q) => {
-      const projeto = await q(`select id from projetos where id=$1`, [projetoId]);
+      const projeto = await q(`select id from projetos where id=$1 and tenant_id=$2`, [projetoId, req.user.tenantId]);
       if (!projeto.rows[0]) return { ok: false, message: 'Projeto nao encontrado' };
 
       const prompt = (body.prompt_sistema ?? '').trim();
@@ -125,14 +127,14 @@ export class AgentesController {
       }
       const existing = (await q(
         `select byok_key_ref from agentes
-          where projeto_id=$1 and status in ('ativo','pausado','inativo')
+          where tenant_id=$1 and projeto_id=$2 and status in ('ativo','pausado','inativo')
           order by case when status='ativo' then 0 when status='pausado' then 1 else 2 end, id desc
           limit 1`,
-        [projetoId],
+        [req.user.tenantId, projetoId],
       )).rows[0];
 
       let byok = requestedByok || null;
-      let setting = (await q(`select id, default_model from ai_provider_settings where provider=$1 and ativo=true limit 1`, [provider])).rows[0];
+      let setting = (await q(`select id, default_model from ai_provider_settings where tenant_id=$1 and provider=$2 and ativo=true limit 1`, [req.user.tenantId, provider])).rows[0];
       const directKey = pareceChaveDireta(requestedByok)
         ? requestedByok
         : (!requestedByok && pareceChaveDireta(existing?.byok_key_ref) ? existing.byok_key_ref : null);
@@ -169,7 +171,7 @@ export class AgentesController {
         throw new BadRequestException(`Configure e salve a chave ${provider} em IA e Custos antes de ativar o agente`);
       }
 
-      await q(`update agentes set status='inativo' where projeto_id=$1 and status in ('ativo','pausado','inativo')`, [projetoId]);
+      await q(`update agentes set status='inativo' where tenant_id=$1 and projeto_id=$2 and status in ('ativo','pausado','inativo')`, [req.user.tenantId, projetoId]);
 
       const r = await q(
         `insert into agentes (
@@ -203,7 +205,7 @@ export class AgentesController {
   @Delete(':projetoId')
   async excluir(@Param('projetoId') projetoId: string, @Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
-      const projeto = await q(`select id from projetos where id=$1`, [projetoId]);
+      const projeto = await q(`select id from projetos where id=$1 and tenant_id=$2`, [projetoId, req.user.tenantId]);
       if (!projeto.rows[0]) return { ok: false, message: 'Projeto nao encontrado' };
 
       const deleted = await q(`delete from agentes where tenant_id=$1 and projeto_id=$2 returning id`, [req.user.tenantId, projetoId]);

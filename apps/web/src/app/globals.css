@@ -1523,6 +1523,24 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   margin: 5px 0 0;
   font-size: 0.86rem;
 }
+.nl-agent-feedback {
+  margin: -4px 0 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.nl-agent-feedback.ok {
+  color: #087a42;
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.24);
+}
+.nl-agent-feedback.error {
+  color: #b42318;
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.22);
+}
 .nl-agent-actions {
   display: flex;
   align-items: center;

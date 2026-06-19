@@ -131,10 +131,10 @@ export default function AgentesPage() {
     }));
   }
 
-  async function carregar() {
+  async function carregar(options?: { preserveMessage?: boolean }) {
     if (!token) return;
     setLoading(true);
-    setMsg('');
+    if (!options?.preserveMessage) setMsg('');
     try {
       const r = await fetch(`${API}/agentes`, { headers: auth(token) });
       const d = await r.json();
@@ -167,7 +167,7 @@ export default function AgentesPage() {
           ? 'Agente salvo e pausado.'
           : 'Agente salvo e ativado.';
       setMsg(statusMsg);
-      await carregar();
+      await carregar({ preserveMessage: true });
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao salvar agente');
     } finally {
@@ -199,7 +199,7 @@ export default function AgentesPage() {
         horario_inicio: '08:00',
         horario_fim: '18:00',
       });
-      await carregar();
+      await carregar({ preserveMessage: true });
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao excluir agente');
     } finally {
@@ -217,7 +217,7 @@ export default function AgentesPage() {
           <h1>Agentes</h1>
           <div className="sub">Configure qual agente responde em cada número conectado.</div>
         </div>
-        <button className="nl-btn nl-btn--ghost" onClick={carregar} disabled={loading}>Atualizar</button>
+        <button className="nl-btn nl-btn--ghost" onClick={() => carregar()} disabled={loading}>Atualizar</button>
       </div>
 
       {rows.length === 0 ? (
@@ -265,6 +265,12 @@ export default function AgentesPage() {
                     {selected.agente_status || 'sem agente'}
                   </span>
                 </div>
+
+                {msg && (
+                  <div className={`nl-agent-feedback ${msg.includes('salvo') || msg.includes('excluído') || msg.includes('Nenhuma configuração') ? 'ok' : 'error'}`}>
+                    {msg}
+                  </div>
+                )}
 
                 <div className="nl-agent-link-card">
                   <div>
@@ -399,7 +405,6 @@ export default function AgentesPage() {
                   </div>
                 </div>
 
-                {msg && <p className={msg.includes('salvo') || msg.includes('excluído') ? 'nl-success' : 'nl-error'}>{msg}</p>}
               </>
             )}
           </section>
