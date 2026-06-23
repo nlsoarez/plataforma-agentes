@@ -208,7 +208,13 @@ export class AgentesController {
       const projeto = await q(`select id from projetos where id=$1 and tenant_id=$2`, [projetoId, req.user.tenantId]);
       if (!projeto.rows[0]) return { ok: false, message: 'Projeto nao encontrado' };
 
-      const deleted = await q(`delete from agentes where tenant_id=$1 and projeto_id=$2 returning id`, [req.user.tenantId, projetoId]);
+      const deleted = await q(
+        `update agentes
+            set status='deleted'
+          where tenant_id=$1 and projeto_id=$2 and status in ('ativo','pausado','inativo')
+          returning id`,
+        [req.user.tenantId, projetoId],
+      );
       return { ok: true, deleted: deleted.rowCount ?? deleted.rows.length };
     });
   }

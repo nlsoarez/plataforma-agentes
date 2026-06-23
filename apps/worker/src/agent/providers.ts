@@ -117,13 +117,18 @@ function normalizarConteudoAnthropic(content: any) {
   return String(content ?? '');
 }
 
-export async function chamarGoogle(opts: { apiKey: string; modelo: string; messages: ChatMessage[] }): Promise<RespostaLlm> {
+export async function chamarGoogle(opts: {
+  apiKey: string;
+  modelo: string;
+  messages: ChatMessage[];
+  tools?: readonly unknown[];
+}): Promise<RespostaLlm> {
   const model = opts.modelo || 'gemini-1.5-flash';
   const system = opts.messages.find((m) => m.role === 'system')?.content ?? '';
   const history = opts.messages.filter((m) => m.role !== 'system');
   const contents = history.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
+    parts: normalizarConteudoGoogle(m.content),
   }));
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(opts.apiKey)}`, {
@@ -132,21 +137,55 @@ export async function chamarGoogle(opts: { apiKey: string; modelo: string; messa
     body: JSON.stringify({
       systemInstruction: system ? { parts: [{ text: system }] } : undefined,
       contents,
+      tools: opts.tools ? googleTools(opts.tools) : undefined,
       generationConfig: { maxOutputTokens: 800 },
     }),
   });
   if (!res.ok) throw new Error(`google ${res.status}: ${await res.text()}`);
   const data = await res.json() as any;
-  const texto = data.candidates?.[0]?.content?.parts
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  const texto = parts
     ?.map((part: any) => part.text)
     .filter(Boolean)
     .join('\n')
     .trim() || null;
+  const toolCalls = parts
+    .filter((part: any) => part.functionCall?.name)
+    .map((part: any, index: number) => ({
+      id: `google-tool-${index}`,
+      nome: part.functionCall.name,
+      argumentos: part.functionCall.args || {},
+    }));
   return {
-    message: { role: 'assistant', content: texto },
-    toolCalls: [],
+    message: { role: 'assistant', content: parts },
+    toolCalls,
     texto,
     tokensIn: data.usageMetadata?.promptTokenCount ?? 0,
     tokensOut: data.usageMetadata?.candidatesTokenCount ?? 0,
   };
+}
+
+function googleTools(tools: readonly unknown[]) {
+  const functionDeclarations = tools.map((tool: any) => ({
+    name: tool.function?.name,
+    description: tool.function?.description,
+    parameters: limparSchemaGoogle(tool.function?.parameters || { type: 'object', properties: {} }),
+  })).filter((tool: any) => tool.name);
+  return functionDeclarations.length ? [{ functionDeclarations }] : undefined;
+}
+
+function limparSchemaGoogle(schema: any): any {
+  if (!schema || typeof schema !== 'object') return schema;
+  if (Array.isArray(schema)) return schema.map(limparSchemaGoogle);
+  const out: Record<string, any> = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === 'additionalProperties') continue;
+    out[key] = limparSchemaGoogle(value);
+  }
+  return out;
+}
+
+function normalizarConteudoGoogle(content: any) {
+  if (Array.isArray(content)) return content;
+  return [{ text: String(content ?? '') }];
 }

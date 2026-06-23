@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, Param, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -13,6 +14,13 @@ type SaveReportSettingsDto = {
 @Controller('reports')
 @UseGuards(AuthGuard)
 export class ReportsController {
+  private fila?: Queue;
+
+  private queue() {
+    if (!this.fila) this.fila = new Queue('relatorios-diarios', { connection: { url: process.env.REDIS_URL } as any });
+    return this.fila;
+  }
+
   @Get('settings')
   listarSettings(@Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
@@ -101,6 +109,35 @@ export class ReportsController {
       return { ok: true, settings: r.rows[0] };
     });
   }
+
+  @Post('settings/:projetoId/test')
+  enviarTeste(@Param('projetoId') projetoId: string, @Req() req: any) {
+    return comTenant(req.user.tenantId, async (q) => {
+      const setting = (await q(
+        `select s.id, s.tenant_id, s.destino, s.ativo, coalesce(s.timezone, 'America/Sao_Paulo') as timezone
+           from agent_report_settings s
+           join projetos p on p.id=s.projeto_id and p.tenant_id=s.tenant_id
+          where s.projeto_id=$1 and s.tenant_id=$2
+          limit 1`,
+        [projetoId, req.user.tenantId],
+      )).rows[0];
+
+      if (!setting) throw new BadRequestException('Salve a configuracao do relatorio antes de enviar teste');
+      if (!setting.destino) throw new BadRequestException('Informe o destino do relatorio antes de enviar teste');
+
+      const dateKey = dataLocal(new Date(), setting.timezone || 'America/Sao_Paulo');
+      await this.queue().add(
+        'enviar',
+        { tenantId: req.user.tenantId, settingId: setting.id, dateKey, force: true },
+        {
+          jobId: `relatorio-teste:${setting.id}:${Date.now()}`,
+          removeOnComplete: 100,
+          removeOnFail: 200,
+        },
+      );
+      return { ok: true, message: 'Relatorio de teste enfileirado' };
+    });
+  }
 }
 
 function normalizarHorario(value: string) {
@@ -115,4 +152,17 @@ function normalizarCanal(value: string) {
   const canal = String(value || '').trim().toLowerCase();
   if (canal === 'whatsapp' || canal === 'email') return canal;
   throw new BadRequestException('Canal invalido');
+}
+
+function dataLocal(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find((p) => p.type === 'year')?.value || '1970';
+  const month = parts.find((p) => p.type === 'month')?.value || '01';
+  const day = parts.find((p) => p.type === 'day')?.value || '01';
+  return `${year}-${month}-${day}`;
 }

@@ -79,8 +79,29 @@ export async function rodarAgente(opts: {
   }
 
   if (opts.agente.provider === 'google') {
-    const r = await chamarGoogle({ apiKey, modelo: opts.agente.modelo, messages });
-    return { texto: r.texto, tokensIn: r.tokensIn, tokensOut: r.tokensOut, handoff: false };
+    let tokensIn = 0, tokensOut = 0;
+    const googleMessages: any[] = [...messages];
+
+    for (let i = 0; i < MAX_ITER; i++) {
+      const r = await chamarGoogle({ apiKey, modelo: opts.agente.modelo, messages: googleMessages, tools: TOOLS_SCHEMA });
+      tokensIn += r.tokensIn;
+      tokensOut += r.tokensOut;
+
+      if (r.toolCalls.length === 0) {
+        return { texto: r.texto, tokensIn, tokensOut, handoff: ctx.handoff };
+      }
+
+      googleMessages.push(r.message);
+      for (const tc of r.toolCalls) {
+        const resultado = await executarTool(ctx, tc.nome, tc.argumentos);
+        googleMessages.push({
+          role: 'user',
+          content: [{ functionResponse: { name: tc.nome, response: resultado } }],
+        });
+      }
+    }
+
+    return { texto: null, tokensIn, tokensOut, handoff: ctx.handoff };
   }
 
   if (opts.agente.provider !== 'openai') {

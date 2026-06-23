@@ -22,7 +22,6 @@ type AgentRow = {
   horario_ativo: boolean | null;
   horario_inicio: string | null;
   horario_fim: string | null;
-  horario_timezone: string | null;
   provider_default_model: string | null;
   provider_key_last4: string | null;
 };
@@ -32,7 +31,6 @@ type ReportSetting = {
   projeto_nome: string;
   ativo: boolean;
   horario: string;
-  timezone: string;
   canal: 'whatsapp' | 'email';
   destino: string;
   ultimo_envio_em: string | null;
@@ -60,7 +58,7 @@ const STATUS_OPTIONS = [
   {
     value: 'pausado',
     label: 'Pausado',
-    description: 'Pausa temporária: novas mensagens continuam no Inbox, sem resposta da IA.',
+    description: 'Novas mensagens continuam no Inbox, sem resposta da IA.',
   },
   {
     value: 'inativo',
@@ -92,6 +90,10 @@ function connectionTitle(row: AgentRow) {
   return formatPhone(row.whatsapp_number) || 'Número não identificado';
 }
 
+function isSuccessMessage(value: string) {
+  return /salvo|ativado|pausado|desativado|excluido|excluído|enfileirado|enviad/i.test(value);
+}
+
 export default function AgentesPage() {
   const { token, ready } = useStoredToken();
   const [rows, setRows] = useState<AgentRow[]>([]);
@@ -106,9 +108,6 @@ export default function AgentesPage() {
     horario_inicio: '08:00',
     horario_fim: '18:00',
   });
-  const [loading, setLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [msg, setMsg] = useState('');
   const [reportSettings, setReportSettings] = useState<Record<string, ReportSetting>>({});
   const [reportForm, setReportForm] = useState({
     ativo: false,
@@ -116,27 +115,26 @@ export default function AgentesPage() {
     canal: 'whatsapp' as 'whatsapp' | 'email',
     destino: '',
   });
+  const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [msg, setMsg] = useState('');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
   const selected = useMemo(() => rows.find((r) => r.projeto_id === selectedId) ?? rows[0], [rows, selectedId]);
   const selectedReport = selected ? reportSettings[selected.projeto_id] : null;
 
-  useEffect(() => {
-    if (token) carregar();
-  }, [token]);
+  useEffect(() => { if (token) carregar(); }, [token]);
 
   useEffect(() => {
     if (!selected) return;
     setSelectedId(selected.projeto_id);
-    const currentStatus = selected.agente_status === 'pausado' || selected.agente_status === 'inativo'
-      ? selected.agente_status
-      : 'ativo';
+    const provider = selected.provider || 'openai';
     setForm({
       prompt_sistema: selected.prompt_sistema || DEFAULT_PROMPT,
-      modelo: selected.modelo || selected.provider_default_model || PROVIDERS[selected.provider || 'openai']?.model || PROVIDERS.openai.model,
-      provider: selected.provider || 'openai',
+      modelo: selected.modelo || selected.provider_default_model || PROVIDERS[provider]?.model || PROVIDERS.openai.model,
+      provider,
       byok_key_ref: selected.byok_key_ref || '',
-      status: currentStatus,
+      status: selected.agente_status === 'pausado' || selected.agente_status === 'inativo' ? selected.agente_status : 'ativo',
       horario_ativo: Boolean(selected.horario_ativo),
       horario_inicio: selected.horario_inicio || '08:00',
       horario_fim: selected.horario_fim || '18:00',
@@ -171,39 +169,16 @@ export default function AgentesPage() {
         fetch(`${API}/agentes`, { headers: auth(token) }),
         fetch(`${API}/reports/settings`, { headers: auth(token) }),
       ]);
-      const d = await agentsResponse.json();
-      if (!agentsResponse.ok) throw new Error(d?.message || JSON.stringify(d));
+      const agents = await agentsResponse.json();
       const reports = await reportsResponse.json();
-      if (!reportsResponse.ok) throw new Error(reports?.message || JSON.stringify(reports));
-      setRows(d);
-      setReportSettings(Object.fromEntries((reports as ReportSetting[]).map((item) => [item.projeto_id, item])));
-      if (!selectedId && d[0]) setSelectedId(d[0].projeto_id);
+      if (!agentsResponse.ok) throw new Error(agents?.message || 'Falha ao carregar agentes');
+      if (!reportsResponse.ok) throw new Error(reports?.message || 'Falha ao carregar relatórios');
+      const list = Array.isArray(agents) ? agents : [];
+      setRows(list);
+      setReportSettings(Object.fromEntries((Array.isArray(reports) ? reports : []).map((item: ReportSetting) => [item.projeto_id, item])));
+      if (!selectedId && list[0]) setSelectedId(list[0].projeto_id);
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao carregar agentes');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function salvarRelatorio() {
-    if (!token || !selected) return;
-    setLoading(true);
-    setMsg('');
-    try {
-      const r = await fetch(`${API}/reports/settings/${selected.projeto_id}`, {
-        method: 'PUT',
-        headers: auth(token),
-        body: JSON.stringify({
-          ...reportForm,
-          timezone: 'America/Sao_Paulo',
-        }),
-      });
-      const d = await r.json();
-      if (!r.ok || d.ok === false) throw new Error(d?.message || JSON.stringify(d));
-      setMsg(reportForm.ativo ? 'Relatorio diario salvo e ativado.' : 'Relatorio diario salvo e desativado.');
-      await carregar({ preserveMessage: true });
-    } catch (e: any) {
-      setMsg(e?.message || 'Falha ao salvar relatorio diario');
     } finally {
       setLoading(false);
     }
@@ -220,14 +195,8 @@ export default function AgentesPage() {
         body: JSON.stringify(form),
       });
       const d = await r.json();
-      if (!r.ok || d.ok === false) throw new Error(d?.message || JSON.stringify(d));
-
-      const statusMsg = form.status === 'inativo'
-        ? 'Agente salvo e desativado.'
-        : form.status === 'pausado'
-          ? 'Agente salvo e pausado.'
-          : 'Agente salvo e ativado.';
-      setMsg(statusMsg);
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao salvar agente');
+      setMsg(form.status === 'inativo' ? 'Agente salvo e desativado.' : form.status === 'pausado' ? 'Agente salvo e pausado.' : 'Agente salvo e ativado.');
       await carregar({ preserveMessage: true });
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao salvar agente');
@@ -243,28 +212,56 @@ export default function AgentesPage() {
     setDeleting(true);
     setMsg('');
     try {
-      const r = await fetch(`${API}/agentes/${selected.projeto_id}`, {
-        method: 'DELETE',
-        headers: auth(token),
-      });
+      const r = await fetch(`${API}/agentes/${selected.projeto_id}`, { method: 'DELETE', headers: auth(token) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao excluir agente');
       setMsg(Number(d.deleted || 0) > 0 ? 'Agente excluído. A conexão WhatsApp foi mantida.' : 'Nenhuma configuração de agente encontrada para excluir.');
-      setForm({
-        prompt_sistema: DEFAULT_PROMPT,
-        modelo: PROVIDERS.openai.model,
-        provider: 'openai',
-        byok_key_ref: '',
-        status: 'ativo',
-        horario_ativo: false,
-        horario_inicio: '08:00',
-        horario_fim: '18:00',
-      });
       await carregar({ preserveMessage: true });
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao excluir agente');
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function salvarRelatorio() {
+    if (!token || !selected) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/reports/settings/${selected.projeto_id}`, {
+        method: 'PUT',
+        headers: auth(token),
+        body: JSON.stringify({ ...reportForm, timezone: 'America/Sao_Paulo' }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao salvar relatório');
+      setMsg(reportForm.ativo ? 'Relatório diário salvo e ativado.' : 'Relatório diário salvo e desativado.');
+      await carregar({ preserveMessage: true });
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao salvar relatório diário');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function enviarRelatorioTeste() {
+    if (!token || !selected) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/reports/settings/${selected.projeto_id}/test`, {
+        method: 'POST',
+        headers: auth(token),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao enfileirar teste');
+      setMsg('Relatório de teste enfileirado. O worker fará o envio em instantes.');
+      await carregar({ preserveMessage: true });
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao enviar relatório de teste');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -303,7 +300,6 @@ export default function AgentesPage() {
                   <b>{row.projeto_nome}</b>
                   <small>{connectionTitle(row)}</small>
                   <small>Instância: {row.phone_number_id || 'sem conexão'}</small>
-                  <small>{row.transporte_driver}</small>
                 </span>
                 <i className={row.agente_status === 'ativo' ? 'ok' : row.agente_status === 'inativo' ? 'off' : ''}>
                   {row.agente_status || 'sem agente'}
@@ -322,16 +318,10 @@ export default function AgentesPage() {
                     <p className="muted">WhatsApp / {connectionTitle(selected)}</p>
                     <p className="faint">Instância Evolution: {selected.phone_number_id || 'sem rota'}</p>
                   </div>
-                  <span className={`nl-badge ${badgeClass(selected.agente_status)}`}>
-                    {selected.agente_status || 'sem agente'}
-                  </span>
+                  <span className={`nl-badge ${badgeClass(selected.agente_status)}`}>{selected.agente_status || 'sem agente'}</span>
                 </div>
 
-                {msg && (
-                  <div className={`nl-agent-feedback ${msg.includes('salvo') || msg.includes('excluído') || msg.includes('Nenhuma configuração') ? 'ok' : 'error'}`}>
-                    {msg}
-                  </div>
-                )}
+                {msg && <div className={`nl-agent-feedback ${isSuccessMessage(msg) ? 'ok' : 'error'}`}>{msg}</div>}
 
                 <div className="nl-agent-link-card">
                   <div>
@@ -341,8 +331,7 @@ export default function AgentesPage() {
                   <select className="nl-select" value={selected.projeto_id} onChange={(e) => setSelectedId(e.target.value)}>
                     {rows.map((row) => (
                       <option key={row.projeto_id} value={row.projeto_id}>
-                        {row.projeto_nome} - {connectionTitle(row)}
-                        {row.phone_number_id ? ` - instância ${row.phone_number_id}` : ''}
+                        {row.projeto_nome} - {connectionTitle(row)}{row.phone_number_id ? ` - instância ${row.phone_number_id}` : ''}
                       </option>
                     ))}
                   </select>
@@ -384,23 +373,11 @@ export default function AgentesPage() {
                     <div className="nl-agent-schedule__times">
                       <div>
                         <label className="nl-label">Início</label>
-                        <input
-                          className="nl-input"
-                          type="time"
-                          value={form.horario_inicio}
-                          disabled={!form.horario_ativo}
-                          onChange={(e) => setForm({ ...form, horario_inicio: e.target.value })}
-                        />
+                        <input className="nl-input" type="time" value={form.horario_inicio} disabled={!form.horario_ativo} onChange={(e) => setForm({ ...form, horario_inicio: e.target.value })} />
                       </div>
                       <div>
                         <label className="nl-label">Fim</label>
-                        <input
-                          className="nl-input"
-                          type="time"
-                          value={form.horario_fim}
-                          disabled={!form.horario_ativo}
-                          onChange={(e) => setForm({ ...form, horario_fim: e.target.value })}
-                        />
+                        <input className="nl-input" type="time" value={form.horario_fim} disabled={!form.horario_ativo} onChange={(e) => setForm({ ...form, horario_fim: e.target.value })} />
                       </div>
                     </div>
                   </div>
@@ -409,40 +386,24 @@ export default function AgentesPage() {
                 <div className="nl-agent-report-card">
                   <div className="nl-agent-report-card__head">
                     <div>
-                      <div className="eyebrow">Relatorio diario</div>
-                      <h3>Resumo automatico da operacao</h3>
-                      <p className="muted">
-                        Envia um resumo do dia com conversas, mensagens, respostas da IA, novos contatos,
-                        agendamentos e handoffs.
-                      </p>
+                      <div className="eyebrow">Relatório diário</div>
+                      <h3>Resumo automático da operação</h3>
+                      <p className="muted">Envia conversas, respostas da IA, novos contatos, agendamentos e handoffs para WhatsApp ou e-mail.</p>
                     </div>
                     <label className="nl-switch">
-                      <input
-                        type="checkbox"
-                        checked={reportForm.ativo}
-                        onChange={(e) => setReportForm({ ...reportForm, ativo: e.target.checked })}
-                      />
+                      <input type="checkbox" checked={reportForm.ativo} onChange={(e) => setReportForm({ ...reportForm, ativo: e.target.checked })} />
                       <span>{reportForm.ativo ? 'Ativo' : 'Inativo'}</span>
                     </label>
                   </div>
 
                   <div className="nl-grid nl-agent-report-grid">
                     <div>
-                      <label className="nl-label">Horario de envio</label>
-                      <input
-                        className="nl-input"
-                        type="time"
-                        value={reportForm.horario}
-                        onChange={(e) => setReportForm({ ...reportForm, horario: e.target.value })}
-                      />
+                      <label className="nl-label">Horário de envio</label>
+                      <input className="nl-input" type="time" value={reportForm.horario} onChange={(e) => setReportForm({ ...reportForm, horario: e.target.value })} />
                     </div>
                     <div>
                       <label className="nl-label">Canal</label>
-                      <select
-                        className="nl-select"
-                        value={reportForm.canal}
-                        onChange={(e) => setReportForm({ ...reportForm, canal: e.target.value as 'whatsapp' | 'email', destino: '' })}
-                      >
+                      <select className="nl-select" value={reportForm.canal} onChange={(e) => setReportForm({ ...reportForm, canal: e.target.value as 'whatsapp' | 'email', destino: '' })}>
                         <option value="whatsapp">WhatsApp</option>
                         <option value="email">E-mail</option>
                       </select>
@@ -456,16 +417,15 @@ export default function AgentesPage() {
                         placeholder={reportForm.canal === 'whatsapp' ? '5511999999999' : 'gestor@empresa.com'}
                       />
                     </div>
-                    <div className="nl-agent-report-action">
-                      <button className="nl-btn nl-btn--ghost" onClick={salvarRelatorio} disabled={loading}>
-                        Salvar relatorio
-                      </button>
+                    <div className="nl-agent-report-action" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button className="nl-btn nl-btn--ghost" onClick={salvarRelatorio} disabled={loading}>Salvar relatório</button>
+                      <button className="nl-btn nl-btn--accent" onClick={enviarRelatorioTeste} disabled={loading}>Enviar teste</button>
                     </div>
                   </div>
                   <div className="faint">
                     {selectedReport?.ultimo_envio_em
-                      ? `Ultimo envio: ${new Date(selectedReport.ultimo_envio_em).toLocaleString('pt-BR')}`
-                      : 'Ainda nenhum relatorio foi enviado.'}
+                      ? `Último envio: ${new Date(selectedReport.ultimo_envio_em).toLocaleString('pt-BR')}`
+                      : 'Ainda nenhum relatório foi enviado.'}
                     {selectedReport?.ultimo_erro ? ` Erro recente: ${selectedReport.ultimo_erro}` : ''}
                   </div>
                 </div>
@@ -494,7 +454,7 @@ export default function AgentesPage() {
                 <div className="nl-card nl-card--pad" style={{ background: 'rgba(21,101,255,0.06)', marginBottom: 14 }}>
                   <b>Chave {PROVIDERS[form.provider]?.keyPageLabel || 'IA'}</b>
                   <p className="muted" style={{ margin: '6px 0 12px', fontSize: '0.9rem' }}>
-                    Configure, teste e salve a chave em IA e Custos. OpenAI e Anthropic executam ferramentas como agenda; Google responde texto.
+                    Configure, teste e salve a chave em IA e Custos. OpenAI, Anthropic e Google executam ferramentas como agenda, base de conhecimento e handoff.
                     {selected.provider_key_last4 ? ` Chave salva: ****${selected.provider_key_last4}.` : ''}
                   </p>
                   <a className="nl-btn nl-btn--ghost nl-btn--sm" href="/ai-settings">Abrir IA e Custos</a>
@@ -510,26 +470,17 @@ export default function AgentesPage() {
                 />
 
                 <label className="nl-label">Prompt do sistema</label>
-                <textarea
-                  className="nl-textarea"
-                  value={form.prompt_sistema}
-                  onChange={(e) => setForm({ ...form, prompt_sistema: e.target.value })}
-                />
+                <textarea className="nl-textarea" value={form.prompt_sistema} onChange={(e) => setForm({ ...form, prompt_sistema: e.target.value })} />
 
                 <div className="nl-agent-actions">
                   <span className="faint">O worker responde somente quando o agente está ativo e dentro do horário configurado.</span>
                   <div className="nl-row" style={{ gap: 8 }}>
-                    <button
-                      className="nl-btn nl-btn--danger"
-                      onClick={excluirAgente}
-                      disabled={loading || deleting}
-                    >
+                    <button className="nl-btn nl-btn--danger" onClick={excluirAgente} disabled={loading || deleting}>
                       {deleting ? 'Excluindo...' : 'Excluir agente'}
                     </button>
                     <button className="nl-btn nl-btn--accent" onClick={salvar} disabled={loading || deleting}>Salvar agente</button>
                   </div>
                 </div>
-
               </>
             )}
           </section>

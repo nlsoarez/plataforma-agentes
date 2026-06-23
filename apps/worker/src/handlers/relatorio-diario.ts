@@ -10,6 +10,7 @@ type ReportJob = {
   tenantId: string;
   settingId: string;
   dateKey: string;
+  force?: boolean;
 };
 
 type SettingRow = {
@@ -77,9 +78,9 @@ export async function tratarRelatorioDiario(job: ReportJob) {
               s.timezone, s.canal, s.destino, to_char(s.horario, 'HH24:MI') as horario
          from agent_report_settings s
          join projetos p on p.id=s.projeto_id and p.tenant_id=s.tenant_id
-        where s.id=$1 and s.tenant_id=$2 and s.ativo=true
+        where s.id=$1 and s.tenant_id=$2 and (s.ativo=true or $3::boolean=true)
         limit 1`,
-      [job.settingId, job.tenantId],
+      [job.settingId, job.tenantId, Boolean(job.force)],
     )).rows[0] as SettingRow | undefined;
     if (!setting) return;
 
@@ -196,6 +197,22 @@ function formatarResumo(setting: SettingRow, dateKey: string, resumo: Record<str
 }
 
 async function enviarEmailRelatorio(to: string, subject: string, text: string) {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    const from = process.env.REPORT_FROM_EMAIL || process.env.MAIL_FROM || 'Comunora <no-reply@comunora.com.br>';
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to, subject, text }),
+    });
+    const body = await response.text().catch(() => '');
+    if (!response.ok) throw new Error(`Resend ${response.status}: ${body.slice(0, 500)}`);
+    return;
+  }
+
   const url = process.env.REPORT_EMAIL_WEBHOOK_URL;
   if (!url) throw new Error('REPORT_EMAIL_WEBHOOK_URL nao configurado para envio por e-mail');
 

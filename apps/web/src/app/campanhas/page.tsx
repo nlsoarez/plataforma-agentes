@@ -36,6 +36,7 @@ export default function Campanhas() {
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
   const projetoAtual = useMemo(() => projetos.find((p) => p.id === projetoId), [projetos, projetoId]);
+  const conexaoPronta = Boolean(projetoAtual?.phone_number_id);
   const filteredLeads = useMemo(() => {
     const q = busca.trim().toLowerCase();
     if (!q) return leads;
@@ -57,9 +58,7 @@ export default function Campanhas() {
       });
   }, [token]);
 
-  useEffect(() => {
-    if (projetoId) carregar();
-  }, [projetoId]);
+  useEffect(() => { if (projetoId) carregar(); }, [projetoId]);
 
   async function carregar() {
     if (!token || !projetoId) return;
@@ -89,6 +88,10 @@ export default function Campanhas() {
 
   async function enviar() {
     if (!token || !projetoId || !texto.trim()) return;
+    if (!conexaoPronta) {
+      setMsg('Conecte um WhatsApp antes de iniciar uma campanha.');
+      return;
+    }
     if (!selectedLeads.length && !tags.trim()) {
       setMsg('Selecione pelo menos um lead ou informe uma tag.');
       return;
@@ -105,7 +108,7 @@ export default function Campanhas() {
         body: JSON.stringify({ projetoId, texto, segmento }),
       });
       const d = await r.json();
-      if (!r.ok || d.ok === false) throw new Error(d?.message || JSON.stringify(d));
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao criar campanha');
       setMsg(`Campanha enfileirada para ${d.total} lead(s).`);
       setTexto('');
       setTags('');
@@ -142,6 +145,7 @@ export default function Campanhas() {
                   <option key={p.id} value={p.id}>{p.nome} - {p.phone_number_id || 'sem instância'}</option>
                 ))}
               </select>
+              {!conexaoPronta && <div className="nl-error">Esta conexão ainda não tem instância WhatsApp pronta.</div>}
             </div>
             <div className="nl-campaign-target">
               <span>Destinatários</span>
@@ -162,13 +166,7 @@ export default function Campanhas() {
           </div>
 
           <label className="nl-label">Tags opcionais</label>
-          <input
-            className="nl-input"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            placeholder="lead-quente, sp"
-            style={{ marginBottom: 14 }}
-          />
+          <input className="nl-input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="lead-quente, sp" style={{ marginBottom: 14 }} />
 
           <div className="nl-campaign-leads">
             <div className="nl-row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
@@ -178,12 +176,8 @@ export default function Campanhas() {
               </div>
               <div className="nl-row">
                 <input className="nl-input nl-input--search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar lead..." />
-                <button className="nl-btn nl-btn--ghost nl-btn--sm" type="button" onClick={selecionarVisiveis} disabled={!filteredLeads.length}>
-                  Selecionar visíveis
-                </button>
-                <button className="nl-btn nl-btn--ghost nl-btn--sm" type="button" onClick={() => setSelectedLeads([])} disabled={!selectedLeads.length}>
-                  Limpar
-                </button>
+                <button className="nl-btn nl-btn--ghost nl-btn--sm" type="button" onClick={selecionarVisiveis} disabled={!filteredLeads.length}>Selecionar visíveis</button>
+                <button className="nl-btn nl-btn--ghost nl-btn--sm" type="button" onClick={() => setSelectedLeads([])} disabled={!selectedLeads.length}>Limpar</button>
               </div>
             </div>
 
@@ -204,7 +198,7 @@ export default function Campanhas() {
 
           <div className="nl-row" style={{ justifyContent: 'space-between', marginTop: 16 }}>
             <span className="faint">Campanhas são enfileiradas e enviadas pelo worker.</span>
-            <button className="nl-btn nl-btn--accent" onClick={enviar} disabled={loading || !texto.trim() || (!selectedLeads.length && !tags.trim())}>
+            <button className="nl-btn nl-btn--accent" onClick={enviar} disabled={loading || !conexaoPronta || !texto.trim() || (!selectedLeads.length && !tags.trim())}>
               {loading ? 'Enfileirando...' : 'Disparar campanha'}
             </button>
           </div>

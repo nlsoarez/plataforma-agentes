@@ -16,6 +16,8 @@ export class CampanhasService {
       const proj = await q(`select phone_number_id from projetos where id=$1`, [dto.projetoId]);
       if (!proj.rows[0]) throw new NotFoundException('projeto nao encontrado');
       const phoneNumberId = proj.rows[0].phone_number_id;
+      if (!phoneNumberId) throw new BadRequestException('Conecte um WhatsApp antes de iniciar uma campanha');
+      if (!String(dto.texto || '').trim()) throw new BadRequestException('Informe a mensagem da campanha');
 
       const camp = await q(
         `insert into campanhas (tenant_id, projeto_id, template_nome, segmento, status)
