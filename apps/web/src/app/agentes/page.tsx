@@ -494,7 +494,7 @@ export default function AgentesPage() {
                 <div className="nl-card nl-card--pad" style={{ background: 'rgba(21,101,255,0.06)', marginBottom: 14 }}>
                   <b>Chave {PROVIDERS[form.provider]?.keyPageLabel || 'IA'}</b>
                   <p className="muted" style={{ margin: '6px 0 12px', fontSize: '0.9rem' }}>
-                    Configure, teste e salve a chave em IA e Custos. Anthropic e Google respondem texto; tools avançadas ainda ficam no OpenAI.
+                    Configure, teste e salve a chave em IA e Custos. OpenAI e Anthropic executam ferramentas como agenda; Google responde texto.
                     {selected.provider_key_last4 ? ` Chave salva: ****${selected.provider_key_last4}.` : ''}
                   </p>
                   <a className="nl-btn nl-btn--ghost nl-btn--sm" href="/ai-settings">Abrir IA e Custos</a>

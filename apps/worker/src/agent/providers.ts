@@ -1,6 +1,6 @@
 import type { RespostaLlm } from './openai';
 
-type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: any };
 
 const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 let anthropicModelFallback: string | null = null;
@@ -37,7 +37,13 @@ async function resolverFallbackAnthropic(apiKey: string) {
   return anthropicModelFallback;
 }
 
-async function postAnthropic(opts: { apiKey: string; modelo: string; system: string; messages: { role: string; content: string }[] }) {
+async function postAnthropic(opts: {
+  apiKey: string;
+  modelo: string;
+  system: string;
+  messages: { role: string; content: any }[];
+  tools?: readonly unknown[];
+}) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -50,6 +56,7 @@ async function postAnthropic(opts: { apiKey: string; modelo: string; system: str
       max_tokens: 800,
       system: opts.system,
       messages: opts.messages,
+      tools: opts.tools ? anthropicTools(opts.tools) : undefined,
     }),
   });
   const data = await lerJsonOuTexto(res);
@@ -59,34 +66,55 @@ async function postAnthropic(opts: { apiKey: string; modelo: string; system: str
   return data as any;
 }
 
-export async function chamarAnthropic(opts: { apiKey: string; modelo: string; messages: ChatMessage[] }): Promise<RespostaLlm> {
+export async function chamarAnthropic(opts: {
+  apiKey: string;
+  modelo: string;
+  messages: ChatMessage[];
+  tools?: readonly unknown[];
+}): Promise<RespostaLlm> {
   const system = opts.messages.find((m) => m.role === 'system')?.content ?? '';
   const messages = opts.messages
     .filter((m) => m.role !== 'system')
-    .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+    .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: normalizarConteudoAnthropic(m.content) }));
 
   const modelo = opts.modelo || DEFAULT_ANTHROPIC_MODEL;
   let data: any;
   try {
-    data = await postAnthropic({ apiKey: opts.apiKey, modelo, system, messages });
+    data = await postAnthropic({ apiKey: opts.apiKey, modelo, system, messages, tools: opts.tools });
   } catch (err: any) {
     const message = String(err?.message || '');
     if (!message.includes('anthropic 404') || !message.includes('model')) throw err;
     const fallback = await resolverFallbackAnthropic(opts.apiKey);
-    data = await postAnthropic({ apiKey: opts.apiKey, modelo: fallback, system, messages });
+    data = await postAnthropic({ apiKey: opts.apiKey, modelo: fallback, system, messages, tools: opts.tools });
   }
   const texto = (data.content ?? [])
     .filter((item: any) => item.type === 'text')
     .map((item: any) => item.text)
     .join('\n')
     .trim() || null;
+  const toolCalls = (data.content ?? [])
+    .filter((item: any) => item.type === 'tool_use')
+    .map((item: any) => ({ id: item.id, nome: item.name, argumentos: item.input || {} }));
   return {
-    message: { role: 'assistant', content: texto },
-    toolCalls: [],
+    message: { role: 'assistant', content: data.content ?? [] },
+    toolCalls,
     texto,
     tokensIn: data.usage?.input_tokens ?? 0,
     tokensOut: data.usage?.output_tokens ?? 0,
   };
+}
+
+function anthropicTools(tools: readonly unknown[]) {
+  return tools.map((tool: any) => ({
+    name: tool.function?.name,
+    description: tool.function?.description,
+    input_schema: tool.function?.parameters || { type: 'object', properties: {} },
+  })).filter((tool: any) => tool.name);
+}
+
+function normalizarConteudoAnthropic(content: any) {
+  if (Array.isArray(content)) return content;
+  return String(content ?? '');
 }
 
 export async function chamarGoogle(opts: { apiKey: string; modelo: string; messages: ChatMessage[] }): Promise<RespostaLlm> {
