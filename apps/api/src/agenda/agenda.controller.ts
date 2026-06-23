@@ -1,6 +1,11 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import {
+  excluirEventoGoogleCalendar,
+  sincronizarAgendamentoGoogleCalendar,
+  verificarDisponibilidadeGoogleCalendarTenant,
+} from './google-calendar-sync';
 
 type AgendaDto = {
   projetoId?: string;
@@ -48,6 +53,10 @@ export class AgendaController {
 
       await validarContato(q, req.user.tenantId, projetoId, body.contatoId);
       await assertSemConflito(q, req.user.tenantId, projetoId, inicio, fim);
+      const googleBusy = await verificarDisponibilidadeGoogleCalendarTenant(q, req.user.tenantId, inicio, duracao);
+      if (googleBusy && !googleBusy.available) {
+        throw new BadRequestException('Horario indisponivel: ja existe evento neste periodo no Google Calendar conectado');
+      }
 
       const r = await q(
         `insert into agendamentos (
@@ -65,7 +74,15 @@ export class AgendaController {
           body.descricao || null,
         ],
       );
-      return { ok: true, agendamento: r.rows[0] };
+      const agendamento = r.rows[0];
+      const sync = await sincronizarAgendamentoGoogleCalendar(q, req.user.tenantId, agendamento.id, {
+        summary: await resumoAgendamento(q, projetoId, body.contatoId, body.descricao),
+        description: body.descricao || null,
+        startsAt: inicio,
+        durationMinutes: agendamento.duracao_minutos,
+      });
+      const atualizado = await buscarAgendamento(q, req.user.tenantId, agendamento.id);
+      return { ok: true, agendamento: atualizado || agendamento, calendarSync: sync };
     });
   }
 
@@ -73,7 +90,7 @@ export class AgendaController {
   atualizar(@Param('id') id: string, @Body() body: AgendaDto, @Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       const atual = (await q(
-        `select id, projeto_id, contato_id, inicio_em, fim_em, duracao_minutos, descricao
+        `select id, projeto_id, contato_id, inicio_em, fim_em, duracao_minutos, descricao, provider_ref
            from agendamentos
           where id=$1 and tenant_id=$2
           limit 1`,
@@ -89,6 +106,12 @@ export class AgendaController {
       await validarProjeto(q, req.user.tenantId, projetoId);
       await validarContato(q, req.user.tenantId, projetoId, body.contatoId ?? atual.contato_id);
       await assertSemConflito(q, req.user.tenantId, projetoId, inicio, fim, id);
+      if (!atual.provider_ref) {
+        const googleBusy = await verificarDisponibilidadeGoogleCalendarTenant(q, req.user.tenantId, inicio, duracao);
+        if (googleBusy && !googleBusy.available) {
+          throw new BadRequestException('Horario indisponivel: ja existe evento neste periodo no Google Calendar conectado');
+        }
+      }
 
       const status = normalizarStatus(body.status);
       const r = await q(
@@ -115,21 +138,43 @@ export class AgendaController {
           req.user.tenantId,
         ],
       );
-      return { ok: true, agendamento: r.rows[0] };
+      const agendamento = r.rows[0];
+      let sync = null;
+      if (agendamento.status !== 'cancelado') {
+        sync = await sincronizarAgendamentoGoogleCalendar(q, req.user.tenantId, agendamento.id, {
+          summary: await resumoAgendamento(q, projetoId, body.contatoId ?? atual.contato_id, agendamento.descricao),
+          description: agendamento.descricao || null,
+          startsAt: inicio,
+          durationMinutes: agendamento.duracao_minutos,
+          providerRef: agendamento.provider_ref,
+        });
+      }
+      const atualizado = await buscarAgendamento(q, req.user.tenantId, agendamento.id);
+      return { ok: true, agendamento: atualizado || agendamento, calendarSync: sync };
     });
   }
 
   @Delete(':id')
   cancelar(@Param('id') id: string, @Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
+      const atual = (await q(
+        `select id, provider_ref
+           from agendamentos
+          where id=$1 and tenant_id=$2
+          limit 1`,
+        [id, req.user.tenantId],
+      )).rows[0];
+      const sync = atual ? await excluirEventoGoogleCalendar(q, req.user.tenantId, atual.provider_ref) : { ok: true };
       const r = await q(
         `update agendamentos
-            set status='cancelado', atualizado_em=now()
+            set status='cancelado',
+                erro=case when $3::text is null then null else $3 end,
+                atualizado_em=now()
           where id=$1 and tenant_id=$2
           returning id`,
-        [id, req.user.tenantId],
+        [id, req.user.tenantId, sync.ok ? null : sync.error || 'falha ao cancelar evento externo'],
       );
-      return { ok: true, updated: r.rowCount ?? r.rows.length };
+      return { ok: true, updated: r.rowCount ?? r.rows.length, calendarSync: sync };
     });
   }
 }
@@ -183,4 +228,22 @@ async function assertSemConflito(q: any, tenantId: string, projetoId: string, in
   if (conflito.rows[0]) {
     throw new BadRequestException('Horario indisponivel: ja existe agendamento neste periodo');
   }
+}
+
+async function resumoAgendamento(q: any, projetoId: string, contatoId?: string | null, descricao?: string | null) {
+  const projeto = (await q(`select nome from projetos where id=$1`, [projetoId])).rows[0];
+  const contato = contatoId ? (await q(`select nome, telefone from contatos where id=$1`, [contatoId])).rows[0] : null;
+  const alvo = contato?.nome || contato?.telefone || projeto?.nome || 'Agenda';
+  const titulo = String(descricao || '').split(/\r?\n/)[0].trim();
+  return titulo ? `${alvo}: ${titulo}` : `Atendimento Comunora - ${alvo}`;
+}
+
+async function buscarAgendamento(q: any, tenantId: string, id: string) {
+  return (await q(
+    `select id, projeto_id, contato_id, inicio_em, fim_em, duracao_minutos, descricao, status, provider, provider_ref, erro
+       from agendamentos
+      where id=$1 and tenant_id=$2
+      limit 1`,
+    [id, tenantId],
+  )).rows[0];
 }

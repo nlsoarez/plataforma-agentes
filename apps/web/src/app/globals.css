@@ -214,6 +214,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
 .nl-badge--accent { background: rgba(21, 101, 255, 0.12); color: #16A34A; }
 .nl-badge--ok { background: rgba(22, 140, 80, 0.12); color: var(--green); }
 .nl-badge--warn { background: rgba(196, 120, 0, 0.14); color: #b4690e; }
+.nl-badge--danger { background: rgba(239, 68, 68, 0.12); color: var(--error); }
 .nl-badge--off,
 .nl-badge--muted { background: rgba(82, 96, 112, 0.12); color: var(--ink-faint); }
 

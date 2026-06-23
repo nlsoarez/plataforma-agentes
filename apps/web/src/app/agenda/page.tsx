@@ -24,6 +24,13 @@ type Agendamento = {
   erro: string | null;
 };
 
+type CalendarSync =
+  | { status: 'sincronizado'; providerRef?: string }
+  | { status: 'pendente'; reason?: string }
+  | { status: 'falha'; error?: string }
+  | null
+  | undefined;
+
 function localInputValue(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
@@ -41,6 +48,18 @@ function formatPhone(value?: string | null) {
     if (rest.length === 8) return `+55 (${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
   }
   return digits ? `+${digits}` : '-';
+}
+
+function syncMessage(sync: CalendarSync, fallback: string) {
+  if (!sync) return fallback;
+  if (sync.status === 'sincronizado') return `${fallback} Google Calendar sincronizado.`;
+  if (sync.status === 'pendente') {
+    return `${fallback} Ficou salvo localmente, mas ainda nao foi para o Google Calendar: ${sync.reason || 'integre o Google Calendar.'}`;
+  }
+  if (sync.status === 'falha') {
+    return `${fallback} Falha ao sincronizar Google Calendar: ${sync.error || 'erro desconhecido'}`;
+  }
+  return fallback;
 }
 
 export default function AgendaPage() {
@@ -151,7 +170,7 @@ export default function AgendaPage() {
       });
       const d = await r.json();
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao salvar agendamento');
-      setMsg(editingId ? 'Agendamento atualizado.' : 'Agendamento criado.');
+      setMsg(syncMessage(d.calendarSync, editingId ? 'Agendamento atualizado.' : 'Agendamento criado.'));
       limparForm();
       await carregarTudo();
     } catch (e: any) {
@@ -170,10 +189,39 @@ export default function AgendaPage() {
       const r = await fetch(`${API}/agenda/${id}`, { method: 'DELETE', headers: auth(token) });
       const d = await r.json();
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao cancelar agendamento');
-      setMsg('Agendamento cancelado.');
+      setMsg(d.calendarSync?.ok === false
+        ? `Agendamento cancelado localmente. Falha ao remover do Google Calendar: ${d.calendarSync?.error || 'erro desconhecido'}`
+        : 'Agendamento cancelado.');
       await carregarTudo();
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao cancelar agendamento');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function sincronizarItem(item: Agendamento) {
+    if (!token) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/agenda/${item.id}`, {
+        method: 'PUT',
+        headers: auth(token),
+        body: JSON.stringify({
+          projetoId: item.projeto_id,
+          contatoId: item.contato_id || null,
+          inicioEm: item.inicio_em,
+          duracaoMinutos: item.duracao_minutos || 60,
+          descricao: item.descricao || '',
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao sincronizar agendamento');
+      setMsg(syncMessage(d.calendarSync, 'Agendamento reprocessado.'));
+      await carregarTudo();
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao sincronizar agendamento');
     } finally {
       setLoading(false);
     }
@@ -244,7 +292,7 @@ export default function AgendaPage() {
               {editingId ? 'Salvar alteracoes' : 'Criar agendamento'}
             </button>
           </div>
-          {msg && <p className={msg.includes('Falha') || msg.includes('Horario') || msg.includes('Informe') ? 'nl-error' : 'nl-success'}>{msg}</p>}
+          {msg && <p className={msg.includes('Falha') || msg.includes('Horario') || msg.includes('Informe') || msg.includes('Ficou salvo localmente') ? 'nl-error' : 'nl-success'}>{msg}</p>}
         </section>
 
         <section className="nl-card" style={{ overflow: 'hidden' }}>
@@ -278,12 +326,19 @@ export default function AgendaPage() {
                   <td>{item.contato_nome || formatPhone(item.telefone)}</td>
                   <td>{item.projeto_nome}</td>
                   <td style={{ maxWidth: 280 }}>{item.descricao || '-'}</td>
-                  <td><span className={`nl-badge ${item.status === 'sincronizado' ? 'nl-badge--ok' : item.status === 'cancelado' ? 'nl-badge--off' : 'nl-badge--warn'}`}>{item.status}</span></td>
+                  <td>
+                    <span className={`nl-badge ${item.status === 'sincronizado' ? 'nl-badge--ok' : item.status === 'cancelado' ? 'nl-badge--off' : item.status === 'falha' ? 'nl-badge--danger' : 'nl-badge--warn'}`}>
+                      {item.status}
+                    </span>
+                  </td>
                   <td>{item.provider || '-'}</td>
                   <td style={{ maxWidth: 220 }}>{item.erro || '-'}</td>
                   <td>
                     <div className="nl-row" style={{ gap: 8 }}>
                       <button className="nl-btn nl-btn--ghost nl-btn--sm" onClick={() => editar(item)}>Editar</button>
+                      {(item.status === 'pendente' || item.status === 'falha') && (
+                        <button className="nl-btn nl-btn--ghost nl-btn--sm" onClick={() => sincronizarItem(item)}>Sincronizar</button>
+                      )}
                       {item.status !== 'cancelado' && (
                         <button className="nl-btn nl-btn--danger nl-btn--sm" onClick={() => cancelar(item.id)}>Cancelar</button>
                       )}
