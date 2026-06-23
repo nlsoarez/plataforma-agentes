@@ -7,7 +7,10 @@ import { assinarEstadoGoogleCalendarOAuth, verificarEstadoGoogleCalendarOAuth } 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
-const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const CALENDAR_SCOPE = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.freebusy',
+].join(' ');
 
 interface GoogleTokenResponse {
   access_token?: string;

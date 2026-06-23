@@ -27,6 +27,18 @@ type AgentRow = {
   provider_key_last4: string | null;
 };
 
+type ReportSetting = {
+  projeto_id: string;
+  projeto_nome: string;
+  ativo: boolean;
+  horario: string;
+  timezone: string;
+  canal: 'whatsapp' | 'email';
+  destino: string;
+  ultimo_envio_em: string | null;
+  ultimo_erro: string | null;
+};
+
 const DEFAULT_PROMPT = `Você é um atendente objetivo, educado e comercial.
 Responda em português do Brasil.
 Faça perguntas curtas para entender a necessidade do lead.
@@ -97,9 +109,17 @@ export default function AgentesPage() {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState('');
+  const [reportSettings, setReportSettings] = useState<Record<string, ReportSetting>>({});
+  const [reportForm, setReportForm] = useState({
+    ativo: false,
+    horario: '18:00',
+    canal: 'whatsapp' as 'whatsapp' | 'email',
+    destino: '',
+  });
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
   const selected = useMemo(() => rows.find((r) => r.projeto_id === selectedId) ?? rows[0], [rows, selectedId]);
+  const selectedReport = selected ? reportSettings[selected.projeto_id] : null;
 
   useEffect(() => {
     if (token) carregar();
@@ -123,6 +143,17 @@ export default function AgentesPage() {
     });
   }, [selected?.projeto_id]);
 
+  useEffect(() => {
+    if (!selected) return;
+    const current = reportSettings[selected.projeto_id];
+    setReportForm({
+      ativo: Boolean(current?.ativo),
+      horario: current?.horario || '18:00',
+      canal: current?.canal || 'whatsapp',
+      destino: current?.destino || '',
+    });
+  }, [selected?.projeto_id, reportSettings]);
+
   function trocarProvider(provider: string) {
     setForm((current) => ({
       ...current,
@@ -136,13 +167,43 @@ export default function AgentesPage() {
     setLoading(true);
     if (!options?.preserveMessage) setMsg('');
     try {
-      const r = await fetch(`${API}/agentes`, { headers: auth(token) });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d?.message || JSON.stringify(d));
+      const [agentsResponse, reportsResponse] = await Promise.all([
+        fetch(`${API}/agentes`, { headers: auth(token) }),
+        fetch(`${API}/reports/settings`, { headers: auth(token) }),
+      ]);
+      const d = await agentsResponse.json();
+      if (!agentsResponse.ok) throw new Error(d?.message || JSON.stringify(d));
+      const reports = await reportsResponse.json();
+      if (!reportsResponse.ok) throw new Error(reports?.message || JSON.stringify(reports));
       setRows(d);
+      setReportSettings(Object.fromEntries((reports as ReportSetting[]).map((item) => [item.projeto_id, item])));
       if (!selectedId && d[0]) setSelectedId(d[0].projeto_id);
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao carregar agentes');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function salvarRelatorio() {
+    if (!token || !selected) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/reports/settings/${selected.projeto_id}`, {
+        method: 'PUT',
+        headers: auth(token),
+        body: JSON.stringify({
+          ...reportForm,
+          timezone: 'America/Sao_Paulo',
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || JSON.stringify(d));
+      setMsg(reportForm.ativo ? 'Relatorio diario salvo e ativado.' : 'Relatorio diario salvo e desativado.');
+      await carregar({ preserveMessage: true });
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao salvar relatorio diario');
     } finally {
       setLoading(false);
     }
@@ -342,6 +403,70 @@ export default function AgentesPage() {
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <div className="nl-agent-report-card">
+                  <div className="nl-agent-report-card__head">
+                    <div>
+                      <div className="eyebrow">Relatorio diario</div>
+                      <h3>Resumo automatico da operacao</h3>
+                      <p className="muted">
+                        Envia um resumo do dia com conversas, mensagens, respostas da IA, novos contatos,
+                        agendamentos e handoffs.
+                      </p>
+                    </div>
+                    <label className="nl-switch">
+                      <input
+                        type="checkbox"
+                        checked={reportForm.ativo}
+                        onChange={(e) => setReportForm({ ...reportForm, ativo: e.target.checked })}
+                      />
+                      <span>{reportForm.ativo ? 'Ativo' : 'Inativo'}</span>
+                    </label>
+                  </div>
+
+                  <div className="nl-grid nl-agent-report-grid">
+                    <div>
+                      <label className="nl-label">Horario de envio</label>
+                      <input
+                        className="nl-input"
+                        type="time"
+                        value={reportForm.horario}
+                        onChange={(e) => setReportForm({ ...reportForm, horario: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="nl-label">Canal</label>
+                      <select
+                        className="nl-select"
+                        value={reportForm.canal}
+                        onChange={(e) => setReportForm({ ...reportForm, canal: e.target.value as 'whatsapp' | 'email', destino: '' })}
+                      >
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="email">E-mail</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="nl-label">{reportForm.canal === 'whatsapp' ? 'WhatsApp destino' : 'E-mail destino'}</label>
+                      <input
+                        className="nl-input"
+                        value={reportForm.destino}
+                        onChange={(e) => setReportForm({ ...reportForm, destino: e.target.value })}
+                        placeholder={reportForm.canal === 'whatsapp' ? '5511999999999' : 'gestor@empresa.com'}
+                      />
+                    </div>
+                    <div className="nl-agent-report-action">
+                      <button className="nl-btn nl-btn--ghost" onClick={salvarRelatorio} disabled={loading}>
+                        Salvar relatorio
+                      </button>
+                    </div>
+                  </div>
+                  <div className="faint">
+                    {selectedReport?.ultimo_envio_em
+                      ? `Ultimo envio: ${new Date(selectedReport.ultimo_envio_em).toLocaleString('pt-BR')}`
+                      : 'Ainda nenhum relatorio foi enviado.'}
+                    {selectedReport?.ultimo_erro ? ` Erro recente: ${selectedReport.ultimo_erro}` : ''}
                   </div>
                 </div>
 

@@ -10,7 +10,7 @@ export class AgendaController {
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(
         `select a.id, a.projeto_id, p.nome as projeto_nome, a.conversa_id, a.contato_id,
-                c.nome as contato_nome, c.telefone, a.inicio_em, a.descricao, a.status,
+                c.nome as contato_nome, c.telefone, a.inicio_em, a.fim_em, a.duracao_minutos, a.descricao, a.status,
                 a.provider, a.provider_ref, a.erro, a.criado_em
          from agendamentos a
          join projetos p on p.id=a.projeto_id
