@@ -17,6 +17,15 @@ type AgendaDto = {
   status?: string | null;
 };
 
+type ReminderSettingsDto = {
+  ativo?: boolean;
+  antecedenciaHoras?: number;
+  horarioInicio?: string;
+  horarioFim?: string;
+  timezone?: string;
+  mensagem?: string;
+};
+
 @Controller('agenda')
 @UseGuards(AuthGuard)
 export class AgendaController {
@@ -26,6 +35,7 @@ export class AgendaController {
       const r = await q(
         `select a.id, a.projeto_id, p.nome as projeto_nome, a.conversa_id, a.contato_id,
                 c.nome as contato_nome, c.telefone, a.inicio_em, a.fim_em, a.duracao_minutos, a.descricao, a.status,
+                a.confirmation_status, a.reminder_status, a.confirmed_at, a.cancelled_at, a.reschedule_requested_at,
                 a.provider, a.provider_ref, a.erro, a.criado_em
          from agendamentos a
          join projetos p on p.id=a.projeto_id
@@ -36,6 +46,58 @@ export class AgendaController {
         [projetoId || null],
       );
       return r.rows;
+    });
+  }
+
+  @Get('reminders/settings/:projetoId')
+  reminderSettings(@Param('projetoId') projetoId: string, @Req() req: any) {
+    return comTenant(req.user.tenantId, async (q) => {
+      await validarProjeto(q, req.user.tenantId, projetoId);
+      const r = await q(
+        `insert into appointment_reminder_settings (tenant_id, projeto_id)
+         values ($1,$2)
+         on conflict (tenant_id, projeto_id) do update set atualizado_em=appointment_reminder_settings.atualizado_em
+         returning id, projeto_id, ativo, antecedencia_horas,
+                   to_char(horario_inicio, 'HH24:MI') as horario_inicio,
+                   to_char(horario_fim, 'HH24:MI') as horario_fim,
+                   timezone, mensagem, ultimo_erro`,
+        [req.user.tenantId, projetoId],
+      );
+      return r.rows[0];
+    });
+  }
+
+  @Put('reminders/settings/:projetoId')
+  salvarReminderSettings(@Param('projetoId') projetoId: string, @Body() body: ReminderSettingsDto, @Req() req: any) {
+    return comTenant(req.user.tenantId, async (q) => {
+      await validarProjeto(q, req.user.tenantId, projetoId);
+      const antecedencia = normalizarAntecedencia(body.antecedenciaHoras);
+      const inicio = normalizarHorario(body.horarioInicio || '09:00', 'horarioInicio');
+      const fim = normalizarHorario(body.horarioFim || '18:00', 'horarioFim');
+      const timezone = String(body.timezone || 'America/Sao_Paulo').trim() || 'America/Sao_Paulo';
+      const mensagem = String(body.mensagem || '').trim()
+        || 'Ola, confirmando seu atendimento em {{data}} as {{hora}}. Responda 1 para confirmar, 2 para remarcar ou 3 para cancelar.';
+      const r = await q(
+        `insert into appointment_reminder_settings (
+           tenant_id, projeto_id, ativo, antecedencia_horas, horario_inicio, horario_fim, timezone, mensagem, atualizado_em
+         )
+         values ($1,$2,$3,$4,$5::time,$6::time,$7,$8,now())
+         on conflict (tenant_id, projeto_id) do update
+           set ativo=excluded.ativo,
+               antecedencia_horas=excluded.antecedencia_horas,
+               horario_inicio=excluded.horario_inicio,
+               horario_fim=excluded.horario_fim,
+               timezone=excluded.timezone,
+               mensagem=excluded.mensagem,
+               ultimo_erro=null,
+               atualizado_em=now()
+         returning id, projeto_id, ativo, antecedencia_horas,
+                   to_char(horario_inicio, 'HH24:MI') as horario_inicio,
+                   to_char(horario_fim, 'HH24:MI') as horario_fim,
+                   timezone, mensagem, ultimo_erro`,
+        [req.user.tenantId, projetoId, body.ativo ?? true, antecedencia, inicio, fim, timezone, mensagem],
+      );
+      return { ok: true, settings: r.rows[0] };
     });
   }
 
@@ -168,6 +230,9 @@ export class AgendaController {
       const r = await q(
         `update agendamentos
             set status='cancelado',
+                confirmation_status='cancelado',
+                reminder_status=case when reminder_status='enviado' then reminder_status else 'dispensado' end,
+                cancelled_at=now(),
                 erro=case when $3::text is null then null else $3 end,
                 atualizado_em=now()
           where id=$1 and tenant_id=$2
@@ -176,6 +241,43 @@ export class AgendaController {
       );
       return { ok: true, updated: r.rowCount ?? r.rows.length, calendarSync: sync };
     });
+  }
+
+  @Post(':id/confirm')
+  confirmar(@Param('id') id: string, @Req() req: any) {
+    return comTenant(req.user.tenantId, async (q) => {
+      const r = await q(
+        `update agendamentos
+            set confirmation_status='confirmado',
+                confirmed_at=now(),
+                atualizado_em=now()
+          where id=$1 and tenant_id=$2 and status <> 'cancelado'
+          returning id, confirmation_status, confirmed_at`,
+        [id, req.user.tenantId],
+      );
+      return { ok: Boolean(r.rows[0]), agendamento: r.rows[0] || null };
+    });
+  }
+
+  @Post(':id/reschedule')
+  remarcar(@Param('id') id: string, @Req() req: any) {
+    return comTenant(req.user.tenantId, async (q) => {
+      const r = await q(
+        `update agendamentos
+            set confirmation_status='remarcando',
+                reschedule_requested_at=now(),
+                atualizado_em=now()
+          where id=$1 and tenant_id=$2 and status <> 'cancelado'
+          returning id, confirmation_status, reschedule_requested_at`,
+        [id, req.user.tenantId],
+      );
+      return { ok: Boolean(r.rows[0]), agendamento: r.rows[0] || null };
+    });
+  }
+
+  @Post(':id/cancel')
+  cancelarPost(@Param('id') id: string, @Req() req: any) {
+    return this.cancelar(id, req);
   }
 }
 
@@ -196,6 +298,20 @@ function normalizarStatus(value: unknown) {
   if (!status) return null;
   if (['pendente', 'sincronizado', 'cancelado'].includes(status)) return status;
   throw new BadRequestException('Status invalido');
+}
+
+function normalizarHorario(value: string, field: string) {
+  const raw = String(value || '').trim();
+  if (!/^\d{2}:\d{2}$/.test(raw)) throw new BadRequestException(`${field} invalido. Use HH:MM`);
+  const [hh, mm] = raw.split(':').map(Number);
+  if (hh > 23 || mm > 59) throw new BadRequestException(`${field} invalido. Use HH:MM`);
+  return raw;
+}
+
+function normalizarAntecedencia(value: unknown) {
+  const n = Number(value || 24);
+  if (!Number.isFinite(n)) return 24;
+  return Math.min(168, Math.max(1, Math.round(n)));
 }
 
 async function validarProjeto(q: any, tenantId: string, projetoId: string) {
@@ -240,7 +356,9 @@ async function resumoAgendamento(q: any, projetoId: string, contatoId?: string |
 
 async function buscarAgendamento(q: any, tenantId: string, id: string) {
   return (await q(
-    `select id, projeto_id, contato_id, inicio_em, fim_em, duracao_minutos, descricao, status, provider, provider_ref, erro
+    `select id, projeto_id, contato_id, inicio_em, fim_em, duracao_minutos, descricao, status,
+            confirmation_status, reminder_status, confirmed_at, cancelled_at, reschedule_requested_at,
+            provider, provider_ref, erro
        from agendamentos
       where id=$1 and tenant_id=$2
       limit 1`,

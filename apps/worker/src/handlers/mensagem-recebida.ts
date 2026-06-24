@@ -8,6 +8,7 @@ import {
 import { rodarAgente } from '../agent/agente';
 import { executarAutomacoes } from '../automacoes';
 import { dispararWebhooks, leadPayload } from '../integrations/webhooks';
+import { excluirEventoGoogleCalendarTenant } from '../integrations/google-calendar';
 
 const driver = criarDriver();
 
@@ -86,6 +87,18 @@ export async function tratarMensagemRecebida(ev: {
     if (contato.criado && payload) await dispararWebhooks(q, tenantId, 'LEAD_CREATED', payload);
     if (payload) await dispararWebhooks(q, tenantId, 'LEAD_INTERACTION', { ...payload, message: { from: ev.de, text: ev.conteudo, direction: 'inbound' } });
     await executarAutomacoes({ q, tenantId, projetoId, conversaId: conversa.id, contatoId, phoneNumberId: ev.phoneNumberId }, contato.criado ? 'lead_criado' : 'mensagem_recebida');
+
+    if (await tratarRespostaAgendamento(q, {
+      tenantId,
+      projetoId,
+      conversaId: conversa.id,
+      contatoId,
+      phoneNumberId: ev.phoneNumberId,
+      telefone: ev.de,
+      conteudo: ev.conteudo,
+    })) {
+      return;
+    }
 
     if (conversa.ia_pausada) {
       await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'info', 'IA_PAUSADA', 'Mensagem recebida, mas a IA esta pausada nesta conversa', {
@@ -178,4 +191,103 @@ export async function tratarMensagemRecebida(ev: {
       console.error('[worker] falha IA/envio', message);
     }
   });
+}
+
+async function tratarRespostaAgendamento(q: any, ctx: {
+  tenantId: string;
+  projetoId: string;
+  conversaId: string;
+  contatoId: string;
+  phoneNumberId: string;
+  telefone: string;
+  conteudo: string;
+}) {
+  const resposta = String(ctx.conteudo || '').trim();
+  if (!['1', '2', '3'].includes(resposta)) return false;
+
+  const agendamento = (await q(
+    `select id, inicio_em, provider_ref
+       from agendamentos
+      where tenant_id=$1
+        and projeto_id=$2
+        and contato_id=$3
+        and status in ('pendente','sincronizado')
+        and confirmation_status='aguardando'
+        and inicio_em > now()
+      order by inicio_em asc
+      limit 1`,
+    [ctx.tenantId, ctx.projetoId, ctx.contatoId],
+  )).rows[0];
+  if (!agendamento) return false;
+
+  if (resposta === '1') {
+    await q(
+      `update agendamentos
+          set confirmation_status='confirmado',
+              confirmed_at=now(),
+              atualizado_em=now()
+        where id=$1`,
+      [agendamento.id],
+    );
+    await enviarRespostaSistema(q, ctx, 'Perfeito, seu horario esta confirmado. Obrigado!');
+    await logarEventoOperacional(q, ctx.tenantId, ctx.projetoId, 'worker', 'info', 'AGENDAMENTO_CONFIRMADO', 'Agendamento confirmado pelo WhatsApp', {
+      agendamentoId: agendamento.id,
+      contatoId: ctx.contatoId,
+    });
+    return true;
+  }
+
+  if (resposta === '2') {
+    await q(
+      `update agendamentos
+          set confirmation_status='remarcando',
+              reschedule_requested_at=now(),
+              atualizado_em=now()
+        where id=$1`,
+      [agendamento.id],
+    );
+    await enviarRespostaSistema(q, ctx, 'Sem problema. Me diga o melhor dia e horario para remarcar, que vou verificar a disponibilidade.');
+    await logarEventoOperacional(q, ctx.tenantId, ctx.projetoId, 'worker', 'info', 'AGENDAMENTO_REMARCACAO_SOLICITADA', 'Cliente solicitou remarcacao pelo WhatsApp', {
+      agendamentoId: agendamento.id,
+      contatoId: ctx.contatoId,
+    });
+    return true;
+  }
+
+  const sync = await excluirEventoGoogleCalendarTenant(q, ctx.tenantId, agendamento.provider_ref);
+  await q(
+    `update agendamentos
+        set status='cancelado',
+            confirmation_status='cancelado',
+            reminder_status=case when reminder_status='enviado' then reminder_status else 'dispensado' end,
+            cancelled_at=now(),
+            erro=case when $2::text is null then null else $2 end,
+            atualizado_em=now()
+      where id=$1`,
+    [agendamento.id, sync.ok ? null : sync.error || 'falha ao cancelar evento externo'],
+  );
+  await enviarRespostaSistema(q, ctx, 'Tudo certo, seu horario foi cancelado. Se quiser reagendar, me envie uma nova data e horario.');
+  await logarEventoOperacional(q, ctx.tenantId, ctx.projetoId, 'worker', sync.ok ? 'info' : 'warn', 'AGENDAMENTO_CANCELADO', 'Agendamento cancelado pelo WhatsApp', {
+    agendamentoId: agendamento.id,
+    contatoId: ctx.contatoId,
+    calendarSync: sync,
+  });
+  return true;
+}
+
+async function enviarRespostaSistema(q: any, ctx: {
+  tenantId: string;
+  projetoId: string;
+  conversaId: string;
+  phoneNumberId: string;
+  telefone: string;
+}, texto: string) {
+  const sent = await driver.enviarTexto(ctx.phoneNumberId, ctx.telefone, texto);
+  await gravarMensagem(q, ctx.tenantId, ctx.conversaId, {
+    direcao: 'outbound',
+    autor: 'sistema',
+    conteudo: texto,
+    metaMessageId: sent.messageId,
+  });
+  await publicar(ctx.tenantId, { tipo: 'mensagem', conversaId: ctx.conversaId, autor: 'sistema', conteudo: texto });
 }

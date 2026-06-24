@@ -37,6 +37,8 @@ type ReportSetting = {
   ultimo_erro: string | null;
 };
 
+type ProfessionTemplate = { id: string; nome: string; descricao: string };
+
 const DEFAULT_PROMPT = `Você é um atendente objetivo, educado e comercial.
 Responda em português do Brasil.
 Faça perguntas curtas para entender a necessidade do lead.
@@ -97,6 +99,9 @@ function isSuccessMessage(value: string) {
 export default function AgentesPage() {
   const { token, ready } = useStoredToken();
   const [rows, setRows] = useState<AgentRow[]>([]);
+  const [templates, setTemplates] = useState<ProfessionTemplate[]>([]);
+  const [templateId, setTemplateId] = useState('comercial');
+  const [templateProjectName, setTemplateProjectName] = useState('');
   const [selectedId, setSelectedId] = useState<string>('');
   const [form, setForm] = useState({
     prompt_sistema: DEFAULT_PROMPT,
@@ -177,8 +182,36 @@ export default function AgentesPage() {
       setRows(list);
       setReportSettings(Object.fromEntries((Array.isArray(reports) ? reports : []).map((item: ReportSetting) => [item.projeto_id, item])));
       if (!selectedId && list[0]) setSelectedId(list[0].projeto_id);
+      fetch(`${API}/templates/professions`, { headers: auth(token) })
+        .then((response) => response.ok ? response.json() : [])
+        .then((data) => setTemplates(Array.isArray(data) ? data : []))
+        .catch(() => null);
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao carregar agentes');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function criarAgentePorTemplate() {
+    if (!token || !templateId || loading) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const selectedTemplate = templates.find((template) => template.id === templateId);
+      const r = await fetch(`${API}/templates/professions/${templateId}/importar`, {
+        method: 'POST',
+        headers: auth(token),
+        body: JSON.stringify({ nomeProjeto: templateProjectName || selectedTemplate?.nome || 'Novo agente' }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao criar agente por segmento');
+      setTemplateProjectName('');
+      setSelectedId(d.projeto?.id || '');
+      setMsg('Agente criado por template. Conecte um WhatsApp para este projeto.');
+      await carregar({ preserveMessage: true });
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao criar agente por segmento');
     } finally {
       setLoading(false);
     }
@@ -277,6 +310,31 @@ export default function AgentesPage() {
         </div>
         <button className="nl-btn nl-btn--ghost" onClick={() => carregar()} disabled={loading}>Atualizar</button>
       </div>
+
+      {templates.length > 0 && (
+        <section className="nl-card nl-card--pad" style={{ maxWidth: 1120, marginBottom: 16 }}>
+          <div className="nl-agent-report-card__head">
+            <div>
+              <div className="eyebrow">Novo agente por segmento</div>
+              <h2>Comece com um modelo profissional</h2>
+              <p className="muted">Cria prompt, pipeline, base inicial, lembrete de agenda e regra de reativacao para o nicho escolhido.</p>
+            </div>
+          </div>
+          <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(220px, 280px) minmax(220px, 1fr) auto', alignItems: 'end' }}>
+            <div>
+              <label className="nl-label">Segmento</label>
+              <select className="nl-select" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+                {templates.map((template) => <option key={template.id} value={template.id}>{template.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="nl-label">Nome do projeto/agente</label>
+              <input className="nl-input" value={templateProjectName} onChange={(e) => setTemplateProjectName(e.target.value)} placeholder="ex: Atendimento Dra. Ana" />
+            </div>
+            <button className="nl-btn nl-btn--ghost" onClick={criarAgentePorTemplate} disabled={loading}>Criar agente</button>
+          </div>
+        </section>
+      )}
 
       {rows.length === 0 ? (
         <div className="nl-card nl-card--pad nl-empty" style={{ maxWidth: 520 }}>

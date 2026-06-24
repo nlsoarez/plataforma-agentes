@@ -155,6 +155,47 @@ export async function criarEventoGoogleCalendarTenant(q: QueryFn, tenantId: stri
   }
 }
 
+export async function excluirEventoGoogleCalendarTenant(q: QueryFn, tenantId: string, providerRef?: string | null) {
+  if (!providerRef) return { ok: true };
+  const integration = (await q(
+    `select id, calendar_id, encrypted_access_token, encrypted_refresh_token, token_expires_at
+       from calendar_integrations
+      where tenant_id=$1 and provider='google' and ativo=true
+      order by atualizado_em desc
+      limit 1`,
+    [tenantId],
+  )).rows[0];
+  if (!integration) return { ok: false, error: 'Google Calendar nao conectado' };
+
+  try {
+    const token = await accessTokenForIntegration(q, integration);
+    const calendarId = encodeURIComponent(integration.calendar_id || 'primary');
+    const eventId = encodeURIComponent(providerRef);
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 404 || response.status === 410) return { ok: true };
+    const bodyText = await response.text().catch(() => '');
+    if (!response.ok) return { ok: false, error: `Google Calendar ${response.status}: ${bodyText.slice(0, 500)}` };
+    await q(
+      `update calendar_integrations
+          set last_sync_at=now(), last_error=null, atualizado_em=now()
+        where id=$1`,
+      [integration.id],
+    );
+    return { ok: true };
+  } catch (e: any) {
+    await q(
+      `update calendar_integrations
+          set last_error=$2, atualizado_em=now()
+        where id=$1`,
+      [integration.id, e?.message || 'erro desconhecido'],
+    );
+    return { ok: false, error: e?.message || 'falha ao excluir evento' };
+  }
+}
+
 export async function verificarDisponibilidadeGoogleCalendarTenant(q: QueryFn, tenantId: string, input: {
   startsAt: Date;
   durationMinutes?: number;

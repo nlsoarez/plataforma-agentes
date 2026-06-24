@@ -20,8 +20,23 @@ type Agendamento = {
   duracao_minutos: number | null;
   descricao: string | null;
   status: string;
+  confirmation_status?: string;
+  reminder_status?: string;
+  confirmed_at?: string | null;
+  cancelled_at?: string | null;
+  reschedule_requested_at?: string | null;
   provider: string | null;
   erro: string | null;
+};
+
+type ReminderSettings = {
+  ativo: boolean;
+  antecedencia_horas: number;
+  horario_inicio: string;
+  horario_fim: string;
+  timezone: string;
+  mensagem: string;
+  ultimo_erro?: string | null;
 };
 
 type CalendarSync =
@@ -70,6 +85,8 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [reminder, setReminder] = useState<ReminderSettings | null>(null);
+  const [savingReminder, setSavingReminder] = useState(false);
   const [form, setForm] = useState({
     projetoId: '',
     contatoId: '',
@@ -86,6 +103,7 @@ export default function AgendaPage() {
 
   useEffect(() => { if (token) carregarTudo(); }, [token]);
   useEffect(() => { if (form.projetoId && token) carregarLeads(form.projetoId); }, [form.projetoId, token]);
+  useEffect(() => { if (form.projetoId && token) carregarReminderSettings(form.projetoId); }, [form.projetoId, token]);
 
   async function carregarTudo() {
     if (!token) return;
@@ -120,6 +138,58 @@ export default function AgendaPage() {
       const outros = current.filter((lead) => lead.projeto_id !== projetoId);
       return [...outros, ...(Array.isArray(d) ? d : [])];
     });
+  }
+
+  async function carregarReminderSettings(projetoId: string) {
+    if (!token || !projetoId) return;
+    const r = await fetch(`${API}/agenda/reminders/settings/${projetoId}`, { headers: auth(token) });
+    const d = await r.json();
+    if (r.ok) setReminder(d);
+  }
+
+  async function salvarReminderSettings() {
+    if (!token || !form.projetoId || !reminder) return;
+    setSavingReminder(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/agenda/reminders/settings/${form.projetoId}`, {
+        method: 'PUT',
+        headers: auth(token),
+        body: JSON.stringify({
+          ativo: reminder.ativo,
+          antecedenciaHoras: reminder.antecedencia_horas,
+          horarioInicio: reminder.horario_inicio,
+          horarioFim: reminder.horario_fim,
+          timezone: reminder.timezone,
+          mensagem: reminder.mensagem,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao salvar lembretes');
+      setReminder(d.settings);
+      setMsg('Configuração de lembrete salva.');
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao salvar lembretes');
+    } finally {
+      setSavingReminder(false);
+    }
+  }
+
+  async function acaoAgenda(id: string, acao: 'confirm' | 'reschedule' | 'cancel') {
+    if (!token) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/agenda/${id}/${acao}`, { method: 'POST', headers: auth(token) });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao atualizar agendamento');
+      setMsg(acao === 'confirm' ? 'Agendamento confirmado.' : acao === 'reschedule' ? 'Agendamento marcado para remarcação.' : 'Agendamento cancelado.');
+      await carregarTudo();
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao atualizar agendamento');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function limparForm() {
@@ -241,7 +311,8 @@ export default function AgendaPage() {
       </div>
 
       <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(360px, 520px) minmax(520px, 1fr)', alignItems: 'start' }}>
-        <section className="nl-card nl-card--pad">
+        <section className="nl-stack">
+        <div className="nl-card nl-card--pad">
           <div className="eyebrow">{editingId ? 'Editar agendamento' : 'Novo agendamento'}</div>
           <h2>{editingId ? 'Atualizar compromisso' : 'Criar compromisso'}</h2>
           <p className="muted">A Comunora bloqueia horarios conflitantes na agenda local e na agenda Google conectada.</p>
@@ -293,6 +364,42 @@ export default function AgendaPage() {
             </button>
           </div>
           {msg && <p className={msg.includes('Falha') || msg.includes('Horario') || msg.includes('Informe') || msg.includes('Ficou salvo localmente') ? 'nl-error' : 'nl-success'}>{msg}</p>}
+        </div>
+
+        {reminder && (
+          <div className="nl-card nl-card--pad">
+            <div className="eyebrow">Lembretes automáticos</div>
+            <h2>Confirmação por WhatsApp</h2>
+            <label className="nl-check-row" style={{ margin: '12px 0' }}>
+              <input type="checkbox" checked={reminder.ativo} onChange={(e) => setReminder({ ...reminder, ativo: e.target.checked })} />
+              <span>
+                <b>Enviar lembrete antes do atendimento</b>
+                <small>O cliente responde 1 para confirmar, 2 para remarcar ou 3 para cancelar.</small>
+              </span>
+            </label>
+            <div className="nl-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 12 }}>
+              <div>
+                <label className="nl-label">Antecedência</label>
+                <input className="nl-input" type="number" min={1} max={168} value={reminder.antecedencia_horas} onChange={(e) => setReminder({ ...reminder, antecedencia_horas: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className="nl-label">Início</label>
+                <input className="nl-input" type="time" value={reminder.horario_inicio} onChange={(e) => setReminder({ ...reminder, horario_inicio: e.target.value })} />
+              </div>
+              <div>
+                <label className="nl-label">Fim</label>
+                <input className="nl-input" type="time" value={reminder.horario_fim} onChange={(e) => setReminder({ ...reminder, horario_fim: e.target.value })} />
+              </div>
+            </div>
+            <label className="nl-label">Mensagem</label>
+            <textarea className="nl-textarea" style={{ minHeight: 100 }} value={reminder.mensagem} onChange={(e) => setReminder({ ...reminder, mensagem: e.target.value })} />
+            <div className="faint" style={{ marginTop: 8 }}>Variáveis: {'{{data}}'}, {'{{hora}}'}, {'{{nome}}'}</div>
+            {reminder.ultimo_erro && <p className="nl-error">{reminder.ultimo_erro}</p>}
+            <button className="nl-btn nl-btn--accent" style={{ marginTop: 12 }} disabled={savingReminder} onClick={salvarReminderSettings}>
+              {savingReminder ? 'Salvando...' : 'Salvar lembretes'}
+            </button>
+          </div>
+        )}
         </section>
 
         <section className="nl-card" style={{ overflow: 'hidden' }}>
@@ -304,6 +411,8 @@ export default function AgendaPage() {
                 <th>Projeto</th>
                 <th>Descricao</th>
                 <th>Status</th>
+                <th>Confirmação</th>
+                <th>Lembrete</th>
                 <th>Origem</th>
                 <th>Erro</th>
                 <th>Acoes</th>
@@ -312,7 +421,7 @@ export default function AgendaPage() {
             <tbody>
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="faint" style={{ padding: 24, textAlign: 'center' }}>
+                  <td colSpan={10} className="faint" style={{ padding: 24, textAlign: 'center' }}>
                     Nenhum agendamento criado ainda.
                   </td>
                 </tr>
@@ -331,16 +440,24 @@ export default function AgendaPage() {
                       {item.status}
                     </span>
                   </td>
+                  <td><span className="nl-badge">{item.confirmation_status || 'pendente'}</span></td>
+                  <td><span className="nl-badge">{item.reminder_status || 'pendente'}</span></td>
                   <td>{item.provider || '-'}</td>
                   <td style={{ maxWidth: 220 }}>{item.erro || '-'}</td>
                   <td>
                     <div className="nl-row" style={{ gap: 8 }}>
                       <button className="nl-btn nl-btn--ghost nl-btn--sm" onClick={() => editar(item)}>Editar</button>
+                      {item.status !== 'cancelado' && (
+                        <button className="nl-btn nl-btn--ghost nl-btn--sm" onClick={() => acaoAgenda(item.id, 'confirm')}>Confirmar</button>
+                      )}
+                      {item.status !== 'cancelado' && (
+                        <button className="nl-btn nl-btn--ghost nl-btn--sm" onClick={() => acaoAgenda(item.id, 'reschedule')}>Remarcar</button>
+                      )}
                       {(item.status === 'pendente' || item.status === 'falha') && (
                         <button className="nl-btn nl-btn--ghost nl-btn--sm" onClick={() => sincronizarItem(item)}>Sincronizar</button>
                       )}
                       {item.status !== 'cancelado' && (
-                        <button className="nl-btn nl-btn--danger nl-btn--sm" onClick={() => cancelar(item.id)}>Cancelar</button>
+                        <button className="nl-btn nl-btn--danger nl-btn--sm" onClick={() => acaoAgenda(item.id, 'cancel')}>Cancelar</button>
                       )}
                     </div>
                   </td>

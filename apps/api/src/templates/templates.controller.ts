@@ -12,6 +12,24 @@ export class TemplatesController {
     return this.svc.listar(req.user.tenantId);
   }
 
+  @Get('professions')
+  listarProfissoes() {
+    return this.svc.listarProfissoes();
+  }
+
+  @Get('professions/:id')
+  obterProfissao(@Param('id') id: string) {
+    return this.svc.templateProfissao(id) || null;
+  }
+
+  @Post('professions/:id/importar')
+  importarProfissao(@Param('id') id: string, @Body() body: { nomeProjeto?: string; organizacao?: string }, @Req() req: any) {
+    const template = this.svc.templateProfissao(id);
+    return template
+      ? this.svc.importar(req.user.tenantId, template, { nomeProjeto: body.nomeProjeto || template.nome, organizacao: body.organizacao })
+      : { ok: false, message: 'Template nao encontrado' };
+  }
+
   @Post()
   criar(@Body() body: { nome: string; descricao?: string; payload: any; publico?: boolean }, @Req() req: any) {
     return this.svc.criar(req.user.tenantId, body);
