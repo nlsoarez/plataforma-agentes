@@ -310,7 +310,7 @@ const TOURS: Record<string, TourConfig> = {
         title: 'Assinatura e preferências',
         what: 'A tela mostra status da assinatura e preferências básicas da sua conta.',
         how: 'Revise o plano, acesse a página de assinatura e ajuste notificações por e-mail.',
-        why: 'Configuração de usuário deve ser separada da Marca, que controla o white-label da empresa.',
+        why: 'Isso concentra dados pessoais, acesso e cobranca no mesmo lugar sem expor configuracoes tecnicas ao usuario final.',
       },
     ],
   },
@@ -328,23 +328,6 @@ const TOURS: Record<string, TourConfig> = {
         what: 'Membros da equipe podem assumir conversas no Inbox.',
         how: 'Defina quem atende, quem administra e quem apenas acompanha indicadores.',
         why: 'Isso separa operacao diaria de configuracoes sensiveis.',
-      },
-    ],
-  },
-  '/settings': {
-    section: 'Marca',
-    steps: [
-      {
-        title: 'White-label',
-        what: 'Marca permite ajustar identidade visual da plataforma para o tenant.',
-        how: 'Configure nome, logo, cores, favicon, dominio e CSS com cuidado.',
-        why: 'Clientes podem operar com identidade propria sem quebrar o padrao Comunora.',
-      },
-      {
-        title: 'Dominio e assets',
-        what: 'Logo e dominio precisam estar consistentes.',
-        how: 'Use imagens leves, com boa resolucao, e confira DNS antes de divulgar o link.',
-        why: 'Uma marca mal configurada passa inseguranca e pode quebrar OAuth, callbacks e links.',
       },
     ],
   },

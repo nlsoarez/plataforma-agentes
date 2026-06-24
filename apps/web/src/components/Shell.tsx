@@ -29,7 +29,6 @@ type IconName =
   | 'integrations'
   | 'api'
   | 'team'
-  | 'brand'
   | 'whatsapp'
   | 'settings'
   | 'help'
@@ -51,7 +50,6 @@ const NAV: Array<{ href: string; label: string; icon: IconName }> = [
   { href: '/integracoes', label: 'Integrações', icon: 'integrations' },
   { href: '/api-docs', label: 'Ajuda e API', icon: 'api' },
   { href: '/equipe', label: 'Equipe', icon: 'team' },
-  { href: '/settings', label: 'Marca', icon: 'brand' },
   { href: '/onboarding', label: 'Conectar WhatsApp', icon: 'whatsapp' },
 ];
 
@@ -229,8 +227,6 @@ function SidebarIcon({ name }: { name: IconName }) {
       return <svg {...common}><path d="m8 9-3 3 3 3" /><path d="m16 9 3 3-3 3" /><path d="m14 5-4 14" /></svg>;
     case 'team':
       return <svg {...common}><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.5" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M14 17a5 5 0 0 1 7 3" /></svg>;
-    case 'brand':
-      return <svg {...common}><path d="M12 3 3 8l9 5 9-5-9-5Z" /><path d="M3 12l9 5 9-5" /><path d="M3 16l9 5 9-5" /></svg>;
     case 'whatsapp':
       return <svg {...common}><path d="M4 12a8 8 0 1 1 3.2 6.4L4 20l1.6-3.2A7.96 7.96 0 0 1 4 12Z" /><path d="M9 9c.4 3 2.1 4.7 5 5" /><path d="M9 9h1.2l.8 1.8-.7.7" /><path d="M14 14l.7-.7 1.8.8V15" /></svg>;
     case 'settings':
