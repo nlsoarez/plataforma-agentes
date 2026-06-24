@@ -33,6 +33,7 @@ type ReactivationSettings = {
   limite_diario: number;
   janela_reenvio_dias: number;
   mensagem: string;
+  tag_filter: string[];
   ultimo_envio_em?: string | null;
   ultimo_erro?: string | null;
 };
@@ -59,6 +60,12 @@ export default function LeadsPage() {
   const [activePanel, setActivePanel] = useState<LeadsPanel>('lista');
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
   const selected = useMemo(() => leads.find((l) => l.id === selectedId) || leads[0], [leads, selectedId]);
+  const availableTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const lead of leads) for (const tag of lead.tags || []) if (tag) tags.add(tag);
+    for (const tag of reactivation?.tag_filter || []) if (tag) tags.add(tag);
+    return Array.from(tags).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [leads, reactivation?.tag_filter]);
 
   useEffect(() => { if (token) carregarInicial(); }, [token]);
   useEffect(() => { if (token && projetoId) carregar(); }, [token, projetoId]);
@@ -149,6 +156,7 @@ export default function LeadsPage() {
           limiteDiario: reactivation.limite_diario,
           janelaReenvioDias: reactivation.janela_reenvio_dias,
           mensagem: reactivation.mensagem,
+          tagFilter: reactivation.tag_filter || [],
         }),
       });
       const d = await r.json();
@@ -176,6 +184,16 @@ export default function LeadsPage() {
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao testar reativacao');
     }
+  }
+
+  function toggleReactivationTag(tag: string) {
+    if (!reactivation) return;
+    const current = reactivation.tag_filter || [];
+    const exists = current.includes(tag);
+    setReactivation({
+      ...reactivation,
+      tag_filter: exists ? current.filter((item) => item !== tag) : [...current, tag],
+    });
   }
 
   if (!ready) return <SessionLoading />;
@@ -254,6 +272,46 @@ export default function LeadsPage() {
             <div>
               <label className="nl-label">Janela de reenvio</label>
               <input className="nl-input" type="number" min={1} max={365} value={reactivation.janela_reenvio_dias} onChange={(e) => setReactivation({ ...reactivation, janela_reenvio_dias: Number(e.target.value) })} />
+            </div>
+          </div>
+
+          <div className="nl-card nl-card--soft" style={{ padding: 16, marginBottom: 14 }}>
+            <div className="nl-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
+              <div>
+                <label className="nl-label" style={{ marginBottom: 4 }}>Filtrar por tags</label>
+                <p className="muted" style={{ margin: 0 }}>
+                  Selecione as tags que podem receber reativacao. Sem tag selecionada, todos os leads inativos entram no filtro.
+                </p>
+              </div>
+              {(reactivation.tag_filter || []).length > 0 && (
+                <button
+                  type="button"
+                  className="nl-btn nl-btn--ghost nl-btn--sm"
+                  onClick={() => setReactivation({ ...reactivation, tag_filter: [] })}
+                >
+                  Limpar tags
+                </button>
+              )}
+            </div>
+            <div className="nl-row" style={{ flexWrap: 'wrap', marginTop: 12, gap: 8 }}>
+              {availableTags.length === 0 && (
+                <span className="faint">Nenhuma tag encontrada nos leads deste projeto.</span>
+              )}
+              {availableTags.map((tag) => {
+                const active = (reactivation.tag_filter || []).includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`nl-chip ${active ? 'active' : ''}`}
+                    onClick={() => toggleReactivationTag(tag)}
+                    aria-pressed={active}
+                    title={active ? `Remover tag ${tag}` : `Usar tag ${tag}`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

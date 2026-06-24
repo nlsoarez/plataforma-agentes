@@ -198,6 +198,41 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; margin: 0; }
   box-shadow: var(--shadow-sm);
 }
 .nl-card--pad { padding: 20px; }
+.nl-card--soft {
+  background: rgba(21, 101, 255, 0.04);
+  border-color: rgba(21, 101, 255, 0.14);
+}
+
+.nl-chip {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-badge);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 13px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+.nl-chip:hover {
+  border-color: rgba(21, 101, 255, 0.45);
+  background: rgba(21, 101, 255, 0.06);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.nl-chip:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(21, 101, 255, 0.12);
+}
+.nl-chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--white);
+  box-shadow: var(--shadow-accent);
+}
 
 .nl-badge {
   display: inline-flex;

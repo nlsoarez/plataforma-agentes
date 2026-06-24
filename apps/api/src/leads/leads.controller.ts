@@ -11,6 +11,7 @@ type ReactivationSettingsDto = {
   limiteDiario?: number;
   janelaReenvioDias?: number;
   mensagem?: string;
+  tagFilter?: string[];
 };
 
 @Controller('leads')
@@ -53,9 +54,9 @@ export class LeadsController {
         `insert into lead_reactivation_settings (tenant_id, projeto_id)
          values ($1,$2)
          on conflict (tenant_id, projeto_id) do update set atualizado_em=lead_reactivation_settings.atualizado_em
-         returning id, projeto_id, ativo, dias_inatividade,
-                   to_char(horario, 'HH24:MI') as horario,
-                   timezone, limite_diario, janela_reenvio_dias, mensagem, ultimo_envio_em, ultimo_erro`,
+          returning id, projeto_id, ativo, dias_inatividade,
+                    to_char(horario, 'HH24:MI') as horario,
+                    timezone, limite_diario, janela_reenvio_dias, mensagem, tag_filter, ultimo_envio_em, ultimo_erro`,
         [req.user.tenantId, projetoId],
       );
       return r.rows[0];
@@ -73,11 +74,12 @@ export class LeadsController {
       const timezone = String(body.timezone || 'America/Sao_Paulo').trim() || 'America/Sao_Paulo';
       const mensagem = String(body.mensagem || '').trim()
         || 'Ola, {{nome}}. Passando para saber se deseja retomar seu atendimento ou agendar um novo horario.';
+      const tagFilter = normalizarTags(body.tagFilter);
       const r = await q(
         `insert into lead_reactivation_settings (
-           tenant_id, projeto_id, ativo, dias_inatividade, horario, timezone, limite_diario, janela_reenvio_dias, mensagem, atualizado_em
+           tenant_id, projeto_id, ativo, dias_inatividade, horario, timezone, limite_diario, janela_reenvio_dias, mensagem, tag_filter, atualizado_em
          )
-         values ($1,$2,$3,$4,$5::time,$6,$7,$8,$9,now())
+         values ($1,$2,$3,$4,$5::time,$6,$7,$8,$9,$10::text[],now())
          on conflict (tenant_id, projeto_id) do update
            set ativo=excluded.ativo,
                dias_inatividade=excluded.dias_inatividade,
@@ -86,12 +88,13 @@ export class LeadsController {
                limite_diario=excluded.limite_diario,
                janela_reenvio_dias=excluded.janela_reenvio_dias,
                mensagem=excluded.mensagem,
+               tag_filter=excluded.tag_filter,
                ultimo_erro=null,
                atualizado_em=now()
          returning id, projeto_id, ativo, dias_inatividade,
                    to_char(horario, 'HH24:MI') as horario,
-                   timezone, limite_diario, janela_reenvio_dias, mensagem, ultimo_envio_em, ultimo_erro`,
-        [req.user.tenantId, projetoId, body.ativo ?? false, dias, horario, timezone, limite, janela, mensagem],
+                   timezone, limite_diario, janela_reenvio_dias, mensagem, tag_filter, ultimo_envio_em, ultimo_erro`,
+        [req.user.tenantId, projetoId, body.ativo ?? false, dias, horario, timezone, limite, janela, mensagem, tagFilter],
       );
       return { ok: true, settings: r.rows[0] };
     });
@@ -177,4 +180,14 @@ function clampNumber(value: unknown, fallback: number, min: number, max: number)
   const n = Number(value || fallback);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+function normalizarTags(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(
+    value
+      .map((tag) => String(tag || '').trim())
+      .filter(Boolean)
+      .slice(0, 50),
+  ));
 }

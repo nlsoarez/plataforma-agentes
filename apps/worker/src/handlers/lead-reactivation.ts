@@ -31,6 +31,7 @@ type SettingRow = {
   limite_diario: number;
   janela_reenvio_dias: number;
   mensagem: string;
+  tag_filter: string[];
   ultimo_envio_em: string | null;
 };
 
@@ -51,7 +52,7 @@ async function enfileirarReativacoesPendentes(queue: Queue) {
       const settings = await q(
         `select s.id, s.tenant_id, s.projeto_id, p.phone_number_id,
                 s.dias_inatividade, to_char(s.horario, 'HH24:MI') as horario,
-                s.timezone, s.limite_diario, s.janela_reenvio_dias, s.mensagem, s.ultimo_envio_em
+                s.timezone, s.limite_diario, s.janela_reenvio_dias, s.mensagem, s.tag_filter, s.ultimo_envio_em
            from lead_reactivation_settings s
            join projetos p on p.id=s.projeto_id and p.tenant_id=s.tenant_id
           where s.ativo=true
@@ -80,7 +81,7 @@ export async function tratarScanReativacao(job: ScanJob, queue: Queue) {
   await comTenant(job.tenantId, async (q) => {
     const setting = (await q(
       `select s.id, s.tenant_id, s.projeto_id, p.phone_number_id,
-              s.dias_inatividade, s.limite_diario, s.janela_reenvio_dias, s.mensagem
+              s.dias_inatividade, s.limite_diario, s.janela_reenvio_dias, s.mensagem, s.tag_filter
          from lead_reactivation_settings s
          join projetos p on p.id=s.projeto_id and p.tenant_id=s.tenant_id
         where s.id=$1 and s.tenant_id=$2 and (s.ativo=true or $3::boolean=true)
@@ -108,6 +109,7 @@ export async function tratarScanReativacao(job: ScanJob, queue: Queue) {
           and c.projeto_id=$2
           and c.telefone is not null
           and coalesce(c.opt_out_whatsapp,false)=false
+          and (cardinality($5::text[]) = 0 or c.tags && $5::text[])
           and coalesce(c.ultima_interacao, c.criado_em) <= now() - make_interval(days => $3::int)
           and not exists (
             select 1
@@ -117,8 +119,15 @@ export async function tratarScanReativacao(job: ScanJob, queue: Queue) {
                and r.status in ('pendente','enviado')
           )
         order by coalesce(c.ultima_interacao, c.criado_em) asc
-        limit $5`,
-      [setting.tenant_id, setting.projeto_id, setting.dias_inatividade || 60, setting.janela_reenvio_dias || 30, remaining],
+        limit $6`,
+      [
+        setting.tenant_id,
+        setting.projeto_id,
+        setting.dias_inatividade || 60,
+        setting.janela_reenvio_dias || 30,
+        Array.isArray(setting.tag_filter) ? setting.tag_filter : [],
+        remaining,
+      ],
     );
 
     for (const lead of leads.rows) {
