@@ -104,23 +104,6 @@ const TOURS: Record<string, TourConfig> = {
       },
     ],
   },
-  '/templates': {
-    section: 'Templates',
-    steps: [
-      {
-        title: 'Modelos de configuracao',
-        what: 'Templates aceleram a criacao de projetos com estruturas reutilizaveis.',
-        how: 'Importe ou edite JSON com configuracoes padrao e aplique ao projeto certo.',
-        why: 'Isso padroniza operacoes repetidas sem recriar tudo manualmente a cada cliente.',
-      },
-      {
-        title: 'Edicao com cuidado',
-        what: 'O JSON precisa estar valido para ser salvo e aplicado.',
-        how: 'Altere campos pequenos, valide a estrutura e salve antes de aplicar.',
-        why: 'Um template malformado pode impedir importacao ou criar uma operacao incompleta.',
-      },
-    ],
-  },
   '/ai-settings': {
     section: 'IA e Custos',
     steps: [
@@ -223,23 +206,6 @@ const TOURS: Record<string, TourConfig> = {
       },
     ],
   },
-  '/automacoes': {
-    section: 'Automacoes',
-    steps: [
-      {
-        title: 'Gatilhos e acoes',
-        what: 'Automacoes executam tarefas quando algo acontece na operacao.',
-        how: 'Defina gatilho, filtros e acoes. Ative somente depois de revisar o comportamento esperado.',
-        why: 'Automacao boa economiza tempo; automacao mal configurada cria mensagens erradas em escala.',
-      },
-      {
-        title: 'Teste antes de escalar',
-        what: 'Toda automacao deve ser validada com um caso pequeno.',
-        how: 'Use um contato de teste e acompanhe Inbox, eventos e logs antes de usar em campanhas reais.',
-        why: 'Isso evita disparos indevidos e protege a reputacao do numero WhatsApp.',
-      },
-    ],
-  },
   '/campanhas': {
     section: 'Campanhas',
     steps: [
@@ -271,23 +237,6 @@ const TOURS: Record<string, TourConfig> = {
         what: 'Credenciais liberam acesso a sistemas externos.',
         how: 'Use chaves oficiais, nao compartilhe tokens e substitua credenciais quando houver suspeita de vazamento.',
         why: 'Um token exposto pode permitir acesso indevido a dados e operacoes de clientes.',
-      },
-    ],
-  },
-  '/api-docs': {
-    section: 'API Docs',
-    steps: [
-      {
-        title: 'Documentacao da API',
-        what: 'Esta tela mostra endpoints para integrar sistemas externos.',
-        how: 'Leia metodo, rota, payload e headers antes de chamar a API.',
-        why: 'Integracao correta evita dados duplicados, mensagens fora de ordem e falhas silenciosas.',
-      },
-      {
-        title: 'Autenticacao',
-        what: 'Chamadas publicas exigem credenciais validas.',
-        how: 'Use a chave gerada no painel e envie no header esperado.',
-        why: 'Isso protege a API contra uso indevido e separa dados por cliente.',
       },
     ],
   },

@@ -17,17 +17,14 @@ type IconName =
   | 'dashboard'
   | 'sessions'
   | 'agents'
-  | 'templates'
   | 'ai'
   | 'leads'
   | 'inbox'
   | 'pipeline'
   | 'calendar'
   | 'knowledge'
-  | 'automation'
   | 'campaigns'
   | 'integrations'
-  | 'api'
   | 'team'
   | 'whatsapp'
   | 'settings'
@@ -38,17 +35,14 @@ const NAV: Array<{ href: string; label: string; icon: IconName }> = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { href: '/sessoes', label: 'Conexões', icon: 'sessions' },
   { href: '/agentes', label: 'Agentes', icon: 'agents' },
-  { href: '/templates', label: 'Templates', icon: 'templates' },
   { href: '/ai-settings', label: 'IA e Custos', icon: 'ai' },
   { href: '/leads', label: 'Leads', icon: 'leads' },
   { href: '/inbox', label: 'Inbox', icon: 'inbox' },
   { href: '/pipeline', label: 'Pipeline', icon: 'pipeline' },
   { href: '/agenda', label: 'Agenda', icon: 'calendar' },
   { href: '/knowledge', label: 'Conhecimento', icon: 'knowledge' },
-  { href: '/automacoes', label: 'Automações', icon: 'automation' },
   { href: '/campanhas', label: 'Campanhas', icon: 'campaigns' },
   { href: '/integracoes', label: 'Integrações', icon: 'integrations' },
-  { href: '/api-docs', label: 'Ajuda e API', icon: 'api' },
   { href: '/equipe', label: 'Equipe', icon: 'team' },
   { href: '/onboarding', label: 'Conectar WhatsApp', icon: 'whatsapp' },
 ];
@@ -203,8 +197,6 @@ function SidebarIcon({ name }: { name: IconName }) {
       return <svg {...common}><path d="M7 8h10" /><path d="M7 12h10" /><path d="M9 16h6" /><rect x="4" y="4" width="16" height="16" rx="4" /></svg>;
     case 'agents':
       return <svg {...common}><rect x="5" y="8" width="14" height="10" rx="4" /><path d="M12 8V5" /><path d="M9 12h.01" /><path d="M15 12h.01" /><path d="M10 16h4" /><path d="M8 21h8" /></svg>;
-    case 'templates':
-      return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h5" /></svg>;
     case 'ai':
       return <svg {...common}><path d="M12 3v3" /><path d="M12 18v3" /><path d="M3 12h3" /><path d="M18 12h3" /><path d="m5.6 5.6 2.1 2.1" /><path d="m16.3 16.3 2.1 2.1" /><path d="m18.4 5.6-2.1 2.1" /><path d="m7.7 16.3-2.1 2.1" /><circle cx="12" cy="12" r="4" /></svg>;
     case 'leads':
@@ -217,14 +209,10 @@ function SidebarIcon({ name }: { name: IconName }) {
       return <svg {...common}><rect x="4" y="5" width="16" height="16" rx="3" /><path d="M8 3v4" /><path d="M16 3v4" /><path d="M4 10h16" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" /></svg>;
     case 'knowledge':
       return <svg {...common}><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22V5.5Z" /><path d="M8 6h8" /><path d="M8 10h7" /></svg>;
-    case 'automation':
-      return <svg {...common}><path d="M7 7h10v10H7z" /><path d="M4 12H2" /><path d="M22 12h-2" /><path d="M12 4V2" /><path d="M12 22v-2" /><path d="M9 7V5" /><path d="M15 7V5" /><path d="M9 19v-2" /><path d="M15 19v-2" /></svg>;
     case 'campaigns':
       return <svg {...common}><path d="M4 13V8a2 2 0 0 1 2-2h3l9-3v18l-9-3H6a2 2 0 0 1-2-2v-3Z" /><path d="M9 18v3" /><path d="M18 9a4 4 0 0 1 0 6" /></svg>;
     case 'integrations':
       return <svg {...common}><path d="M9 7H7a4 4 0 0 0 0 8h2" /><path d="M15 7h2a4 4 0 0 1 0 8h-2" /><path d="M8 12h8" /></svg>;
-    case 'api':
-      return <svg {...common}><path d="m8 9-3 3 3 3" /><path d="m16 9 3 3-3 3" /><path d="m14 5-4 14" /></svg>;
     case 'team':
       return <svg {...common}><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.5" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M14 17a5 5 0 0 1 7 3" /></svg>;
     case 'whatsapp':
