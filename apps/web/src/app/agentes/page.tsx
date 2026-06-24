@@ -38,6 +38,7 @@ type ReportSetting = {
 };
 
 type ProfessionTemplate = { id: string; nome: string; descricao: string };
+type AgentPanel = 'operacao' | 'automacao' | 'ia';
 
 const DEFAULT_PROMPT = `Você é um atendente objetivo, educado e comercial.
 Responda em português do Brasil.
@@ -123,6 +124,7 @@ export default function AgentesPage() {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState('');
+  const [activePanel, setActivePanel] = useState<AgentPanel>('operacao');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
   const selected = useMemo(() => rows.find((r) => r.projeto_id === selectedId) ?? rows[0], [rows, selectedId]);
@@ -381,6 +383,44 @@ export default function AgentesPage() {
 
                 {msg && <div className={`nl-agent-feedback ${isSuccessMessage(msg) ? 'ok' : 'error'}`}>{msg}</div>}
 
+                <div className="nl-tabs" role="tablist" aria-label="Configuracao do agente">
+                  <button
+                    type="button"
+                    id="agent-tab-operacao"
+                    role="tab"
+                    aria-selected={activePanel === 'operacao'}
+                    aria-controls="agent-panel-operacao"
+                    className={`nl-tab ${activePanel === 'operacao' ? 'active' : ''}`}
+                    onClick={() => setActivePanel('operacao')}
+                  >
+                    Operacao
+                  </button>
+                  <button
+                    type="button"
+                    id="agent-tab-automacao"
+                    role="tab"
+                    aria-selected={activePanel === 'automacao'}
+                    aria-controls="agent-panel-automacao"
+                    className={`nl-tab ${activePanel === 'automacao' ? 'active' : ''}`}
+                    onClick={() => setActivePanel('automacao')}
+                  >
+                    Automacoes
+                  </button>
+                  <button
+                    type="button"
+                    id="agent-tab-ia"
+                    role="tab"
+                    aria-selected={activePanel === 'ia'}
+                    aria-controls="agent-panel-ia"
+                    className={`nl-tab ${activePanel === 'ia' ? 'active' : ''}`}
+                    onClick={() => setActivePanel('ia')}
+                  >
+                    IA e prompt
+                  </button>
+                </div>
+
+                {activePanel === 'operacao' && (
+                  <div className="nl-tab-panel" id="agent-panel-operacao" role="tabpanel" aria-labelledby="agent-tab-operacao">
                 <div className="nl-agent-link-card">
                   <div>
                     <div className="eyebrow">Número vinculado</div>
@@ -401,11 +441,13 @@ export default function AgentesPage() {
                       <b>Estado do agente</b>
                       <small>Controla se a IA pode responder automaticamente neste número.</small>
                     </div>
-                    <div className="nl-agent-status-options">
+                    <div className="nl-agent-status-options" role="radiogroup" aria-label="Estado do agente">
                       {STATUS_OPTIONS.map((option) => (
                         <button
                           key={option.value}
                           type="button"
+                          role="radio"
+                          aria-checked={form.status === option.value}
                           className={`nl-agent-status-option ${form.status === option.value ? 'active' : ''} ${option.value}`}
                           onClick={() => setForm({ ...form, status: option.value })}
                         >
@@ -440,7 +482,11 @@ export default function AgentesPage() {
                     </div>
                   </div>
                 </div>
+                  </div>
+                )}
 
+                {activePanel === 'automacao' && (
+                  <div className="nl-tab-panel" id="agent-panel-automacao" role="tabpanel" aria-labelledby="agent-tab-automacao">
                 <div className="nl-agent-report-card">
                   <div className="nl-agent-report-card__head">
                     <div>
@@ -487,7 +533,11 @@ export default function AgentesPage() {
                     {selectedReport?.ultimo_erro ? ` Erro recente: ${selectedReport.ultimo_erro}` : ''}
                   </div>
                 </div>
+                  </div>
+                )}
 
+                {activePanel === 'ia' && (
+                  <div className="nl-tab-panel" id="agent-panel-ia" role="tabpanel" aria-labelledby="agent-tab-ia">
                 {form.status !== 'inativo' && form.provider !== 'openai' && !selected.provider_key_last4 && !form.byok_key_ref && (
                   <div className="nl-error" style={{ marginBottom: 14 }}>
                     Chave {PROVIDERS[form.provider]?.keyPageLabel || form.provider} ainda não foi salva em IA e Custos.
@@ -529,6 +579,8 @@ export default function AgentesPage() {
 
                 <label className="nl-label">Prompt do sistema</label>
                 <textarea className="nl-textarea" value={form.prompt_sistema} onChange={(e) => setForm({ ...form, prompt_sistema: e.target.value })} />
+                  </div>
+                )}
 
                 <div className="nl-agent-actions">
                   <span className="faint">O worker responde somente quando o agente está ativo e dentro do horário configurado.</span>

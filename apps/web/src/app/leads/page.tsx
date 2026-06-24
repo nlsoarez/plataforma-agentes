@@ -37,6 +37,8 @@ type ReactivationSettings = {
   ultimo_erro?: string | null;
 };
 
+type LeadsPanel = 'lista' | 'reativacao';
+
 function formatDate(value?: string | null) {
   if (!value) return 'Sem interacao';
   return new Date(value).toLocaleString('pt-BR');
@@ -54,6 +56,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(false);
   const [savingReactivation, setSavingReactivation] = useState(false);
   const [msg, setMsg] = useState('');
+  const [activePanel, setActivePanel] = useState<LeadsPanel>('lista');
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
   const selected = useMemo(() => leads.find((l) => l.id === selectedId) || leads[0], [leads, selectedId]);
 
@@ -194,8 +197,35 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {reactivation && (
-        <section className="nl-card nl-card--pad" style={{ marginBottom: 18 }}>
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Areas do CRM de leads">
+        <button
+          type="button"
+          id="leads-tab-lista"
+          role="tab"
+          aria-selected={activePanel === 'lista'}
+          aria-controls="leads-panel-lista"
+          className={`nl-tab ${activePanel === 'lista' ? 'active' : ''}`}
+          onClick={() => setActivePanel('lista')}
+        >
+          Lista de leads
+          <span>{leads.length}</span>
+        </button>
+        <button
+          type="button"
+          id="leads-tab-reativacao"
+          role="tab"
+          aria-selected={activePanel === 'reativacao'}
+          aria-controls="leads-panel-reativacao"
+          className={`nl-tab ${activePanel === 'reativacao' ? 'active' : ''}`}
+          onClick={() => setActivePanel('reativacao')}
+        >
+          Reativacao automatica
+          <span>{reactivation?.ativo ? 'ativa' : 'inativa'}</span>
+        </button>
+      </div>
+
+      {activePanel === 'reativacao' && reactivation && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="leads-panel-reativacao" role="tabpanel" aria-labelledby="leads-tab-reativacao" style={{ marginBottom: 18 }}>
           <div className="nl-agent-report-card__head">
             <div>
               <div className="eyebrow">Reativacao automatica</div>
@@ -208,7 +238,7 @@ export default function LeadsPage() {
             </label>
           </div>
 
-          <div className="nl-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(140px, 1fr))', margin: '12px 0' }}>
+          <div className="nl-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', margin: '12px 0' }}>
             <div>
               <label className="nl-label">Dias sem interacao</label>
               <input className="nl-input" type="number" min={7} max={730} value={reactivation.dias_inatividade} onChange={(e) => setReactivation({ ...reactivation, dias_inatividade: Number(e.target.value) })} />
@@ -240,7 +270,8 @@ export default function LeadsPage() {
         </section>
       )}
 
-      <div className="nl-agents-grid">
+      {activePanel === 'lista' && (
+      <div className="nl-agents-grid nl-tab-panel" id="leads-panel-lista" role="tabpanel" aria-labelledby="leads-tab-lista">
         <section className="nl-stack">
           {leads.map((lead) => (
             <button key={lead.id} className={`nl-agent-session ${lead.id === selected?.id ? 'active' : ''}`} onClick={() => setSelectedId(lead.id)}>
@@ -308,6 +339,7 @@ export default function LeadsPage() {
           )}
         </section>
       </div>
+      )}
     </Shell>
   );
 }
