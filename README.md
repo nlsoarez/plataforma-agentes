@@ -173,17 +173,42 @@ BYOK criptografada.
 - Anthropic/Google: suportam resposta textual. Tools avancadas ainda dependem
   do tradutor de function calling desses providers.
 
-## Agenda
+## Agenda, lembretes e reativacao
 
 A tool `agendar` salva compromissos na tabela `agendamentos` e eles aparecem em
-`/agenda`. Para sincronizar com Google Calendar, n8n ou Make, configure:
+`/agenda`. Quando o usuario conecta Google Calendar em `/integracoes`, a
+plataforma consulta disponibilidade e cria eventos na agenda autorizada via OAuth.
 
-```env
-CALENDAR_WEBHOOK_URL=https://seu-webhook-de-agenda
-```
+O fluxo de agenda suporta:
 
-Sem esse webhook, o compromisso fica salvo como pendente. Isso e melhor do que
-fingir integracao com Google Calendar sem OAuth configurado.
+- consulta de disponibilidade;
+- criacao de eventos no Google Calendar;
+- cancelamento local e tentativa de cancelamento no Google Calendar;
+- lembrete automatico por WhatsApp;
+- resposta `1` para confirmar;
+- resposta `2` para remarcar;
+- resposta `3` para cancelar.
+
+Leads inativos podem ser reativados em `/leads`, com configuracao por projeto:
+
+- dias de inatividade;
+- horario de envio;
+- limite diario;
+- janela minima para reenvio;
+- mensagem personalizada.
+
+Para producao, o worker precisa estar rodando continuamente, porque lembretes e
+reativacoes dependem das filas BullMQ.
+
+## Documentacao operacional
+
+Guias internos disponiveis:
+
+- `docs/onboarding-clientes-comunora.md`: fluxo de implantacao de clientes.
+- `docs/playbook-suporte-comunora.md`: diagnostico de suporte.
+- `docs/checklist-lancamento-comercial.md`: checklist antes de venda oficial.
+- `docs/deploy-comunora-dominios.md`: dominios, DNS e Railway.
+- `docs/checklist-virada-comunora.md`: checklist do rebranding.
 
 ## Deploy Railway
 

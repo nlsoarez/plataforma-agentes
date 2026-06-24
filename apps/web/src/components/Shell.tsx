@@ -49,7 +49,7 @@ const NAV: Array<{ href: string; label: string; icon: IconName }> = [
   { href: '/automacoes', label: 'Automações', icon: 'automation' },
   { href: '/campanhas', label: 'Campanhas', icon: 'campaigns' },
   { href: '/integracoes', label: 'Integrações', icon: 'integrations' },
-  { href: '/api-docs', label: 'API Docs', icon: 'api' },
+  { href: '/api-docs', label: 'Ajuda e API', icon: 'api' },
   { href: '/equipe', label: 'Equipe', icon: 'team' },
   { href: '/settings', label: 'Marca', icon: 'brand' },
   { href: '/onboarding', label: 'Conectar WhatsApp', icon: 'whatsapp' },
