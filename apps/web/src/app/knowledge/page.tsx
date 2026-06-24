@@ -16,6 +16,7 @@ type Doc = {
   embedding_model: string | null;
   indexado_em: string | null;
 };
+type KnowledgePanel = 'documentos' | 'editor';
 
 const SUPPORTED = ['text/plain', 'text/markdown', 'application/json', 'text/csv'];
 
@@ -23,6 +24,7 @@ export default function KnowledgePage() {
   const { token, ready } = useStoredToken();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [form, setForm] = useState({ titulo: '', conteudo: '' });
+  const [activePanel, setActivePanel] = useState<KnowledgePanel>('documentos');
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -78,6 +80,7 @@ export default function KnowledgePage() {
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao carregar documento');
       setEditingId(id);
       setForm({ titulo: d.titulo || '', conteudo: d.conteudo || '' });
+      setActivePanel('editor');
       setMsg('Documento carregado para edicao.');
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao carregar documento');
@@ -146,8 +149,19 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      <div className="nl-knowledge-layout">
-        <section className="nl-card nl-card--pad nl-knowledge-form">
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Areas da base de conhecimento">
+        <button type="button" id="knowledge-tab-documentos" role="tab" aria-selected={activePanel === 'documentos'} aria-controls="knowledge-panel-documentos" className={`nl-tab ${activePanel === 'documentos' ? 'active' : ''}`} onClick={() => setActivePanel('documentos')}>
+          Documentos
+          <span>{docs.length}</span>
+        </button>
+        <button type="button" id="knowledge-tab-editor" role="tab" aria-selected={activePanel === 'editor'} aria-controls="knowledge-panel-editor" className={`nl-tab ${activePanel === 'editor' ? 'active' : ''}`} onClick={() => setActivePanel('editor')}>
+          {editingId ? 'Editar documento' : 'Adicionar conteudo'}
+          <span>{totalChunks} chunks</span>
+        </button>
+      </div>
+
+      {activePanel === 'editor' && (
+        <section className="nl-card nl-card--pad nl-knowledge-form nl-tab-panel" id="knowledge-panel-editor" role="tabpanel" aria-labelledby="knowledge-tab-editor" style={{ maxWidth: 860 }}>
           <div className="nl-panel-head">
             <div>
               <div className="eyebrow">Novo documento</div>
@@ -191,8 +205,10 @@ export default function KnowledgePage() {
           </div>
           {msg && <p className={msg.includes('indexado') || msg.includes('atualizado') || msg.includes('excluido') || msg.includes('carregado') ? 'nl-success' : 'nl-error'}>{msg}</p>}
         </section>
+      )}
 
-        <section className="nl-card nl-card--pad nl-knowledge-list">
+      {activePanel === 'documentos' && (
+        <section className="nl-card nl-card--pad nl-knowledge-list nl-tab-panel" id="knowledge-panel-documentos" role="tabpanel" aria-labelledby="knowledge-tab-documentos" style={{ maxWidth: 1120 }}>
           <div className="nl-panel-head">
             <div>
               <div className="eyebrow">Documentos indexados</div>
@@ -243,7 +259,7 @@ export default function KnowledgePage() {
             </div>
           )}
         </section>
-      </div>
+      )}
     </Shell>
   );
 }

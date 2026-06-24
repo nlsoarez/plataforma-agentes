@@ -9,6 +9,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 type Projeto = { id: string; nome: string; phone_number_id: string | null; connection_state?: string | null };
 type Lead = { id: string; nome: string | null; telefone: string; tags: string[]; ultima_interacao: string | null; projeto_id: string };
 type Campanha = { id: string; template_nome: string; status: string; total: string; enviados: string; entregues: string; lidas: string; falhas: string };
+type CampanhaPanel = 'novo' | 'historico';
 
 function formatPhone(value: string) {
   const digits = String(value || '').replace(/\D/g, '');
@@ -33,6 +34,7 @@ export default function Campanhas() {
   const [busca, setBusca] = useState('');
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activePanel, setActivePanel] = useState<CampanhaPanel>('novo');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
   const projetoAtual = useMemo(() => projetos.find((p) => p.id === projetoId), [projetos, projetoId]);
@@ -133,8 +135,19 @@ export default function Campanhas() {
         </div>
       </div>
 
-      <div className="nl-campaign-layout">
-        <section className="nl-card nl-card--pad">
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Areas de campanhas">
+        <button type="button" id="campaign-tab-novo" role="tab" aria-selected={activePanel === 'novo'} aria-controls="campaign-panel-novo" className={`nl-tab ${activePanel === 'novo' ? 'active' : ''}`} onClick={() => setActivePanel('novo')}>
+          Novo disparo
+          <span>{selectedLeads.length || 'manual'}</span>
+        </button>
+        <button type="button" id="campaign-tab-historico" role="tab" aria-selected={activePanel === 'historico'} aria-controls="campaign-panel-historico" className={`nl-tab ${activePanel === 'historico' ? 'active' : ''}`} onClick={() => setActivePanel('historico')}>
+          Histórico
+          <span>{lista.length}</span>
+        </button>
+      </div>
+
+      {activePanel === 'novo' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="campaign-panel-novo" role="tabpanel" aria-labelledby="campaign-tab-novo">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Novo disparo</div>
 
           <div className="nl-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 14 }}>
@@ -204,8 +217,10 @@ export default function Campanhas() {
           </div>
           {msg && <p className={msg.includes('enfileirada') ? 'nl-success' : 'nl-error'}>{msg}</p>}
         </section>
+      )}
 
-        <section className="nl-card" style={{ overflow: 'hidden' }}>
+      {activePanel === 'historico' && (
+        <section className="nl-card nl-tab-panel" id="campaign-panel-historico" role="tabpanel" aria-labelledby="campaign-tab-historico" style={{ overflow: 'hidden' }}>
           <table className="nl-table">
             <thead><tr><th>Mensagem</th><th>Status</th><th>Total</th><th>Enviados</th><th>Entregues</th><th>Lidas</th><th>Falhas</th></tr></thead>
             <tbody>
@@ -220,7 +235,7 @@ export default function Campanhas() {
             </tbody>
           </table>
         </section>
-      </div>
+      )}
     </Shell>
   );
 }

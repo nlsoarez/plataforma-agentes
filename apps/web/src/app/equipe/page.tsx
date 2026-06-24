@@ -8,11 +8,13 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type Departamento = { id: string; nome: string; descricao: string | null };
 type Usuario = { id: string; nome: string | null; email: string; papel: string; status: string; departamento_nome: string | null };
+type EquipePanel = 'usuarios' | 'novo' | 'departamentos';
 
 export default function EquipePage() {
   const { token, ready } = useStoredToken();
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [activePanel, setActivePanel] = useState<EquipePanel>('usuarios');
   const [dep, setDep] = useState({ nome: '', descricao: '' });
   const [user, setUser] = useState({ nome: '', email: '', senha: '', papel: 'atendente', departamentoId: '' });
   const [msg, setMsg] = useState('');
@@ -69,8 +71,22 @@ export default function EquipePage() {
         </div>
       </div>
 
-      <div className="nl-dashboard-grid">
-        <section className="nl-card nl-card--pad">
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Areas da equipe">
+        <button type="button" id="team-tab-usuarios" role="tab" aria-selected={activePanel === 'usuarios'} aria-controls="team-panel-usuarios" className={`nl-tab ${activePanel === 'usuarios' ? 'active' : ''}`} onClick={() => setActivePanel('usuarios')}>
+          Usuarios
+          <span>{usuarios.length}</span>
+        </button>
+        <button type="button" id="team-tab-novo" role="tab" aria-selected={activePanel === 'novo'} aria-controls="team-panel-novo" className={`nl-tab ${activePanel === 'novo' ? 'active' : ''}`} onClick={() => setActivePanel('novo')}>
+          Novo usuario
+        </button>
+        <button type="button" id="team-tab-departamentos" role="tab" aria-selected={activePanel === 'departamentos'} aria-controls="team-panel-departamentos" className={`nl-tab ${activePanel === 'departamentos' ? 'active' : ''}`} onClick={() => setActivePanel('departamentos')}>
+          Departamentos
+          <span>{departamentos.length}</span>
+        </button>
+      </div>
+
+      {activePanel === 'novo' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="team-panel-novo" role="tabpanel" aria-labelledby="team-tab-novo" style={{ maxWidth: 820 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Novo usuário</div>
           <label className="nl-label">Nome</label>
           <input className="nl-input" value={user.nome} onChange={(e) => setUser({ ...user, nome: e.target.value })} style={{ marginBottom: 10 }} />
@@ -98,8 +114,10 @@ export default function EquipePage() {
           <button className="nl-btn nl-btn--accent" style={{ width: '100%' }} onClick={criarUsuario}>Salvar usuário</button>
           {msg && <p className={msg.includes('criado') || msg.includes('atualizado') ? 'nl-success' : 'nl-error'}>{msg}</p>}
         </section>
+      )}
 
-        <section className="nl-card nl-card--pad">
+      {activePanel === 'departamentos' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="team-panel-departamentos" role="tabpanel" aria-labelledby="team-tab-departamentos" style={{ maxWidth: 860 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Departamentos</div>
           <div className="nl-row" style={{ alignItems: 'flex-end', marginBottom: 14 }}>
             <div style={{ flex: 1 }}>
@@ -119,9 +137,10 @@ export default function EquipePage() {
             </tbody>
           </table>
         </section>
-      </div>
+      )}
 
-      <section className="nl-card" style={{ marginTop: 14, maxWidth: 980, overflow: 'hidden' }}>
+      {activePanel === 'usuarios' && (
+      <section className="nl-card nl-tab-panel" id="team-panel-usuarios" role="tabpanel" aria-labelledby="team-tab-usuarios" style={{ maxWidth: 1120, overflow: 'hidden' }}>
         <table className="nl-table">
           <thead><tr><th>Usuário</th><th>Papel</th><th>Departamento</th><th>Status</th></tr></thead>
           <tbody>
@@ -140,6 +159,7 @@ export default function EquipePage() {
           </tbody>
         </table>
       </section>
+      )}
     </Shell>
   );
 }

@@ -7,10 +7,12 @@ import { SessionLoading, SessionRequired, useStoredToken } from '../../component
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type Automacao = { id: string; nome: string; gatilho: string; condicoes: any; acoes: any[]; ativo: boolean };
+type AutomacoesPanel = 'lista' | 'nova';
 
 export default function AutomacoesPage() {
   const { token, ready } = useStoredToken();
   const [items, setItems] = useState<Automacao[]>([]);
+  const [activePanel, setActivePanel] = useState<AutomacoesPanel>('lista');
   const [form, setForm] = useState({ nome: '', gatilho: 'lead_criado', acoes: '[]' });
   const [msg, setMsg] = useState('');
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
@@ -56,8 +58,18 @@ export default function AutomacoesPage() {
         </div>
       </div>
 
-      <div className="nl-dashboard-grid">
-        <section className="nl-card nl-card--pad">
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Areas de automacoes">
+        <button type="button" id="automations-tab-lista" role="tab" aria-selected={activePanel === 'lista'} aria-controls="automations-panel-lista" className={`nl-tab ${activePanel === 'lista' ? 'active' : ''}`} onClick={() => setActivePanel('lista')}>
+          Automacoes
+          <span>{items.length}</span>
+        </button>
+        <button type="button" id="automations-tab-nova" role="tab" aria-selected={activePanel === 'nova'} aria-controls="automations-panel-nova" className={`nl-tab ${activePanel === 'nova' ? 'active' : ''}`} onClick={() => setActivePanel('nova')}>
+          Nova automacao
+        </button>
+      </div>
+
+      {activePanel === 'nova' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="automations-panel-nova" role="tabpanel" aria-labelledby="automations-tab-nova" style={{ maxWidth: 820 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Nova automação</div>
           <label className="nl-label">Nome</label>
           <input className="nl-input" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} style={{ marginBottom: 12 }} />
@@ -71,8 +83,10 @@ export default function AutomacoesPage() {
           <button className="nl-btn nl-btn--accent" style={{ width: '100%', marginTop: 14 }} onClick={salvar}>Criar automação</button>
           {msg && <p className={msg.includes('criada') ? 'nl-success' : 'nl-error'}>{msg}</p>}
         </section>
+      )}
 
-        <section className="nl-card" style={{ overflow: 'hidden' }}>
+      {activePanel === 'lista' && (
+        <section className="nl-card nl-tab-panel" id="automations-panel-lista" role="tabpanel" aria-labelledby="automations-tab-lista" style={{ maxWidth: 980, overflow: 'hidden' }}>
           <table className="nl-table">
             <thead><tr><th>Nome</th><th>Gatilho</th><th>Status</th><th>Ação</th></tr></thead>
             <tbody>
@@ -88,7 +102,7 @@ export default function AutomacoesPage() {
             </tbody>
           </table>
         </section>
-      </div>
+      )}
     </Shell>
   );
 }

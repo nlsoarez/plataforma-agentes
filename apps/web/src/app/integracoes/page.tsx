@@ -29,6 +29,7 @@ type AutomationStatus = {
   appointmentReminders?: { pendentes?: number; enviados_24h?: number; falhas_24h?: number };
   leadReactivation?: { pendentes?: number; enviados_24h?: number; falhas_24h?: number };
 };
+type IntegracoesPanel = 'calendar' | 'automacoes' | 'api' | 'webhooks';
 
 export default function IntegracoesPage() {
   const { token, ready } = useStoredToken();
@@ -44,6 +45,7 @@ export default function IntegracoesPage() {
   const [hook, setHook] = useState({ nome: '', url: '', secret: '' });
   const [msg, setMsg] = useState('');
   const [calendarMsg, setCalendarMsg] = useState('');
+  const [activePanel, setActivePanel] = useState<IntegracoesPanel>('calendar');
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
 
   useEffect(() => { if (token) carregar(); }, [token]);
@@ -154,8 +156,27 @@ export default function IntegracoesPage() {
         </div>
       </div>
 
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Areas de integracoes">
+        <button type="button" id="integrations-tab-calendar" role="tab" aria-selected={activePanel === 'calendar'} aria-controls="integrations-panel-calendar" className={`nl-tab ${activePanel === 'calendar' ? 'active' : ''}`} onClick={() => setActivePanel('calendar')}>
+          Google Calendar
+          <span>{status?.googleCalendar?.tenantConnected ? 'ok' : 'off'}</span>
+        </button>
+        <button type="button" id="integrations-tab-automacoes" role="tab" aria-selected={activePanel === 'automacoes'} aria-controls="integrations-panel-automacoes" className={`nl-tab ${activePanel === 'automacoes' ? 'active' : ''}`} onClick={() => setActivePanel('automacoes')}>
+          Automacoes
+        </button>
+        <button type="button" id="integrations-tab-api" role="tab" aria-selected={activePanel === 'api'} aria-controls="integrations-panel-api" className={`nl-tab ${activePanel === 'api' ? 'active' : ''}`} onClick={() => setActivePanel('api')}>
+          API publica
+          <span>{keys.length}</span>
+        </button>
+        <button type="button" id="integrations-tab-webhooks" role="tab" aria-selected={activePanel === 'webhooks'} aria-controls="integrations-panel-webhooks" className={`nl-tab ${activePanel === 'webhooks' ? 'active' : ''}`} onClick={() => setActivePanel('webhooks')}>
+          Webhooks
+          <span>{hooks.length}</span>
+        </button>
+      </div>
+
       <div className="nl-dashboard-grid">
-        <section className="nl-card nl-card--pad">
+        {activePanel === 'calendar' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="integrations-panel-calendar" role="tabpanel" aria-labelledby="integrations-tab-calendar">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Google Calendar</div>
           <h2 style={{ marginTop: 0 }}>Agenda do cliente</h2>
           <p className="sub">
@@ -209,8 +230,10 @@ export default function IntegracoesPage() {
             </div>
           )}
         </section>
+        )}
 
-        <section className="nl-card nl-card--pad">
+        {activePanel === 'automacoes' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="integrations-panel-automacoes" role="tabpanel" aria-labelledby="integrations-tab-automacoes">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Automacoes</div>
           <h2 style={{ marginTop: 0 }}>Status operacional</h2>
           <p className="sub">Acompanhe se lembretes e reativacoes estao acumulando falhas ou fila.</p>
@@ -231,8 +254,10 @@ export default function IntegracoesPage() {
             </div>
           </div>
         </section>
+        )}
 
-        <section className="nl-card nl-card--pad">
+        {activePanel === 'api' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="integrations-panel-api" role="tabpanel" aria-labelledby="integrations-tab-api">
           <div className="eyebrow" style={{ marginBottom: 14 }}>API pública</div>
           <label className="nl-label">Nome da chave</label>
           <div className="nl-row" style={{ alignItems: 'flex-end', marginBottom: 12 }}>
@@ -249,8 +274,10 @@ export default function IntegracoesPage() {
             </tbody>
           </table>
         </section>
+        )}
 
-        <section className="nl-card nl-card--pad">
+        {activePanel === 'webhooks' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="integrations-panel-webhooks" role="tabpanel" aria-labelledby="integrations-tab-webhooks">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Webhook outbound</div>
           <label className="nl-label">Nome</label>
           <input className="nl-input" value={hook.nome} onChange={(e) => setHook({ ...hook, nome: e.target.value })} style={{ marginBottom: 12 }} />
@@ -269,6 +296,7 @@ export default function IntegracoesPage() {
             </tbody>
           </table>
         </section>
+        )}
       </div>
     </Shell>
   );

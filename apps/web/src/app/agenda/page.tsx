@@ -46,6 +46,8 @@ type CalendarSync =
   | null
   | undefined;
 
+type AgendaPanel = 'agenda' | 'novo' | 'lembretes';
+
 function localInputValue(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
@@ -87,6 +89,7 @@ export default function AgendaPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
   const [savingReminder, setSavingReminder] = useState(false);
+  const [activePanel, setActivePanel] = useState<AgendaPanel>('agenda');
   const [form, setForm] = useState({
     projetoId: '',
     contatoId: '',
@@ -205,6 +208,7 @@ export default function AgendaPage() {
 
   function editar(item: Agendamento) {
     setEditingId(item.id);
+    setActivePanel('novo');
     setForm({
       projetoId: item.projeto_id,
       contatoId: item.contato_id || '',
@@ -310,9 +314,22 @@ export default function AgendaPage() {
         <button className="nl-btn nl-btn--ghost" disabled={loading} onClick={carregarTudo}>Atualizar</button>
       </div>
 
-      <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(360px, 520px) minmax(520px, 1fr)', alignItems: 'start' }}>
-        <section className="nl-stack">
-        <div className="nl-card nl-card--pad">
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Areas da agenda">
+        <button type="button" id="agenda-tab-lista" role="tab" aria-selected={activePanel === 'agenda'} aria-controls="agenda-panel-lista" className={`nl-tab ${activePanel === 'agenda' ? 'active' : ''}`} onClick={() => setActivePanel('agenda')}>
+          Agenda
+          <span>{items.length}</span>
+        </button>
+        <button type="button" id="agenda-tab-novo" role="tab" aria-selected={activePanel === 'novo'} aria-controls="agenda-panel-novo" className={`nl-tab ${activePanel === 'novo' ? 'active' : ''}`} onClick={() => setActivePanel('novo')}>
+          {editingId ? 'Editar compromisso' : 'Novo compromisso'}
+        </button>
+        <button type="button" id="agenda-tab-lembretes" role="tab" aria-selected={activePanel === 'lembretes'} aria-controls="agenda-panel-lembretes" className={`nl-tab ${activePanel === 'lembretes' ? 'active' : ''}`} onClick={() => setActivePanel('lembretes')}>
+          Lembretes
+          <span>{reminder?.ativo ? 'ativo' : 'inativo'}</span>
+        </button>
+      </div>
+
+      {activePanel === 'novo' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="agenda-panel-novo" role="tabpanel" aria-labelledby="agenda-tab-novo" style={{ maxWidth: 760 }}>
           <div className="eyebrow">{editingId ? 'Editar agendamento' : 'Novo agendamento'}</div>
           <h2>{editingId ? 'Atualizar compromisso' : 'Criar compromisso'}</h2>
           <p className="muted">A Comunora bloqueia horarios conflitantes na agenda local e na agenda Google conectada.</p>
@@ -364,10 +381,11 @@ export default function AgendaPage() {
             </button>
           </div>
           {msg && <p className={msg.includes('Falha') || msg.includes('Horario') || msg.includes('Informe') || msg.includes('Ficou salvo localmente') ? 'nl-error' : 'nl-success'}>{msg}</p>}
-        </div>
+        </section>
+      )}
 
-        {reminder && (
-          <div className="nl-card nl-card--pad">
+      {activePanel === 'lembretes' && reminder && (
+          <section className="nl-card nl-card--pad nl-tab-panel" id="agenda-panel-lembretes" role="tabpanel" aria-labelledby="agenda-tab-lembretes" style={{ maxWidth: 760 }}>
             <div className="eyebrow">Lembretes automáticos</div>
             <h2>Confirmação por WhatsApp</h2>
             <label className="nl-check-row" style={{ margin: '12px 0' }}>
@@ -398,11 +416,11 @@ export default function AgendaPage() {
             <button className="nl-btn nl-btn--accent" style={{ marginTop: 12 }} disabled={savingReminder} onClick={salvarReminderSettings}>
               {savingReminder ? 'Salvando...' : 'Salvar lembretes'}
             </button>
-          </div>
-        )}
-        </section>
+          </section>
+      )}
 
-        <section className="nl-card" style={{ overflow: 'hidden' }}>
+      {activePanel === 'agenda' && (
+        <section className="nl-card nl-tab-panel" id="agenda-panel-lista" role="tabpanel" aria-labelledby="agenda-tab-lista" style={{ overflow: 'hidden' }}>
           <table className="nl-table">
             <thead>
               <tr>
@@ -466,7 +484,7 @@ export default function AgendaPage() {
             </tbody>
           </table>
         </section>
-      </div>
+      )}
     </Shell>
   );
 }

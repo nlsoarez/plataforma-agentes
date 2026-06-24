@@ -8,6 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type Template = { id: string; nome: string; descricao: string | null; versao: number; origem: string; criado_em: string };
 type Projeto = { id: string; nome: string; phone_number_id: string | null; status: string };
+type TemplatesPanel = 'editor' | 'exportar' | 'biblioteca';
 
 const TEMPLATE_VAZIO = `{
   "nome": "",
@@ -26,6 +27,7 @@ export default function TemplatesPage() {
   const { token, ready } = useStoredToken();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
+  const [activePanel, setActivePanel] = useState<TemplatesPanel>('editor');
   const [payload, setPayload] = useState(TEMPLATE_VAZIO);
   const [nomeProjeto, setNomeProjeto] = useState('');
   const [organizacao, setOrganizacao] = useState('');
@@ -104,8 +106,22 @@ export default function TemplatesPage() {
         </div>
       </div>
 
-      <div className="nl-dashboard-grid">
-        <section className="nl-card nl-card--pad">
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Areas de templates">
+        <button type="button" id="templates-tab-editor" role="tab" aria-selected={activePanel === 'editor'} aria-controls="templates-panel-editor" className={`nl-tab ${activePanel === 'editor' ? 'active' : ''}`} onClick={() => setActivePanel('editor')}>
+          Editor JSON
+        </button>
+        <button type="button" id="templates-tab-exportar" role="tab" aria-selected={activePanel === 'exportar'} aria-controls="templates-panel-exportar" className={`nl-tab ${activePanel === 'exportar' ? 'active' : ''}`} onClick={() => setActivePanel('exportar')}>
+          Exportar projeto
+          <span>{projetos.length}</span>
+        </button>
+        <button type="button" id="templates-tab-biblioteca" role="tab" aria-selected={activePanel === 'biblioteca'} aria-controls="templates-panel-biblioteca" className={`nl-tab ${activePanel === 'biblioteca' ? 'active' : ''}`} onClick={() => setActivePanel('biblioteca')}>
+          Biblioteca
+          <span>{templates.length}</span>
+        </button>
+      </div>
+
+      {activePanel === 'editor' && (
+        <section className="nl-card nl-card--pad nl-tab-panel" id="templates-panel-editor" role="tabpanel" aria-labelledby="templates-tab-editor" style={{ maxWidth: 980 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Importar template</div>
           <label className="nl-label">Arquivo JSON</label>
           <input className="nl-input" type="file" accept=".json,application/json" onChange={importarArquivo} style={{ paddingTop: 9, marginBottom: 12 }} />
@@ -127,18 +143,21 @@ export default function TemplatesPage() {
           </div>
           {msg && <p className={msg.includes('criado') || msg.includes('salvo') || msg.includes('exportado') ? 'nl-success' : 'nl-error'}>{msg}</p>}
         </section>
+      )}
 
-        <section className="nl-stack">
-          <div className="nl-card nl-card--pad">
+      {activePanel === 'exportar' && (
+          <section className="nl-card nl-card--pad nl-tab-panel" id="templates-panel-exportar" role="tabpanel" aria-labelledby="templates-tab-exportar" style={{ maxWidth: 620 }}>
             <div className="eyebrow" style={{ marginBottom: 14 }}>Exportar existente</div>
             <label className="nl-label">Projeto</label>
             <select className="nl-select" value={exportProjetoId} onChange={(e) => setExportProjetoId(e.target.value)} style={{ marginBottom: 14 }}>
               {projetos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
             <button className="nl-btn nl-btn--accent" style={{ width: '100%' }} onClick={exportar}>Exportar JSON</button>
-          </div>
+          </section>
+      )}
 
-          <div className="nl-card" style={{ overflow: 'hidden' }}>
+      {activePanel === 'biblioteca' && (
+          <section className="nl-card nl-tab-panel" id="templates-panel-biblioteca" role="tabpanel" aria-labelledby="templates-tab-biblioteca" style={{ maxWidth: 980, overflow: 'hidden' }}>
             <table className="nl-table">
               <thead><tr><th>Biblioteca</th><th>Origem</th></tr></thead>
               <tbody>
@@ -148,9 +167,8 @@ export default function TemplatesPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </section>
-      </div>
+          </section>
+      )}
     </Shell>
   );
 }
