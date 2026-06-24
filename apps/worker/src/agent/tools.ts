@@ -5,10 +5,7 @@ import { enviarConversao } from './conversoes';
 import { dispararWebhooks, leadPayload } from '../integrations/webhooks';
 import { buscarConhecimento } from './knowledge';
 import {
-  criarEventoGoogleCalendar,
   criarEventoGoogleCalendarTenant,
-  googleCalendarConfigured,
-  verificarDisponibilidadeGoogleCalendar,
   verificarDisponibilidadeGoogleCalendarTenant,
 } from '../integrations/google-calendar';
 
@@ -134,79 +131,22 @@ const executores: Record<string, Executor> = {
       return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
     }
 
-    if (googleCalendarConfigured()) {
-      try {
-        const evento = await criarEventoGoogleCalendar({
-          summary: `Atendimento ${contato.nome || contato.telefone || 'lead'}`,
-          description: [
-            descricao || 'Agendamento criado pelo agente.',
-            contato.telefone ? `Telefone: ${contato.telefone}` : null,
-            `Conversa: ${ctx.conversaId}`,
-          ].filter(Boolean).join('\n'),
-          startsAt: inicio,
-          durationMinutes: duracao,
-        });
-        await ctx.q(
-          `update agendamentos
-           set status='sincronizado', provider='google_calendar', provider_ref=$2,
-               metadata=metadata || $3::jsonb, erro=null, atualizado_em=now()
-           where id=$1`,
-          [agendamento.id, evento.id, JSON.stringify({ googleCalendar: evento })],
-        );
-        return { ok: true, agendamento: { ...agendamento, status: 'sincronizado', provider_ref: evento.id }, calendar: evento };
-      } catch (e: any) {
-        await ctx.q(
-          `update agendamentos
-           set status='falha', provider='google_calendar', erro=$2, atualizado_em=now()
-           where id=$1`,
-          [agendamento.id, e?.message || 'erro desconhecido'],
-        );
-        return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
-      }
-    }
+    await ctx.q(
+      `update agendamentos
+          set status='pendente',
+              provider='manual',
+              erro='Google Calendar do cliente nao conectado em Integracoes',
+              atualizado_em=now()
+        where id=$1`,
+      [agendamento.id],
+    );
 
-    if (!process.env.CALENDAR_WEBHOOK_URL) {
-      return {
-        ok: true,
-        agendamento,
-        nota: 'agendamento salvo; configure CALENDAR_WEBHOOK_URL para sincronizar com Google Calendar ou outro calendario',
-      };
-    }
-
-    const payload = JSON.stringify({
-      type: 'APPOINTMENT_CREATED',
-      tenantId: ctx.tenantId,
-      projetoId: ctx.projetoId,
-      conversaId: ctx.conversaId,
-      contatoId: ctx.contatoId,
-      appointmentId: agendamento.id,
-      startsAt: agendamento.inicio_em,
-      endsAt: agendamento.fim_em,
-      durationMinutes: agendamento.duracao_minutos,
-      description: agendamento.descricao,
-    });
-
-    try {
-      const response = await fetch(process.env.CALENDAR_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-      });
-      const text = await response.text().catch(() => '');
-      await ctx.q(
-        `update agendamentos
-         set status=$2, provider_ref=$3, erro=$4, atualizado_em=now()
-         where id=$1`,
-        [agendamento.id, response.ok ? 'sincronizado' : 'falha', text.slice(0, 500) || null, response.ok ? null : `HTTP ${response.status}`],
-      );
-      return { ok: response.ok, agendamento: { ...agendamento, status: response.ok ? 'sincronizado' : 'falha' }, status: response.status };
-    } catch (e: any) {
-      await ctx.q(
-        `update agendamentos set status='falha', erro=$2, atualizado_em=now() where id=$1`,
-        [agendamento.id, e?.message || 'erro desconhecido'],
-      );
-      return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
-    }
+    return {
+      ok: true,
+      agendamento: { ...agendamento, provider: 'manual' },
+      calendar: null,
+      aviso: 'Google Calendar do cliente nao conectado; agendamento salvo somente na agenda interna da Comunora.',
+    };
   },
   async consultar_base(_ctx, { consulta }) {
     const query = String(consulta || '').trim();
@@ -267,6 +207,7 @@ async function consultarDisponibilidade(ctx: ToolCtx, inicio: Date, duracao: num
     };
   }
 
+  const avisos: string[] = [];
   try {
     const googleTenant = await verificarDisponibilidadeGoogleCalendarTenant(ctx.q, ctx.tenantId, {
       startsAt: inicio,
@@ -278,23 +219,8 @@ async function consultarDisponibilidade(ctx: ToolCtx, inicio: Date, duracao: num
         conflitos: googleTenant.busy.map((busy) => ({ tipo: 'google_calendar', inicio: busy.start, fim: busy.end })),
       };
     }
-  } catch (e: any) {
-    return {
-      available: false,
-      conflitos: [{ tipo: 'google_calendar_erro', motivo: e?.message || 'falha ao consultar disponibilidade' }],
-    };
-  }
-
-  try {
-    const googleService = await verificarDisponibilidadeGoogleCalendar({
-      startsAt: inicio,
-      durationMinutes: duracao,
-    });
-    if (googleService && !googleService.available) {
-      return {
-        available: false,
-        conflitos: googleService.busy.map((busy) => ({ tipo: 'google_calendar', inicio: busy.start, fim: busy.end })),
-      };
+    if (!googleTenant) {
+      avisos.push('Google Calendar do cliente nao conectado; disponibilidade validada somente na agenda interna.');
     }
   } catch (e: any) {
     return {
@@ -308,6 +234,7 @@ async function consultarDisponibilidade(ctx: ToolCtx, inicio: Date, duracao: num
     inicio: inicio.toISOString(),
     fim: fim.toISOString(),
     duracao_minutos: duracao,
+    avisos,
   };
 }
 

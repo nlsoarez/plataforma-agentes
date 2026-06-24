@@ -20,6 +20,9 @@ type Lead = {
   unread_messages: number;
   etapa_nome: string | null;
   ultima_interacao: string | null;
+  opt_out_whatsapp?: boolean;
+  opt_out_reason?: string | null;
+  opt_out_at?: string | null;
 };
 
 type ReactivationSettings = {
@@ -261,7 +264,10 @@ export default function LeadsPage() {
                   <h2>{selected.nome || selected.telefone}</h2>
                   <p className="muted">{selected.telefone} / {selected.etapa_nome || 'sem etapa'}</p>
                 </div>
-                <span className="nl-badge">{selected.projeto_nome}</span>
+                <div className="nl-row">
+                  {selected.opt_out_whatsapp && <span className="nl-badge nl-badge--warn">sem automacao</span>}
+                  <span className="nl-badge">{selected.projeto_nome}</span>
+                </div>
               </div>
 
               <label className="nl-label">Nome</label>
@@ -272,6 +278,25 @@ export default function LeadsPage() {
               <textarea className="nl-textarea" style={{ minHeight: 140, marginBottom: 12 }} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               <label className="nl-label">Propriedades JSON</label>
               <textarea className="nl-textarea" style={{ minHeight: 140 }} value={form.metadata} onChange={(e) => setForm({ ...form, metadata: e.target.value })} />
+              <label className="nl-check" style={{ marginTop: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(selected.opt_out_whatsapp)}
+                  onChange={async (e) => {
+                    if (!token) return;
+                    const blocked = e.target.checked;
+                    await fetch(`${API}/leads/${selected.id}`, {
+                      method: 'PATCH',
+                      headers: auth(token),
+                      body: JSON.stringify({ optOutWhatsapp: blocked, optOutReason: blocked ? 'manual' : null }),
+                    });
+                    setMsg(blocked ? 'Lead removido de automacoes WhatsApp.' : 'Lead liberado para automacoes WhatsApp.');
+                    await carregar();
+                  }}
+                />
+                <span>Nao enviar campanhas ou reativacoes para este WhatsApp</span>
+              </label>
+              {selected.opt_out_at && <p className="faint">Descadastrado em {formatDate(selected.opt_out_at)}.</p>}
               <div className="nl-row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
                 <a className="nl-btn nl-btn--ghost" href="/inbox">Abrir inbox</a>
                 <button className="nl-btn nl-btn--accent" onClick={salvar}>Salvar lead</button>

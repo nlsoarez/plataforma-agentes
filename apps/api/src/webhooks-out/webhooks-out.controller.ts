@@ -1,13 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { createHmac } from 'crypto';
 import { AuthGuard } from '../auth/auth.guard';
 import { assertLimit } from '../billing/entitlements';
 import {
   calendarRedirectUri,
+  atualizarGoogleCalendarSelecionado,
   concluirGoogleCalendarOAuth,
   googleCalendarOAuthConfigured,
   iniciarGoogleCalendarOAuth,
+  listarGoogleCalendarsTenant,
 } from './google-calendar-oauth';
 
 const EVENTOS_PADRAO = ['LEAD_CREATED', 'LEAD_INTERACTION', 'AI_RESPONSE', 'LEAD_KANBAN_UPDATED', 'LEAD_TAG_ADDED', 'LEAD_TAG_REMOVED', 'ERROR'];
@@ -23,32 +25,30 @@ export class WebhooksOutController {
   status(@Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       const integration = (await q(
-        `select account_email, calendar_id, token_expires_at, last_sync_at, last_error
+        `select account_email, calendar_id, token_expires_at, last_sync_at, last_error,
+                calendars_cache, calendars_cache_at
            from calendar_integrations
           where provider='google' and ativo=true
           order by atualizado_em desc
           limit 1`,
       )).rows[0];
 
-    const googleCalendar = Boolean(
-      process.env.GOOGLE_CALENDAR_ID &&
-      (process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) &&
-      (process.env.GOOGLE_CALENDAR_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY),
-    );
     return {
       googleCalendar: {
-        configured: Boolean(integration) || googleCalendar,
+        configured: Boolean(integration),
         tenantConnected: Boolean(integration),
         accountEmail: integration?.account_email ? maskEmail(integration.account_email) : null,
-        calendarId: integration?.calendar_id || (process.env.GOOGLE_CALENDAR_ID ? mask(process.env.GOOGLE_CALENDAR_ID) : null),
-        mode: integration ? 'tenant_oauth' : (googleCalendar ? 'service_account' : null),
+        calendarId: integration?.calendar_id || null,
+        mode: integration ? 'tenant_oauth' : null,
         lastSyncAt: integration?.last_sync_at || null,
         lastError: integration?.last_error || null,
         oauthConfigured: googleCalendarOAuthConfigured(),
         redirectUri: calendarRedirectUri(),
+        calendars: integration?.calendars_cache || [],
+        calendarsCacheAt: integration?.calendars_cache_at || null,
       },
       calendarWebhook: {
-        configured: Boolean(process.env.CALENDAR_WEBHOOK_URL),
+        configured: false,
       },
     };
     });
@@ -73,6 +73,40 @@ export class WebhooksOutController {
     return comTenant(req.user.tenantId, async (q) => {
       await q(`update calendar_integrations set ativo=false, atualizado_em=now() where provider='google' and ativo=true`);
       return { ok: true };
+    });
+  }
+
+  @Get('google-calendar/calendars')
+  listarCalendarios(@Req() req: any) {
+    return listarGoogleCalendarsTenant(req.user.tenantId);
+  }
+
+  @Put('google-calendar/calendar')
+  atualizarCalendario(@Req() req: any, @Body() body: { calendarId?: string }) {
+    return atualizarGoogleCalendarSelecionado(req.user.tenantId, body.calendarId || '');
+  }
+
+  @Get('automations/status')
+  automationsStatus(@Req() req: any) {
+    return comTenant(req.user.tenantId, async (q) => {
+      const reminders = (await q(
+        `select
+           count(*) filter (where status='pendente')::int as pendentes,
+           count(*) filter (where status='enviado' and sent_at >= now() - interval '24 hours')::int as enviados_24h,
+           count(*) filter (where status='falha' and atualizado_em >= now() - interval '24 hours')::int as falhas_24h
+         from appointment_reminders`,
+      )).rows[0] || {};
+      const reactivation = (await q(
+        `select
+           count(*) filter (where status='pendente')::int as pendentes,
+           count(*) filter (where status='enviado' and sent_at >= now() - interval '24 hours')::int as enviados_24h,
+           count(*) filter (where status='falha' and atualizado_em >= now() - interval '24 hours')::int as falhas_24h
+         from lead_reactivation_runs`,
+      )).rows[0] || {};
+      return {
+        appointmentReminders: reminders,
+        leadReactivation: reactivation,
+      };
     });
   }
 

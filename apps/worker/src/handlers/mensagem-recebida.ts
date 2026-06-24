@@ -73,6 +73,29 @@ export async function tratarMensagemRecebida(ev: {
     });
     await publicar(tenantId, { tipo: 'mensagem', conversaId: conversa.id, autor: 'contato', conteudo: ev.conteudo });
 
+    if (detectarOptOut(ev.conteudo)) {
+      await q(
+        `update contatos
+            set opt_out_whatsapp=true,
+                opt_out_reason='keyword',
+                opt_out_at=coalesce(opt_out_at, now())
+          where id=$1`,
+        [contatoId],
+      );
+      await enviarRespostaSistema(q, {
+        tenantId,
+        projetoId,
+        conversaId: conversa.id,
+        phoneNumberId: ev.phoneNumberId,
+        telefone: ev.de,
+      }, 'Tudo certo. Voce nao recebera novas mensagens automaticas por este WhatsApp.');
+      await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'info', 'WHATSAPP_OPT_OUT', 'Contato solicitou parar mensagens automaticas', {
+        conversaId: conversa.id,
+        contatoId,
+      });
+      return;
+    }
+
     if (!billing.canUsePaidFeatures) {
       await logarEventoOperacional(q, tenantId, projetoId, 'worker', 'warn', 'BILLING_RESTRICTED', 'Mensagem recebida, mas recursos pagos bloqueados pela assinatura', {
         conversaId: conversa.id,
@@ -191,6 +214,24 @@ export async function tratarMensagemRecebida(ev: {
       console.error('[worker] falha IA/envio', message);
     }
   });
+}
+
+function detectarOptOut(texto: string | undefined) {
+  const normalized = String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  if (!normalized) return false;
+  const exact = ['sair', 'parar', 'stop', 'unsubscribe', 'remover'];
+  if (exact.includes(normalized)) return true;
+  return [
+    'nao quero receber',
+    'nao desejo receber',
+    'pare de enviar',
+    'remova meu contato',
+    'cancelar mensagens',
+  ].some((pattern) => normalized.includes(pattern));
 }
 
 async function tratarRespostaAgendamento(q: any, ctx: {

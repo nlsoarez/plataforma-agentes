@@ -29,6 +29,7 @@ export class LeadsController {
       const r = await q(
         `select c.id, c.projeto_id, p.nome as projeto_nome, c.nome, c.telefone, c.tags,
                 c.notes, c.metadata, c.unread_messages, c.ai_response_block_until,
+                c.opt_out_whatsapp, c.opt_out_reason, c.opt_out_at,
                 c.ultima_interacao, c.origem, c.criado_em,
                 e.id as etapa_id, e.nome as etapa_nome
          from contatos c
@@ -126,7 +127,18 @@ export class LeadsController {
              etapa_pipeline=coalesce($6::uuid,etapa_pipeline),
              responsavel_id=coalesce($7::uuid,responsavel_id),
              departamento_id=coalesce($8::uuid,departamento_id),
-             ai_response_block_until=$9::timestamptz
+             ai_response_block_until=$9::timestamptz,
+             opt_out_whatsapp=coalesce($10::boolean,opt_out_whatsapp),
+             opt_out_reason=case
+               when $10::boolean is true then coalesce($11::text, opt_out_reason, 'manual')
+               when $10::boolean is false then null
+               else opt_out_reason
+             end,
+             opt_out_at=case
+               when $10::boolean is true and opt_out_at is null then now()
+               when $10::boolean is false then null
+               else opt_out_at
+             end
          where id=$1
          returning *`,
         [
@@ -139,6 +151,8 @@ export class LeadsController {
           body.responsavelId ?? null,
           body.departamentoId ?? null,
           body.ai_response_block_until ?? null,
+          typeof body.optOutWhatsapp === 'boolean' ? body.optOutWhatsapp : null,
+          body.optOutReason ?? null,
         ],
       );
       return r.rows[0];

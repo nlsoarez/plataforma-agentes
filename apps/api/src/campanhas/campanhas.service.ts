@@ -29,10 +29,24 @@ export class CampanhasService {
       const tags = dto.segmento?.tags;
       const contatos = (await q(
         contatoIds.length
-          ? `select id, telefone from contatos where projeto_id=$1 and id = any($2::uuid[])`
+          ? `select id, telefone
+               from contatos
+              where projeto_id=$1
+                and id = any($2::uuid[])
+                and telefone is not null
+                and coalesce(opt_out_whatsapp,false)=false`
           : tags?.length
-            ? `select id, telefone from contatos where projeto_id=$1 and tags && $2::text[]`
-            : `select id, telefone from contatos where projeto_id=$1`,
+            ? `select id, telefone
+                 from contatos
+                where projeto_id=$1
+                  and tags && $2::text[]
+                  and telefone is not null
+                  and coalesce(opt_out_whatsapp,false)=false`
+            : `select id, telefone
+                 from contatos
+                where projeto_id=$1
+                  and telefone is not null
+                  and coalesce(opt_out_whatsapp,false)=false`,
         contatoIds.length ? [dto.projetoId, contatoIds] : tags?.length ? [dto.projetoId, tags] : [dto.projetoId])).rows;
 
       if (!contatos.length) {

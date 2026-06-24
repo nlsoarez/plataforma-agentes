@@ -107,6 +107,7 @@ export async function tratarScanReativacao(job: ScanJob, queue: Queue) {
         where c.tenant_id=$1
           and c.projeto_id=$2
           and c.telefone is not null
+          and coalesce(c.opt_out_whatsapp,false)=false
           and coalesce(c.ultima_interacao, c.criado_em) <= now() - make_interval(days => $3::int)
           and not exists (
             select 1
@@ -153,7 +154,7 @@ export async function tratarEnvioReativacao(job: SendJob, queue: Queue) {
   await comTenant(job.tenantId, async (q) => {
     const row = (await q(
       `select r.id, r.tenant_id, r.projeto_id, r.contato_id, r.phone_number_id, r.message, r.status,
-              c.telefone
+              c.telefone, c.opt_out_whatsapp
          from lead_reactivation_runs r
          join contatos c on c.id=r.contato_id
         where r.id=$1 and r.tenant_id=$2
@@ -161,6 +162,10 @@ export async function tratarEnvioReativacao(job: SendJob, queue: Queue) {
       [job.runId, job.tenantId],
     )).rows[0];
     if (!row || row.status === 'enviado') return;
+    if (row.opt_out_whatsapp) {
+      await q(`update lead_reactivation_runs set status='cancelado', error='contato com opt-out WhatsApp', atualizado_em=now() where id=$1`, [row.id]);
+      return;
+    }
 
     if (!dentroDoHorario()) {
       await queue.add('enviar', job, { delay: msAteProximaJanela(), removeOnComplete: 200, removeOnFail: 300 });
@@ -210,7 +215,9 @@ export async function tratarEnvioReativacao(job: SendJob, queue: Queue) {
 
 function renderizarMensagem(template: string, lead: { nome?: string | null; telefone: string }) {
   const nome = lead.nome || lead.telefone || 'tudo bem';
-  return String(template || '').replaceAll('{{nome}}', nome);
+  return String(template || '')
+    .replaceAll('{{nome}}', nome)
+    .replaceAll('{{telefone}}', lead.telefone || '');
 }
 
 async function idadeInstancia(tenantId: string, instancia: string): Promise<number> {

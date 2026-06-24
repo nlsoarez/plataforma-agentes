@@ -1,12 +1,13 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
 import { comTenant } from '@plataforma/db';
-import { encryptSecret } from '../secrets/crypto';
+import { decryptSecret, encryptSecret } from '../secrets/crypto';
 import { assinarEstadoGoogleCalendarOAuth, verificarEstadoGoogleCalendarOAuth } from '../auth/jwt';
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
+const GOOGLE_CALENDAR_LIST_URL = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 const CALENDAR_SCOPE = [
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/calendar.freebusy',
@@ -26,6 +27,22 @@ interface GoogleUserInfo {
   email?: string;
   email_verified?: boolean | string;
 }
+
+type CalendarIntegrationRow = {
+  id: string;
+  calendar_id: string | null;
+  encrypted_access_token: string | null;
+  encrypted_refresh_token: string | null;
+  token_expires_at: string | null;
+};
+
+type GoogleCalendarListItem = {
+  id?: string;
+  summary?: string;
+  primary?: boolean;
+  accessRole?: string;
+  backgroundColor?: string;
+};
 
 export function calendarRedirectUri() {
   if (process.env.GOOGLE_CALENDAR_OAUTH_REDIRECT_URI) return process.env.GOOGLE_CALENDAR_OAUTH_REDIRECT_URI;
@@ -102,6 +119,57 @@ export async function concluirGoogleCalendarOAuth(code: string, state: string) {
   return { origem: estado.origem, email: perfil.email };
 }
 
+export async function listarGoogleCalendarsTenant(tenantId: string) {
+  return comTenant(tenantId, async (q) => {
+    const integration = await buscarIntegracao(q);
+    if (!integration) throw new BadRequestException('Google Calendar nao conectado');
+    const accessToken = await accessTokenForIntegration(q, integration);
+    const calendars = await buscarCalendarios(accessToken);
+    await q(
+      `update calendar_integrations
+          set calendars_cache=$2::jsonb,
+              calendars_cache_at=now(),
+              last_error=null,
+              atualizado_em=now()
+        where id=$1`,
+      [integration.id, JSON.stringify(calendars)],
+    );
+    return {
+      ok: true,
+      selectedCalendarId: integration.calendar_id || 'primary',
+      calendars,
+    };
+  });
+}
+
+export async function atualizarGoogleCalendarSelecionado(tenantId: string, calendarId: string) {
+  const selected = String(calendarId || '').trim();
+  if (!selected) throw new BadRequestException('calendarId obrigatorio');
+
+  return comTenant(tenantId, async (q) => {
+    const integration = await buscarIntegracao(q);
+    if (!integration) throw new BadRequestException('Google Calendar nao conectado');
+    const accessToken = await accessTokenForIntegration(q, integration);
+    const calendars = await buscarCalendarios(accessToken);
+    const found = calendars.find((calendar) => calendar.id === selected);
+    if (!found) throw new BadRequestException('Agenda nao encontrada na conta conectada');
+    if (!['owner', 'writer'].includes(found.accessRole || '')) {
+      throw new BadRequestException('Selecione uma agenda com permissao de escrita');
+    }
+    await q(
+      `update calendar_integrations
+          set calendar_id=$2,
+              calendars_cache=$3::jsonb,
+              calendars_cache_at=now(),
+              last_error=null,
+              atualizado_em=now()
+        where id=$1`,
+      [integration.id, selected, JSON.stringify(calendars)],
+    );
+    return { ok: true, calendarId: selected, calendarName: found.summary || selected, calendars };
+  });
+}
+
 async function trocarCodigo(code: string, codeVerifier: string): Promise<GoogleTokenResponse> {
   const resposta = await fetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
@@ -127,6 +195,76 @@ async function buscarPerfil(accessToken: string): Promise<GoogleUserInfo> {
   const payload = await resposta.json() as GoogleUserInfo;
   if (!resposta.ok) throw new UnauthorizedException('falha ao buscar perfil google');
   return payload;
+}
+
+async function buscarIntegracao(q: any): Promise<CalendarIntegrationRow | null> {
+  return (await q(
+    `select id, calendar_id, encrypted_access_token, encrypted_refresh_token, token_expires_at
+       from calendar_integrations
+      where provider='google' and ativo=true
+      order by atualizado_em desc
+      limit 1`,
+  )).rows[0] || null;
+}
+
+async function accessTokenForIntegration(q: any, integration: CalendarIntegrationRow) {
+  const expiresAt = integration.token_expires_at ? new Date(integration.token_expires_at).getTime() : 0;
+  if (integration.encrypted_access_token && expiresAt > Date.now() + 60_000) {
+    const token = decryptSecret(integration.encrypted_access_token);
+    if (token) return token;
+  }
+
+  const refreshToken = decryptSecret(integration.encrypted_refresh_token || '');
+  if (!refreshToken) throw new UnauthorizedException('refresh_token do Google Calendar ausente');
+  if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    throw new UnauthorizedException('GOOGLE_OAUTH_CLIENT_ID/SECRET nao configurados');
+  }
+
+  const resposta = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  });
+  const bodyText = await resposta.text();
+  if (!resposta.ok) throw new UnauthorizedException(`Google refresh ${resposta.status}: ${bodyText.slice(0, 500)}`);
+  const token = JSON.parse(bodyText) as GoogleTokenResponse;
+  if (!token.access_token) throw new UnauthorizedException('Google refresh nao retornou access_token');
+
+  await q(
+    `update calendar_integrations
+        set encrypted_access_token=$2,
+            token_expires_at=$3,
+            atualizado_em=now()
+      where id=$1`,
+    [
+      integration.id,
+      encryptSecret(token.access_token),
+      new Date(Date.now() + (token.expires_in || 3600) * 1000).toISOString(),
+    ],
+  );
+  return token.access_token;
+}
+
+async function buscarCalendarios(accessToken: string) {
+  const resposta = await fetch(`${GOOGLE_CALENDAR_LIST_URL}?minAccessRole=writer`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const payload = await resposta.json() as { items?: GoogleCalendarListItem[]; error?: { message?: string } };
+  if (!resposta.ok) throw new UnauthorizedException(payload.error?.message || 'falha ao listar agendas Google');
+  return (payload.items || [])
+    .filter((calendar) => calendar.id)
+    .map((calendar) => ({
+      id: calendar.id as string,
+      summary: calendar.summary || (calendar.id as string),
+      primary: Boolean(calendar.primary),
+      accessRole: calendar.accessRole || null,
+      backgroundColor: calendar.backgroundColor || null,
+    }));
 }
 
 function parseScopes(scope: string | undefined) {
