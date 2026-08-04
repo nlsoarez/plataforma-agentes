@@ -1,4 +1,5 @@
-import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { comTenant } from '@plataforma/db';
 import { verificarToken } from './jwt';
 import { getSubscriptionAccess } from '../billing/entitlements';
 
@@ -17,10 +18,31 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('token invalido');
     }
 
+    const activeUser = await comTenant(req.user.tenantId, async (q) => {
+      const result = await q(
+        `select id, papel, status from usuarios where tenant_id=$1 and id=$2 limit 1`,
+        [req.user.tenantId, req.user.sub],
+      );
+      return result.rows[0];
+    });
+    if (!activeUser || activeUser.status !== 'ativo') {
+      throw new UnauthorizedException('usuario inativo ou removido');
+    }
+    req.user.papel = activeUser.papel;
+
+    if (activeUser.papel === 'cliente_final' && !this.rotaClienteFinalPermitida(req)) {
+      throw new ForbiddenException('perfil sem acesso ao painel operacional');
+    }
+
     if (await this.deveBloquearPorPagamento(req)) {
       throw new HttpException('pagamento necessario', HttpStatus.PAYMENT_REQUIRED);
     }
     return true;
+  }
+
+  private rotaClienteFinalPermitida(req: any): boolean {
+    const path = String(req.path || req.url || '').split('?')[0];
+    return path.startsWith('/account') || path.startsWith('/billing') || path.startsWith('/auth');
   }
 
   private async deveBloquearPorPagamento(req: any): Promise<boolean> {

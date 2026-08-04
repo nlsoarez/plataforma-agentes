@@ -1,6 +1,7 @@
 import { Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 
 function normalizarEstado(value: unknown): string {
   const raw = String(value ?? '').trim().toLowerCase();
@@ -29,7 +30,8 @@ function asArray(value: any): any[] {
 }
 
 @Controller('sessoes')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class SessoesController {
   private base = (process.env.EVOLUTION_API_URL ?? '').replace(/\/+$/, '');
   private apikey = process.env.EVOLUTION_API_KEY ?? '';
@@ -205,11 +207,21 @@ export class SessoesController {
   async remover(@Param('id') id: string, @Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       const p = (await q(`select phone_number_id from projetos where id=$1`, [id])).rows[0];
+      if (!p) return { ok: false, message: 'Projeto ou conexao nao encontrado' };
+
+      let warning: string | null = null;
       if (p?.phone_number_id && this.base && this.apikey) {
-        await fetch(`${this.base}/instance/delete/${p.phone_number_id}`, { method: 'DELETE', headers: this.headers() }).catch(() => null);
+        try {
+          const response = await fetch(`${this.base}/instance/delete/${p.phone_number_id}`, { method: 'DELETE', headers: this.headers() });
+          if (!response.ok && response.status !== 404) warning = `Evolution API respondeu HTTP ${response.status}`;
+        } catch (error: any) {
+          warning = error?.message || 'Falha ao remover a instancia na Evolution API';
+        }
+      } else if (p?.phone_number_id) {
+        warning = 'Evolution API nao configurada; a instancia externa pode continuar existente';
       }
       await q(`delete from projetos where id=$1`, [id]);
-      return { ok: true };
+      return { ok: true, warning };
     });
   }
 }

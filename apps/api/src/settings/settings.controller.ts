@@ -1,6 +1,7 @@
 import { Body, ConflictException, Controller, Get, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { normalizarDominio, pool, resolverTenantPorDominio } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 
 const OLD_BRAND_RE = /(attende|neural[-\s_]?lab|command\s*center)/i;
 const OLD_COLOR_RE = /^#?(22c55e|14b8a6|0f172a|020617)$/i;
@@ -139,7 +140,7 @@ export class PublicBrandingController {
 }
 
 @Controller('settings')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class SettingsController {
   @Get('tenant')
   async tenant(@Req() req: any) {
@@ -158,6 +159,7 @@ export class SettingsController {
   }
 
   @Patch('tenant')
+  @Roles('owner', 'admin')
   async atualizar(@Body() body: any, @Req() req: any) {
     const current = await pool.query(`select dominio from tenants where id=$1`, [req.user.tenantId]);
     const currentDomain = current.rows[0]?.dominio || '';

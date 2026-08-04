@@ -254,26 +254,6 @@ export default function AgendaPage() {
     }
   }
 
-  async function cancelar(id: string) {
-    if (!token) return;
-    if (!confirm('Cancelar este agendamento?')) return;
-    setLoading(true);
-    setMsg('');
-    try {
-      const r = await fetch(`${API}/agenda/${id}`, { method: 'DELETE', headers: auth(token) });
-      const d = await r.json();
-      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao cancelar agendamento');
-      setMsg(d.calendarSync?.ok === false
-        ? `Agendamento cancelado localmente. Falha ao remover do Google Calendar: ${d.calendarSync?.error || 'erro desconhecido'}`
-        : 'Agendamento cancelado.');
-      await carregarTudo();
-    } catch (e: any) {
-      setMsg(e?.message || 'Falha ao cancelar agendamento');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function sincronizarItem(item: Agendamento) {
     if (!token) return;
     setLoading(true);

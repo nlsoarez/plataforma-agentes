@@ -53,6 +53,9 @@ export class AuthService {
   }
 
   async registrar(dominio: string, body: { nome?: string; email: string; senha: string; origem?: string }): Promise<{ token: string }> {
+    if (!this.publicRegistrationEnabled()) {
+      throw new UnauthorizedException('cadastro publico desabilitado');
+    }
     const tenant = dominio ? await resolverTenantPorDominio(dominio) : null;
     if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
 
@@ -257,6 +260,9 @@ export class AuthService {
       );
       const encontrado = porEmail.rows[0];
       if (!encontrado) {
+        if (!this.publicRegistrationEnabled()) {
+          throw new UnauthorizedException('usuario Google nao autorizado neste tenant');
+        }
         const criado = await q(
           `insert into usuarios
             (tenant_id, nome, email, senha_hash, papel, status, google_sub, avatar_url, auth_provider, ultimo_login_em, email_verified_at)
@@ -306,6 +312,11 @@ export class AuthService {
       token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }),
       origem: estado.origem,
     };
+  }
+
+  private publicRegistrationEnabled(): boolean {
+    if (process.env.PUBLIC_REGISTRATION_ENABLED === 'true') return true;
+    return process.env.NODE_ENV !== 'production';
   }
 
   private async trocarCodigoGoogle(code: string, codeVerifier: string): Promise<GoogleTokenResponse> {

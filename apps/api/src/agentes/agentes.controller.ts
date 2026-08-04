@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, Put, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { assertLimit } from '../billing/entitlements';
 import { encryptSecret } from '../secrets/crypto';
 
@@ -39,7 +40,8 @@ function pareceChaveDireta(ref?: string | null) {
 }
 
 @Controller('agentes')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class AgentesController {
   @Get()
   listar(@Req() req: any) {

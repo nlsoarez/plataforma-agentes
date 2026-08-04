@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, Param, Post, Put, Query, Re
 import { Queue } from 'bullmq';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 
 type SaveReportSettingsDto = {
   ativo?: boolean;
@@ -12,7 +13,8 @@ type SaveReportSettingsDto = {
 };
 
 @Controller('reports')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class ReportsController {
   private fila?: Queue;
 

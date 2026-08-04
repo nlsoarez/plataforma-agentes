@@ -1,9 +1,10 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { requireSecret } from '@plataforma/shared';
 
 const ALGO = 'aes-256-gcm';
 
 function masterKey() {
-  const raw = process.env.SECRETS_MASTER_KEY || process.env.JWT_SECRET || 'dev-insecure-master-key-change-me';
+  const raw = requireSecret('SECRETS_MASTER_KEY', process.env, 'dev-only-master-key-change-me');
   return createHash('sha256').update(raw).digest();
 }
 

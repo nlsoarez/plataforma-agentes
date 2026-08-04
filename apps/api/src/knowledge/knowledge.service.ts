@@ -115,7 +115,12 @@ export class KnowledgeService {
         .map((row: any) => ({ ...row, score: cosine(queryEmbedding, row.embedding) }))
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, limit)
-        .map(({ embedding, ...row }: any) => row);
+        .map((row: any) => ({
+          titulo: row.titulo,
+          conteudo: row.conteudo,
+          chunk_index: row.chunk_index,
+          score: row.score,
+        }));
     }
 
     const r = await q(

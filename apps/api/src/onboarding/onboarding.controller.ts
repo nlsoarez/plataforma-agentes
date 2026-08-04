@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { OnboardingService } from './onboarding.service';
 
 @Controller('onboarding')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class OnboardingController {
   constructor(private readonly svc: OnboardingService) {}
 

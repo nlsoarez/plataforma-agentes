@@ -1,8 +1,18 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { pool, carregarEnv } from './src/index';
+import { Pool } from 'pg';
+import { carregarEnv } from './src/index';
 
 carregarEnv(); // carrega .env ANTES de qualquer query
+
+const adminUrl = process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL;
+if (!adminUrl) throw new Error('DATABASE_ADMIN_URL ou DATABASE_URL deve ser configurada para migrations');
+const pool = new Pool({
+  connectionString: adminUrl,
+  ssl: /sslmode=require/.test(adminUrl) || process.env.PGSSL === 'true'
+    ? { rejectUnauthorized: false }
+    : undefined,
+});
 
 async function main() {
   await pool.query(`create table if not exists _migrations (nome text primary key, aplicada_em timestamptz default now())`);

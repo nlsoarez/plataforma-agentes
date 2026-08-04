@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
 import { hashSenha } from '../auth/senha';
@@ -11,6 +11,17 @@ export class EquipeController {
     if (!['owner', 'admin'].includes(req.user?.papel)) {
       throw new ForbiddenException('sem permissao para gerenciar equipe');
     }
+  }
+
+  private managedRole(req: any, value?: string): string {
+    const role = value || 'atendente';
+    if (!['owner', 'admin', 'atendente', 'cliente_final'].includes(role)) {
+      throw new BadRequestException('papel invalido');
+    }
+    if (role === 'owner' && req.user?.papel !== 'owner') {
+      throw new ForbiddenException('somente owner pode atribuir o papel owner');
+    }
+    return role;
   }
 
   @Get('departamentos')
@@ -62,6 +73,7 @@ export class EquipeController {
   @Post('usuarios')
   async criarUsuario(@Body() body: { nome?: string; email: string; senha: string; papel?: string; departamentoId?: string }, @Req() req: any) {
     this.assertAdmin(req);
+    const role = this.managedRole(req, body.papel);
     const consumesSlot = await comTenant(req.user.tenantId, async (q) => {
       const r = await q(`select status from usuarios where lower(email)=lower($1) limit 1`, [body.email]);
       return !r.rows[0] || r.rows[0].status !== 'ativo';
@@ -75,7 +87,7 @@ export class EquipeController {
          on conflict (tenant_id, email) do update
            set nome=excluded.nome, senha_hash=excluded.senha_hash, papel=excluded.papel, departamento_id=excluded.departamento_id, status='ativo'
          returning id, nome, email, papel, status, departamento_id`,
-        [req.user.tenantId, body.nome || null, body.email, hashSenha(body.senha), body.papel || 'atendente', body.departamentoId || null],
+        [req.user.tenantId, body.nome || null, body.email, hashSenha(body.senha), role, body.departamentoId || null],
       );
       return r.rows[0];
     });
@@ -84,6 +96,13 @@ export class EquipeController {
   @Patch('usuarios/:id')
   async atualizarUsuario(@Param('id') id: string, @Body() body: any, @Req() req: any) {
     this.assertAdmin(req);
+    const current = await comTenant(req.user.tenantId, async (q) => (
+      await q(`select papel from usuarios where tenant_id=$1 and id=$2 limit 1`, [req.user.tenantId, id])
+    ).rows[0]);
+    if (current?.papel === 'owner' && req.user.papel !== 'owner') {
+      throw new ForbiddenException('admin nao pode alterar um owner');
+    }
+    const nextRole = body.papel === undefined ? null : this.managedRole(req, body.papel);
     if (body.status === 'ativo') {
       const consumesSlot = await comTenant(req.user.tenantId, async (q) => {
         const r = await q(`select status from usuarios where id=$1`, [id]);
@@ -100,7 +119,7 @@ export class EquipeController {
              status=coalesce($5,status)
          where id=$1
          returning id, nome, email, papel, status, departamento_id`,
-        [id, body.nome ?? null, body.papel ?? null, body.departamentoId ?? null, body.status ?? null],
+        [id, body.nome ?? null, nextRole, body.departamentoId ?? null, body.status ?? null],
       );
       return r.rows[0];
     });

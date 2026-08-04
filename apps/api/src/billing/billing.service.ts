@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { comTenant, definirStatusTenant } from '@plataforma/db';
-import { AsaasBillingType, AsaasCycle, AsaasProvider } from './providers/asaas.provider';
+import { AsaasBillingType, AsaasProvider } from './providers/asaas.provider';
 import {
   getSubscriptionAccess,
   listPlansWithEntitlements,

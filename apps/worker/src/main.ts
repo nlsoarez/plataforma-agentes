@@ -1,9 +1,12 @@
-import { carregarEnv } from '@plataforma/db';
+import { assertSafeRuntimeDatabaseRole, carregarEnv } from '@plataforma/db';
 import type { EventoNormalizado } from '@plataforma/shared';
+import { validateWorkerRuntimeConfig } from '@plataforma/shared';
 
 carregarEnv();
 
 async function main() {
+  validateWorkerRuntimeConfig();
+  await assertSafeRuntimeDatabaseRole();
   const [
     { Worker, Queue },
     { tratarMensagemRecebida },

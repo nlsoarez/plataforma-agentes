@@ -151,7 +151,8 @@ URLs locais:
 
 ## Checklist Minimo de Producao
 
-- `DATABASE_URL` com Postgres persistente.
+- `DATABASE_URL` com Postgres persistente usando uma role de runtime sem ownership e sem `BYPASSRLS`.
+- `DATABASE_ADMIN_URL` reservada exclusivamente para migrations e provisionamento.
 - `REDIS_URL` com Redis persistente.
 - `JWT_SECRET` forte.
 - `SECRETS_MASTER_KEY` forte, com 32+ caracteres.
@@ -220,6 +221,24 @@ Crie tres servicos apontando para o mesmo repositorio:
 
 Adicione Postgres e Redis. Configure as variaveis do `.env.example` no painel.
 Segredos nunca devem ir para o repositorio.
+
+Antes de iniciar API e worker em producao, aplique as migrations com a credencial
+administrativa e provisione uma role separada para o runtime:
+
+```bash
+DATABASE_ADMIN_URL=... pnpm --filter @plataforma/db migrate
+DATABASE_ADMIN_URL=... DATABASE_RUNTIME_USER=plataforma_runtime DATABASE_RUNTIME_PASSWORD=... \
+  pnpm --filter @plataforma/db provision:runtime-role
+```
+
+Depois, configure `DATABASE_URL` da API e do worker com a role `plataforma_runtime`.
+O startup falha deliberadamente em producao quando a credencial e dona de tabelas
+RLS ou possui `BYPASSRLS`.
+
+Deploys desta versao invalidam JWTs emitidos por versoes anteriores; os usuarios
+precisam autenticar novamente. Webhooks Evolution e Asaas sem segredo agora sao
+rejeitados, portanto configure `EVOLUTION_API_KEY` e `ASAAS_WEBHOOK_TOKEN` antes
+da virada.
 
 Para o dominio oficial `comunora.com.br`, use o guia:
 

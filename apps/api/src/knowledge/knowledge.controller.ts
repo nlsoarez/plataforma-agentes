@@ -1,10 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { KnowledgeService } from './knowledge.service';
 import { assertLimit } from '../billing/entitlements';
 
 @Controller('knowledge')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class KnowledgeController {
   constructor(private readonly svc: KnowledgeService) {}
 

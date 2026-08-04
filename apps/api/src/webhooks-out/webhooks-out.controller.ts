@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGu
 import { comTenant } from '@plataforma/db';
 import { createHmac } from 'crypto';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { assertLimit } from '../billing/entitlements';
 import {
   calendarRedirectUri,
@@ -18,7 +19,8 @@ function assinarWebhook(secret: string, payload: string) {
   return createHmac('sha256', secret).update(payload).digest('hex');
 }
 
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 @Controller('integracoes')
 export class WebhooksOutController {
   @Get('status')
