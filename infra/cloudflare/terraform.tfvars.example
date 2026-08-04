@@ -1,0 +1,5 @@
+cloudflare_account_id = "CHANGE_ME"
+cloudflare_zone_id    = "CHANGE_ME"
+cloudflare_api_token  = "CHANGE_ME_DO_NOT_COMMIT"
+zone_name             = "comunora.com.br"
+tunnel_name           = "comunora-oci-production"

@@ -8,7 +8,9 @@
     "start": "node scripts/railway-start.mjs",
     "lint": "eslint . --max-warnings=0",
     "test": "turbo run test",
-    "check:prod": "node scripts/comunora-production-check.mjs"
+    "check:prod": "node scripts/comunora-production-check.mjs",
+    "build:extension": "node scripts/build-embratel-extension.mjs",
+    "check:oci": "node scripts/oci-production-check.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0",
@@ -18,6 +20,7 @@
     "eslint-config-next": "15.5.21",
     "@eslint/eslintrc": "3.3.4",
     "globals": "16.5.0",
+    "sharp": "0.35.3",
     "typescript-eslint": "8.66.0"
   }
 }

@@ -1,5 +1,7 @@
 # Comunora
 
+O ambiente de producao OCI, o ensaio, o corte, o rollback e os backups estao documentados em [docs/oci-migration-runbook.md](docs/oci-migration-runbook.md).
+
 Comunicação inteligente. Resultados reais.
 
 A Comunora é uma plataforma white-label multi-tenant para empresas centralizarem atendimento no WhatsApp, agentes de IA, CRM, automações, campanhas e atendimento humano usando Evolution API.

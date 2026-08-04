@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EMBRATEL Nova REC</title>
+  <style>
+    body { width: 320px; margin: 0; font-family: Arial, Helvetica, sans-serif; color: #172033; background: #fff; }
+    main { padding: 14px; }
+    h1 { font-size: 17px; margin: 0 0 10px; }
+    .status { border: 1px solid #d9e1ec; border-radius: 8px; padding: 10px; background: #f7f9fc; }
+    .row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; margin: 5px 0; }
+    .label { color: #5f6c80; }
+    .value { font-weight: 700; text-align: right; word-break: break-word; }
+    .watch-list { margin-top: 9px; padding-top: 8px; border-top: 1px solid #d9e1ec; }
+    .watch-title { margin-bottom: 6px; color: #172033; font-weight: 700; font-size: 12px; }
+    .watch-item { padding: 7px 0; border-top: 1px solid #e7edf5; }
+    .watch-item:first-of-type { border-top: 0; }
+    .watch-rec { color: #991b1b; font-weight: 800; font-size: 12px; }
+    .watch-meta { margin-top: 2px; color: #5f6c80; font-size: 11px; line-height: 1.25; word-break: break-word; }
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+    button { flex: 1; border: 0; border-radius: 6px; padding: 9px 10px; background: #1765b3; color: #fff; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #e8eef6; color: #172033; }
+    .error { color: #b91c1c; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>EMBRATEL Nova REC</h1>
+    <div class="status" id="status"></div>
+    <div class="actions">
+      <button id="poll-now">Verificar</button>
+      <button class="secondary" id="open-options">Opcoes</button>
+    </div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

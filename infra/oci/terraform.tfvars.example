@@ -1,0 +1,11 @@
+compartment_ocid = "ocid1.compartment.oc1..CHANGE_ME"
+admin_cidr       = "203.0.113.10/32"
+ssh_public_key   = "ssh-ed25519 CHANGE_ME"
+
+region              = "sa-saopaulo-1"
+instance_name       = "comunora-prod"
+instance_ocpus      = 2
+instance_memory_gbs = 12
+boot_volume_gbs     = 50
+data_volume_gbs     = 100
+backup_bucket_name  = "comunora-backups"

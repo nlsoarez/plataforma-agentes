@@ -3,6 +3,7 @@
   "globalPassThroughEnv": ["TEST_DATABASE_URL", "TEST_DATABASE_ADMIN_URL"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**"] },
+    "embratel-rec-whatsapp-relay#build": { "outputs": [] },
     "dev": { "dependsOn": ["^build"], "cache": false, "persistent": true },
     "lint": {},
     "test": {}

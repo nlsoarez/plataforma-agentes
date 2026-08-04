@@ -6,7 +6,7 @@ const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/.next/**', '**/.turbo/**', '**/node_modules/**', '**/next-env.d.ts'],
+    ignores: ['**/dist/**', '**/.next/**', '**/.turbo/**', '**/node_modules/**', '**/next-env.d.ts', 'tools/embratel-rec-extension/**'],
   },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   ...tseslint.configs.recommended,
@@ -33,6 +33,14 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-console': 'off',
+    },
+  },
+  {
+    files: ['apps/embratel-relay/**/*.js', 'apps/web/next.config.js'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
     },
   },
 );

@@ -29,6 +29,9 @@ importers:
       globals:
         specifier: 16.5.0
         version: 16.5.0
+      sharp:
+        specifier: 0.35.3
+        version: 0.35.3(@types/node@20.19.41)
       turbo:
         specifier: ^2.0.0
         version: 2.9.16
@@ -96,6 +99,8 @@ importers:
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
+
+  apps/embratel-relay: {}
 
   apps/web:
     dependencies:

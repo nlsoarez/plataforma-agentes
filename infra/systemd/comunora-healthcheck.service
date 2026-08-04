@@ -1,0 +1,10 @@
+[Unit]
+Description=Healthcheck local da Comunora
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/srv/comunora/app
+ExecStart=/srv/comunora/app/scripts/oci/healthcheck.sh production
