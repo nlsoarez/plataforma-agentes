@@ -115,6 +115,8 @@ export default function AgentesPage() {
     horario_fim: '18:00',
   });
   const [reportSettings, setReportSettings] = useState<Record<string, ReportSetting>>({});
+  const [newAgentProjectId, setNewAgentProjectId] = useState('');
+  const [draftProjectId, setDraftProjectId] = useState('');
   const [reportForm, setReportForm] = useState({
     ativo: false,
     horario: '18:00',
@@ -123,14 +125,25 @@ export default function AgentesPage() {
   });
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [removingProjectId, setRemovingProjectId] = useState('');
   const [msg, setMsg] = useState('');
   const [activePanel, setActivePanel] = useState<AgentPanel>('operacao');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
-  const selected = useMemo(() => rows.find((r) => r.projeto_id === selectedId) ?? rows[0], [rows, selectedId]);
+  const configuredRows = useMemo(() => rows.filter((row) => Boolean(row.agente_id)), [rows]);
+  const availableRows = useMemo(() => rows.filter((row) => !row.agente_id), [rows]);
+  const selected = useMemo(
+    () => rows.find((row) => row.projeto_id === selectedId && (Boolean(row.agente_id) || row.projeto_id === draftProjectId)) ?? configuredRows[0],
+    [configuredRows, draftProjectId, rows, selectedId],
+  );
   const selectedReport = selected ? reportSettings[selected.projeto_id] : null;
 
   useEffect(() => { if (token) carregar(); }, [token]);
+
+  useEffect(() => {
+    if (availableRows.some((row) => row.projeto_id === newAgentProjectId)) return;
+    setNewAgentProjectId(availableRows[0]?.projeto_id || '');
+  }, [availableRows, newAgentProjectId]);
 
   useEffect(() => {
     if (!selected) return;
@@ -146,7 +159,7 @@ export default function AgentesPage() {
       horario_inicio: selected.horario_inicio || '08:00',
       horario_fim: selected.horario_fim || '18:00',
     });
-  }, [selected?.projeto_id]);
+  }, [selected?.agente_id, selected?.projeto_id]);
 
   useEffect(() => {
     if (!selected) return;
@@ -183,7 +196,10 @@ export default function AgentesPage() {
       const list = Array.isArray(agents) ? agents : [];
       setRows(list);
       setReportSettings(Object.fromEntries((Array.isArray(reports) ? reports : []).map((item: ReportSetting) => [item.projeto_id, item])));
-      if (!selectedId && list[0]) setSelectedId(list[0].projeto_id);
+      if (!selectedId) {
+        const firstConfigured = list.find((item: AgentRow) => Boolean(item.agente_id));
+        if (firstConfigured) setSelectedId(firstConfigured.projeto_id);
+      }
       fetch(`${API}/templates/professions`, { headers: auth(token) })
         .then((response) => response.ok ? response.json() : [])
         .then((data) => setTemplates(Array.isArray(data) ? data : []))
@@ -219,6 +235,43 @@ export default function AgentesPage() {
     }
   }
 
+  function configurarConexaoDisponivel() {
+    if (!newAgentProjectId) return;
+    setDraftProjectId(newAgentProjectId);
+    setSelectedId(newAgentProjectId);
+    setMsg('Preencha a configuração e clique em Salvar agente.');
+  }
+
+  async function excluirConexaoDisponivel() {
+    if (!token || !newAgentProjectId || removingProjectId) return;
+    const project = availableRows.find((row) => row.projeto_id === newAgentProjectId);
+    if (!project) return;
+
+    const target = project.phone_number_id ? 'a conexão WhatsApp e o projeto' : 'o projeto';
+    if (!confirm(`Excluir ${target} "${project.projeto_nome}"? Conversas, contatos, automações e demais dados vinculados também serão removidos. Esta ação não pode ser desfeita.`)) return;
+
+    setRemovingProjectId(project.projeto_id);
+    setMsg('');
+    try {
+      const response = await fetch(`${API}/sessoes/${project.projeto_id}`, { method: 'DELETE', headers: auth(token) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) throw new Error(data?.message || 'Falha ao excluir projeto/conexão');
+
+      setRows((current) => current.filter((row) => row.projeto_id !== project.projeto_id));
+      if (selectedId === project.projeto_id) setSelectedId('');
+      if (draftProjectId === project.projeto_id) setDraftProjectId('');
+      setMsg(data?.warning
+        ? `Projeto removido, mas a instância externa exige verificação: ${data.warning}`
+        : project.phone_number_id
+          ? 'Conexão e projeto excluídos.'
+          : 'Projeto excluído.');
+    } catch (error: any) {
+      setMsg(error?.message || 'Falha ao excluir projeto/conexão');
+    } finally {
+      setRemovingProjectId('');
+    }
+  }
+
   async function salvar() {
     if (!token || !selected) return;
     setLoading(true);
@@ -231,6 +284,7 @@ export default function AgentesPage() {
       });
       const d = await r.json();
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao salvar agente');
+      setDraftProjectId('');
       setMsg(form.status === 'inativo' ? 'Agente salvo e desativado.' : form.status === 'pausado' ? 'Agente salvo e pausado.' : 'Agente salvo e ativado.');
       await carregar({ preserveMessage: true });
     } catch (e: any) {
@@ -250,7 +304,26 @@ export default function AgentesPage() {
       const r = await fetch(`${API}/agentes/${selected.projeto_id}`, { method: 'DELETE', headers: auth(token) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao excluir agente');
-      setMsg(Number(d.deleted || 0) > 0 ? 'Agente excluído. A conexão WhatsApp foi mantida.' : 'Nenhuma configuração de agente encontrada para excluir.');
+      const deleted = Number(d.deleted || 0);
+      if (deleted > 0) {
+        setDraftProjectId('');
+        setSelectedId('');
+        setRows((current) => current.map((row) => row.projeto_id === selected.projeto_id
+          ? {
+              ...row,
+              agente_id: null,
+              prompt_sistema: null,
+              modelo: null,
+              provider: null,
+              byok_key_ref: null,
+              agente_status: null,
+              horario_ativo: null,
+              horario_inicio: null,
+              horario_fim: null,
+            }
+          : row));
+      }
+      setMsg(deleted > 0 ? 'Agente excluído. A conexão WhatsApp foi mantida.' : 'Nenhuma configuração de agente encontrada para excluir.');
       await carregar({ preserveMessage: true });
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao excluir agente');
@@ -338,19 +411,53 @@ export default function AgentesPage() {
         </section>
       )}
 
+      {msg && <div className={`nl-agent-feedback ${isSuccessMessage(msg) ? 'ok' : 'error'}`} style={{ maxWidth: 1120, marginBottom: 16 }}>{msg}</div>}
+
       {rows.length === 0 ? (
         <div className="nl-card nl-card--pad nl-empty" style={{ maxWidth: 520 }}>
           <div className="display display-md">Nenhuma conexão</div>
           <div>Conecte um número em Conectar WhatsApp primeiro.</div>
         </div>
       ) : (
+        <>
+          {availableRows.length > 0 && (
+            <section className="nl-card nl-card--pad" style={{ maxWidth: 1120, marginBottom: 16 }}>
+              <div className="nl-agent-report-card__head">
+                <div>
+                  <div className="eyebrow">Conexões disponíveis</div>
+                  <h2>Configurar outro agente</h2>
+                  <p className="muted">Conexões sem agente ficam disponíveis aqui. Excluir um agente não remove o WhatsApp.</p>
+                </div>
+              </div>
+              <div className="nl-row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select className="nl-select" value={newAgentProjectId} onChange={(event) => setNewAgentProjectId(event.target.value)} style={{ maxWidth: 520 }}>
+                  {availableRows.map((row) => (
+                    <option key={row.projeto_id} value={row.projeto_id}>{row.projeto_nome} - {connectionTitle(row)}</option>
+                  ))}
+                </select>
+                <button className="nl-btn nl-btn--ghost" type="button" onClick={configurarConexaoDisponivel} disabled={!newAgentProjectId || loading || deleting}>
+                  Configurar agente
+                </button>
+                <button className="nl-btn nl-btn--danger" type="button" onClick={excluirConexaoDisponivel} disabled={!newAgentProjectId || loading || deleting || Boolean(removingProjectId)}>
+                  {removingProjectId ? 'Excluindo...' : 'Excluir projeto/conexão'}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {configuredRows.length === 0 && !selected ? (
+            <div className="nl-card nl-card--pad nl-empty" style={{ maxWidth: 520 }}>
+              <div className="display display-md">Nenhum agente configurado</div>
+              <div>Escolha uma conexão disponível acima ou crie um agente por segmento.</div>
+            </div>
+          ) : (
         <div className="nl-agents-grid">
           <section className="nl-stack">
             <div className="nl-agent-list-head">
-              <span>Números WhatsApp</span>
-              <small>Cada conexão pode ter um agente próprio.</small>
+              <span>Agentes configurados</span>
+              <small>Somente agentes existentes aparecem nesta lista.</small>
             </div>
-            {rows.map((row) => (
+            {(selected && !selected.agente_id ? [selected, ...configuredRows] : configuredRows).map((row) => (
               <button
                 key={row.projeto_id}
                 className={`nl-agent-session ${row.projeto_id === selected?.projeto_id ? 'active' : ''}`}
@@ -380,8 +487,6 @@ export default function AgentesPage() {
                   </div>
                   <span className={`nl-badge ${badgeClass(selected.agente_status)}`}>{selected.agente_status || 'sem agente'}</span>
                 </div>
-
-                {msg && <div className={`nl-agent-feedback ${isSuccessMessage(msg) ? 'ok' : 'error'}`}>{msg}</div>}
 
                 <div className="nl-tabs" role="tablist" aria-label="Configuracao do agente">
                   <button
@@ -427,7 +532,7 @@ export default function AgentesPage() {
                     <p>Este agente responde somente pelo número selecionado. Para outro WhatsApp, selecione outra conexão e salve uma configuração própria.</p>
                   </div>
                   <select className="nl-select" value={selected.projeto_id} onChange={(e) => setSelectedId(e.target.value)}>
-                    {rows.map((row) => (
+                    {(selected.agente_id ? configuredRows : [selected, ...configuredRows]).map((row) => (
                       <option key={row.projeto_id} value={row.projeto_id}>
                         {row.projeto_nome} - {connectionTitle(row)}{row.phone_number_id ? ` - instância ${row.phone_number_id}` : ''}
                       </option>
@@ -585,16 +690,22 @@ export default function AgentesPage() {
                 <div className="nl-agent-actions">
                   <span className="faint">O worker responde somente quando o agente está ativo e dentro do horário configurado.</span>
                   <div className="nl-row" style={{ gap: 8 }}>
-                    <button className="nl-btn nl-btn--danger" onClick={excluirAgente} disabled={loading || deleting}>
-                      {deleting ? 'Excluindo...' : 'Excluir agente'}
+                    {selected.agente_id && (
+                      <button className="nl-btn nl-btn--danger" onClick={excluirAgente} disabled={loading || deleting}>
+                        {deleting ? 'Excluindo...' : 'Excluir agente'}
+                      </button>
+                    )}
+                    <button className="nl-btn nl-btn--accent" onClick={salvar} disabled={loading || deleting}>
+                      {selected.agente_id ? 'Salvar agente' : 'Criar agente'}
                     </button>
-                    <button className="nl-btn nl-btn--accent" onClick={salvar} disabled={loading || deleting}>Salvar agente</button>
                   </div>
                 </div>
               </>
             )}
           </section>
         </div>
+          )}
+        </>
       )}
     </Shell>
   );
