@@ -40,29 +40,31 @@ COPY packages ./packages
 COPY scripts ./scripts
 RUN pnpm build
 
-FROM node:22.22.0-bookworm-slim AS node-runtime
+FROM build AS api-production
+RUN pnpm --filter @plataforma/api deploy --prod --legacy /prod/api
+
+FROM build AS worker-production
+RUN pnpm --filter @plataforma/worker deploy --prod --legacy /prod/worker
+
+FROM node:22.22.0-bookworm-slim AS migration-runtime
 ENV NODE_ENV=production
 WORKDIR /app
 RUN groupmod --gid 10001 node && usermod --uid 10001 --gid 10001 node
 
+FROM gcr.io/distroless/nodejs22-debian12:nonroot AS node-runtime
+ENV NODE_ENV=production
+WORKDIR /app
+
 FROM node-runtime AS api
-COPY --from=build /workspace/package.json /workspace/pnpm-workspace.yaml ./
-COPY --from=build /workspace/node_modules ./node_modules
-COPY --from=build /workspace/apps/api ./apps/api
-COPY --from=build /workspace/packages ./packages
-USER node
+COPY --from=api-production --chown=65532:65532 /prod/api ./
 EXPOSE 3000
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["dist/main.js"]
 
 FROM node-runtime AS worker
-COPY --from=build /workspace/package.json /workspace/pnpm-workspace.yaml ./
-COPY --from=build /workspace/node_modules ./node_modules
-COPY --from=build /workspace/apps/worker ./apps/worker
-COPY --from=build /workspace/packages ./packages
-USER node
-CMD ["node", "apps/worker/dist/main.js"]
+COPY --from=worker-production --chown=65532:65532 /prod/worker ./
+CMD ["dist/main.js"]
 
-FROM node-runtime AS migration
+FROM migration-runtime AS migration
 RUN npm install --global pnpm@10.34.5 && npm cache clean --force
 COPY --from=build /workspace/package.json /workspace/pnpm-workspace.yaml ./
 COPY --from=build /workspace/node_modules ./node_modules
@@ -74,15 +76,13 @@ FROM node-runtime AS web
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
-COPY --from=build --chown=node:node /workspace/apps/web/.next/standalone ./
-COPY --from=build --chown=node:node /workspace/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build --chown=node:node /workspace/apps/web/public ./apps/web/public
-USER node
+COPY --from=build --chown=65532:65532 /workspace/apps/web/.next/standalone ./
+COPY --from=build --chown=65532:65532 /workspace/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=65532:65532 /workspace/apps/web/public ./apps/web/public
 EXPOSE 3001
-CMD ["node", "apps/web/server.js"]
+CMD ["apps/web/server.js"]
 
 FROM node-runtime AS relay
-COPY --from=build --chown=node:node /workspace/apps/embratel-relay ./apps/embratel-relay
-USER node
+COPY --from=build --chown=65532:65532 /workspace/apps/embratel-relay ./apps/embratel-relay
 EXPOSE 8788
-CMD ["node", "apps/embratel-relay/server.js"]
+CMD ["apps/embratel-relay/server.js"]
