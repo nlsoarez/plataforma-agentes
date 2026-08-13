@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { assertLimit } from '../billing/entitlements';
+import {
+  evolutionCreatePayload,
+  evolutionWebhookConfig,
+  extractEvolutionQr,
+} from './evolution-onboarding';
 
 @Injectable()
 export class OnboardingService {
@@ -22,17 +27,6 @@ export class OnboardingService {
     return publicUrl ? `${publicUrl}/webhook/evolution` : '';
   }
 
-  private webhookConfig(url: string) {
-    return {
-      enabled: true,
-      url,
-      headers: {},
-      webhookByEvents: false,
-      webhookBase64: true,
-      events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE', 'QRCODE_UPDATED'],
-    };
-  }
-
   private normalizarEstado(value: unknown): string {
     const raw = String(value ?? '').trim().toLowerCase();
     if (['open', 'opened', 'connected', 'conectado'].includes(raw)) return 'open';
@@ -51,29 +45,13 @@ export class OnboardingService {
     }
   }
 
-  private extractQr(data: any) {
-    const qr =
-      data?.base64 ??
-      data?.qrcode?.base64 ??
-      data?.qrcode?.qrCode ??
-      data?.qrcode?.code ??
-      data?.qrCode ??
-      null;
-
-    return {
-      qr,
-      qrCode: data?.code ?? data?.qrcode?.code ?? null,
-      pairingCode: data?.pairingCode ?? data?.qrcode?.pairingCode ?? null,
-    };
-  }
-
   private async connect(instancia: string) {
-    const r = await fetch(`${this.base}/instance/connect/${instancia}`, { headers: this.headers() });
+    const r = await fetch(`${this.base}/instance/connect/${encodeURIComponent(instancia)}`, { headers: this.headers() });
     const data = await this.readJson(r);
-    if (!r.ok) {
+    if (!r.ok || data?.error === true) {
       throw new BadRequestException(`buscar QR falhou: ${JSON.stringify(data)}`);
     }
-    return this.extractQr(data);
+    return extractEvolutionQr(data);
   }
 
   private async garantirWebhook(instancia: string) {
@@ -82,10 +60,10 @@ export class OnboardingService {
       return { ok: false, message: 'API_PUBLIC_URL nao configurada' };
     }
 
-    const r = await fetch(`${this.base}/webhook/set/${instancia}`, {
+    const r = await fetch(`${this.base}/webhook/set/${encodeURIComponent(instancia)}`, {
       method: 'POST',
       headers: this.headers(),
-      body: JSON.stringify({ webhook: this.webhookConfig(url) }),
+      body: JSON.stringify({ webhook: evolutionWebhookConfig(url, this.apikey) }),
     });
     const data = await this.readJson(r);
     if (!r.ok) {
@@ -143,7 +121,9 @@ export class OnboardingService {
     const slot = await comTenant(tenantId, async (q) => {
       if (!projetoId) return { project: true, whatsapp: true };
       const p = (await q(`select phone_number_id from projetos where id=$1`, [projetoId])).rows[0];
-      return { project: false, whatsapp: !p?.phone_number_id };
+      if (!p) throw new BadRequestException('projeto nao encontrado para este cliente');
+      if (p.phone_number_id) throw new BadRequestException('este projeto ja possui uma conexao WhatsApp');
+      return { project: false, whatsapp: true };
     });
     if (slot.project) await assertLimit(tenantId, 'projects', 1);
     if (slot.whatsapp) await assertLimit(tenantId, 'whatsapp_connections', 1);
@@ -153,12 +133,7 @@ export class OnboardingService {
     const r = await fetch(`${this.base}/instance/create`, {
       method: 'POST',
       headers: this.headers(),
-      body: JSON.stringify({
-        instanceName: instancia,
-        integration: 'WHATSAPP-BAILEYS',
-        qrcode: true,
-        webhook: webhookUrl ? this.webhookConfig(webhookUrl) : undefined,
-      }),
+      body: JSON.stringify(evolutionCreatePayload(instancia, webhookUrl, this.apikey)),
     });
     const data = await this.readJson(r);
     if (!r.ok) {
@@ -182,7 +157,7 @@ export class OnboardingService {
     await this.salvarProjeto(tenantId, cleanNome, instancia, projetoId);
     const webhook = await this.garantirWebhook(instancia);
 
-    const qr = this.extractQr(data);
+    const qr = extractEvolutionQr(data);
     if (qr.qr || qr.qrCode || qr.pairingCode) {
       return { instancia, warning: webhook.ok ? undefined : webhook.message, ...qr };
     }
@@ -200,7 +175,7 @@ export class OnboardingService {
     this.assertConfig();
     await this.assertInstanciaDoTenant(tenantId, instancia);
 
-    const r = await fetch(`${this.base}/instance/connectionState/${instancia}`, { headers: this.headers() });
+    const r = await fetch(`${this.base}/instance/connectionState/${encodeURIComponent(instancia)}`, { headers: this.headers() });
     const data = await this.readJson(r);
     if (!r.ok) {
       throw new BadRequestException(`status instancia falhou: ${JSON.stringify(data)}`);

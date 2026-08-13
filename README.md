@@ -121,9 +121,10 @@ Para o QR apenas conectar, `EVOLUTION_API_URL` e `EVOLUTION_API_KEY` bastam.
 
 Na hospedagem atual da Hostinger, a Evolution API responde em
 `https://evolution.179-198-124-8.sslip.io` e o Manager em
-`https://evolution.179-198-124-8.sslip.io/manager/login`. A instancia WhatsApp
-deve ser criada no Manager e seu nome precisa coincidir com o valor salvo na
-configuracao da Comunora.
+`https://evolution.179-198-124-8.sslip.io/manager/login`. O Manager e apenas uma
+ferramenta administrativa e de diagnostico: o fluxo normal acontece em
+`/onboarding`, onde a Comunora cria a instancia pela API, configura o webhook e
+mostra o QR Code automaticamente.
 Para mensagens reais chegarem ao sistema, `API_PUBLIC_URL` precisa apontar para a API publica:
 
 ```env
