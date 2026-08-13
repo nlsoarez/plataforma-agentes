@@ -108,7 +108,7 @@ export class AccountController {
   @Patch('password')
   async alterarSenha(@Body() body: { senhaAtual?: string; novaSenha?: string }, @Req() req: any) {
     const novaSenha = String(body.novaSenha || '');
-    if (novaSenha.length < 8) throw new BadRequestException('nova senha deve ter pelo menos 8 caracteres');
+    if (novaSenha.length < 12) throw new BadRequestException('nova senha deve ter pelo menos 12 caracteres');
 
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(

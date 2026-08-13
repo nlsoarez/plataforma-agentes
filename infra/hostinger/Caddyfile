@@ -9,13 +9,19 @@
     X-Content-Type-Options "nosniff"
     X-Frame-Options "SAMEORIGIN"
     Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "camera=(self), microphone=(), geolocation=()"
     -Server
   }
 }
 
 {$EVOLUTION_DOMAIN} {
   import secure_headers
-  reverse_proxy evolution:8080
+  handle /manager* {
+    respond 404
+  }
+  handle {
+    reverse_proxy evolution:8080
+  }
   log {
     output stdout
     format json

@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { comTenant, resolverTenantPorDominio } from '@plataforma/db';
 import { createHash, randomBytes } from 'crypto';
-import { hashSenha, verificarSenha } from './senha';
+import { hashSenha, senhaPrecisaRehash, verificarSenha } from './senha';
 import { assinarEstadoGoogleOAuth, assinarToken, verificarEstadoGoogleOAuth } from './jwt';
 import { ensureTrialSubscription } from '../billing/entitlements';
 import { actionEmail, EmailService } from './email.service';
@@ -47,6 +47,9 @@ export class AuthService {
     if (process.env.EMAIL_VERIFICATION_REQUIRED === 'true' && !user.email_verified_at) {
       throw new UnauthorizedException('email ainda nao verificado');
     }
+    if (senhaPrecisaRehash(user.senha_hash)) {
+      await comTenant(tenant.id, (q) => q(`update usuarios set senha_hash=$2, atualizado_em=now() where id=$1`, [user.id, hashSenha(senha)]));
+    }
     await ensureTrialSubscription(tenant.id);
     await this.audit(tenant.id, user.id, 'auth.login', 'usuario', user.id);
     return { token: assinarToken({ sub: user.id, tenantId: tenant.id, papel: user.papel }) };
@@ -63,7 +66,7 @@ export class AuthService {
     const nome = body.nome?.trim() || null;
     const senha = body.senha || '';
     if (!email) throw new BadRequestException('email invalido');
-    if (senha.length < 8) throw new BadRequestException('senha deve ter pelo menos 8 caracteres');
+    if (senha.length < 12) throw new BadRequestException('senha deve ter pelo menos 12 caracteres');
 
     const user = await comTenant(tenant.id, async (q) => {
       const existente = await q(`select id from usuarios where lower(email)=lower($1) limit 1`, [email]);
@@ -127,7 +130,7 @@ export class AuthService {
     const tenant = dominio ? await resolverTenantPorDominio(dominio) : null;
     if (!tenant) throw new UnauthorizedException('agencia nao encontrada para este dominio');
     if (!token) throw new BadRequestException('token obrigatorio');
-    if (!senha || senha.length < 8) throw new BadRequestException('senha deve ter pelo menos 8 caracteres');
+    if (!senha || senha.length < 12) throw new BadRequestException('senha deve ter pelo menos 12 caracteres');
 
     const tokenHash = this.hashToken(token);
     const user = await comTenant(tenant.id, async (q) => {
@@ -402,6 +405,7 @@ export class AuthService {
   }
 
   private authLinkResponse(url: string, emailResult: any): any {
+    if (process.env.NODE_ENV === 'production') return { ok: true };
     const response: any = {
       ok: true,
       email: {

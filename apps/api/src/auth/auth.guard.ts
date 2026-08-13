@@ -8,9 +8,8 @@ export class AuthGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest();
     const h: string | undefined = req.headers['authorization'];
-    // SSE (EventSource) não envia header Authorization, então aceitamos ?token= também.
-    let token = h?.startsWith('Bearer ') ? h.slice(7) : undefined;
-    token ??= req.query?.token;
+    // Tokens em query string vazam para logs e historico. SSE usa fetch autenticado.
+    const token = h?.startsWith('Bearer ') ? h.slice(7) : undefined;
     if (!token) throw new UnauthorizedException('sem token');
     try {
       req.user = verificarToken(token); // { sub, tenantId, papel }

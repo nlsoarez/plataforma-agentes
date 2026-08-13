@@ -4,6 +4,7 @@ const standalone = process.env.NEXT_OUTPUT_STANDALONE === 'true' || process.plat
 
 module.exports = {
   reactStrictMode: true,
+  poweredByHeader: false,
   ...(standalone ? { output: 'standalone' } : {}),
   outputFileTracingRoot: path.join(__dirname, '../..'),
 };

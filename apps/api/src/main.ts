@@ -12,6 +12,7 @@ async function bootstrap() {
   await assertSafeRuntimeDatabaseRole();
   const { AppModule } = await import('./app.module');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true, bodyParser: false });
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
   const bodyLimit = process.env.HTTP_BODY_LIMIT ?? '25mb';
   app.useBodyParser('json', { limit: bodyLimit });
   app.useBodyParser('urlencoded', { limit: bodyLimit, extended: true });

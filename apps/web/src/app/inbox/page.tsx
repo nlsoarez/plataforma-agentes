@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Shell from '../../components/Shell';
 import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
+import { openAuthenticatedSse } from '../../lib/authenticated-sse';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -32,15 +33,14 @@ export default function Inbox() {
       const selected = list.find(p => p.connection_state === 'open' || p.status === 'ativo') ?? list[0];
       if (selected) setProjetoId(selected.id);
     });
-    const es = new EventSource(`${API}/inbox/stream?token=${token}`);
-    es.onmessage = (e) => {
+    const closeStream = openAuthenticatedSse(`${API}/inbox/stream`, token, (data) => {
       try {
-        const ev = JSON.parse(e.data);
+        const ev = JSON.parse(data);
         carregarConversas();
         if (selRef.current && ev.conversaId === selRef.current.id) abrir(selRef.current);
       } catch {}
-    };
-    return () => es.close();
+    });
+    return closeStream;
   }, [token]);
 
   useEffect(() => { if (projetoId) carregarConversas(); }, [projetoId]);

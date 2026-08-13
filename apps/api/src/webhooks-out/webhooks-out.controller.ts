@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
+import { resolveSafeWebhookTarget, safeWebhookPost } from '@plataforma/transport';
 import { createHmac } from 'crypto';
 import { AuthGuard } from '../auth/auth.guard';
 import { Roles, RolesGuard } from '../auth/roles';
@@ -127,12 +128,13 @@ export class WebhooksOutController {
   @Post('webhooks')
   async criar(@Body() body: { nome?: string; url: string; secret?: string; eventos?: string[] }, @Req() req: any) {
     await assertLimit(req.user.tenantId, 'outbound_webhooks', 1);
+    const url = await this.validarWebhookUrl(body.url);
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(
         `insert into webhook_subscriptions (tenant_id, nome, url, secret, eventos)
          values ($1,$2,$3,$4,$5)
          returning id, nome, url, eventos, ativo, criado_em`,
-        [req.user.tenantId, body.nome || 'Webhook', body.url, body.secret || null, body.eventos?.length ? body.eventos : EVENTOS_PADRAO],
+        [req.user.tenantId, body.nome || 'Webhook', url, body.secret || null, body.eventos?.length ? body.eventos : EVENTOS_PADRAO],
       );
       return r.rows[0];
     });
@@ -151,8 +153,12 @@ export class WebhooksOutController {
         headers['x-comunora-signature'] = signature;
         headers['x-attende-signature'] = signature;
       }
-      const res = await fetch(sub.url, { method: 'POST', headers, body: payload });
-      return { ok: res.ok, status: res.status };
+      try {
+        const result = await safeWebhookPost(sub.url, headers, payload);
+        return { ok: result.ok, status: result.status };
+      } catch (error: any) {
+        throw new BadRequestException(error?.message || 'destino de webhook bloqueado');
+      }
     });
   }
 
@@ -162,6 +168,14 @@ export class WebhooksOutController {
       await q(`update webhook_subscriptions set ativo=false where id=$1`, [id]);
       return { ok: true };
     });
+  }
+
+  private async validarWebhookUrl(rawUrl: string): Promise<string> {
+    try {
+      return (await resolveSafeWebhookTarget(rawUrl)).url.toString();
+    } catch (error: any) {
+      throw new BadRequestException(error?.message || 'URL de webhook invalida');
+    }
   }
 }
 
