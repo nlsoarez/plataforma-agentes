@@ -7,18 +7,28 @@ carregarEnv(); // carrega .env antes de conectar
 // Rode: pnpm --filter @plataforma/api seed
 async function main() {
   const dominio = process.env.SEED_DOMINIO ?? 'localhost:3001';
+  const tenantNome = process.env.SEED_TENANT_NAME ?? 'Agência Demo';
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@demo.com';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'senha123';
+  const demoData = process.env.SEED_DEMO_DATA !== 'false';
+
+  if (process.env.SEED_ADMIN_PASSWORD && adminPassword.length < 12) {
+    throw new Error('SEED_ADMIN_PASSWORD deve ter pelo menos 12 caracteres');
+  }
 
   const t = await pool.query(
     `insert into tenants (nome, dominio, status) values ($1,$2,'active')
      on conflict (dominio) do update set nome=excluded.nome returning id`,
-    ['Agência Demo', dominio],
+    [tenantNome, dominio],
   );
   const tenantId = t.rows[0].id;
 
   await comTenant(tenantId, async (q) => {
     await q(`insert into usuarios (tenant_id, email, senha_hash, papel) values ($1,$2,$3,'owner')
              on conflict (tenant_id, email) do update set senha_hash=excluded.senha_hash`,
-      [tenantId, 'admin@demo.com', hashSenha('senha123')]);
+      [tenantId, adminEmail, hashSenha(adminPassword)]);
+
+    if (!demoData) return;
 
     const proj = await q(
       `insert into projetos (tenant_id, nome, phone_number_id, status, transporte_driver)
@@ -47,7 +57,7 @@ async function main() {
   });
 
   console.log(`seed ok -> tenant ${tenantId}`);
-  console.log(`login: admin@demo.com / senha123  (dominio ${dominio})`);
+  console.log(`login criado para ${adminEmail} (dominio ${dominio})`);
   await pool.end();
 }
 main().catch((e) => { console.error(e); process.exit(1); });
