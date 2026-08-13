@@ -63,9 +63,7 @@ USER node
 CMD ["node", "apps/worker/dist/main.js"]
 
 FROM node-runtime AS migration
-ENV PNPM_HOME=/pnpm
-ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
+RUN npm install --global pnpm@10.34.5 && npm cache clean --force
 COPY --from=build /workspace/package.json /workspace/pnpm-workspace.yaml ./
 COPY --from=build /workspace/node_modules ./node_modules
 COPY --from=build /workspace/packages ./packages
