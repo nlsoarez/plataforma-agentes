@@ -110,7 +110,7 @@ services:
       retries: 8
     restart: unless-stopped
     logging: *default-logging
-    networks: [data]
+    networks: [edge, data]
 
   migrate:
     build:
