@@ -20,7 +20,10 @@
     respond 404
   }
   handle {
-    reverse_proxy evolution:8080
+    reverse_proxy evolution:8080 {
+      header_down -X-Powered-By
+      header_down -Server
+    }
   }
   log {
     output stdout
