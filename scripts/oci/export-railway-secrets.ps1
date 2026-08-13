@@ -90,7 +90,7 @@ $platformRuntime['REDIS_URL'] = "redis://default:$platformRedisPassword@platform
 $platformRuntime['WEB_APP_URL'] = 'https://app.comunora.com.br'
 $platformRuntime['API_PUBLIC_URL'] = 'https://api.comunora.com.br'
 $platformRuntime['CORS_ORIGINS'] = 'https://app.comunora.com.br,https://comunora.com.br'
-$platformRuntime['EVOLUTION_API_URL'] = 'https://evolution.comunora.com.br'
+$platformRuntime['EVOLUTION_API_URL'] = 'https://evolution.179-198-124-8.sslip.io'
 $platformRuntime['EVOLUTION_API_KEY'] = $evolutionKey
 $platformRuntime['GOOGLE_OAUTH_REDIRECT_URI'] = 'https://api.comunora.com.br/auth/google/callback'
 $platformRuntime['GOOGLE_CALENDAR_OAUTH_REDIRECT_URI'] = 'https://api.comunora.com.br/integracoes/google-calendar/callback'
@@ -101,7 +101,7 @@ foreach ($required in @('JWT_SECRET', 'SECRETS_MASTER_KEY', 'ASAAS_API_KEY', 'AS
 
 $evolutionTarget = [ordered]@{}
 Copy-Variables $evolutionApi $evolutionTarget
-$evolutionTarget['SERVER_URL'] = 'https://evolution.comunora.com.br'
+$evolutionTarget['SERVER_URL'] = 'https://evolution.179-198-124-8.sslip.io'
 $evolutionTarget['DATABASE_CONNECTION_URI'] = "postgresql://evolution:$evolutionDbPassword@evolution-postgres:5432/evolution"
 $evolutionTarget['CACHE_REDIS_URI'] = "redis://default:$evolutionRedisPassword@evolution-redis:6379/0"
 $evolutionTarget['AUTHENTICATION_API_KEY'] = $evolutionKey
@@ -109,7 +109,7 @@ $evolutionTarget['AUTHENTICATION_API_KEY'] = $evolutionKey
 $relayTarget = [ordered]@{
   NODE_ENV = 'production'
   PORT = '8788'
-  EVOLUTION_BASE_URL = 'https://evolution.comunora.com.br'
+  EVOLUTION_BASE_URL = 'https://evolution.179-198-124-8.sslip.io'
   EVOLUTION_INSTANCE = Get-Value $evolutionRelay 'EVOLUTION_INSTANCE'
   EVOLUTION_TOKEN = $evolutionKey
   WHATSAPP_FO_GROUP_ID = Get-Value $evolutionRelay 'WHATSAPP_FO_GROUP_ID'

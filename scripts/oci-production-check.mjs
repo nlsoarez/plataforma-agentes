@@ -3,7 +3,7 @@ import { resolve4, resolveCname } from 'node:dns/promises';
 const endpoints = [
   ['app', 'app.comunora.com.br', '/health', 'web'],
   ['api', 'api.comunora.com.br', '/health', 'api'],
-  ['evolution', 'evolution.comunora.com.br', '/', 'Evolution'],
+  ['evolution', 'evolution.179-198-124-8.sslip.io', '/', 'Evolution'],
   ['relay', 'relay.comunora.com.br', '/health', 'embratel-rec-whatsapp-relay'],
 ];
 const results = [];
