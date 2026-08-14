@@ -5,8 +5,20 @@ WORKDIR /evolution
 RUN apk upgrade --no-cache \
     && apk add --no-cache git \
     && npm update --omit=dev --ignore-scripts \
-    && npm rebuild esbuild \
-    && npm prune --omit=dev \
+    && npm pkg set 'overrides.@figuro/chatwoot-sdk.axios=1.19.0' \
+    && rm -rf node_modules/@figuro/chatwoot-sdk/node_modules/axios \
+    && npm install --save-exact --omit=dev --ignore-scripts --legacy-peer-deps \
+        axios@1.19.0 \
+        baileys@7.0.0-rc14 \
+        link-preview-js@5.0.0 \
+        node-cron@4.6.0 \
+        sharp@0.35.3 \
+    && npm uninstall --omit=dev --ignore-scripts --legacy-peer-deps tsup tsx \
+    && npm prune --omit=dev --ignore-scripts --legacy-peer-deps \
+    && npm rebuild sharp \
+    && rm -rf node_modules/@figuro/chatwoot-sdk/node_modules/axios \
+    && mkdir -p node_modules/@figuro/chatwoot-sdk/node_modules \
+    && cp -a node_modules/axios node_modules/@figuro/chatwoot-sdk/node_modules/axios \
     && npm cache clean --force \
     && apk del git \
     && sed -i 's/echo "Database URL: \$DATABASE_URL"/echo "Database URL: [redacted]"/' Docker/scripts/deploy_database.sh \
