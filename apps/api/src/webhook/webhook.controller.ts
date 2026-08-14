@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Query, Body, Req, Res, HttpStatus } from '@nestjs/common';
-import * as crypto from 'crypto';
 import { Queue } from 'bullmq';
 import { CloudApiDriver } from '@plataforma/transport';
+import { validMetaWebhookSignature } from './meta-webhook-auth';
 
 const fila = new Queue('eventos-whatsapp', { connection: { url: process.env.REDIS_URL } as any });
 
@@ -27,9 +27,10 @@ export class WebhookController {
   }
 
   private assinaturaValida(req: any): boolean {
-    const assinatura = req.headers['x-hub-signature-256'];
-    if (!assinatura || !req.rawBody) return false;
-    const esperado = 'sha256=' + crypto.createHmac('sha256', process.env.META_APP_SECRET ?? '').update(req.rawBody).digest('hex');
-    return crypto.timingSafeEqual(Buffer.from(assinatura), Buffer.from(esperado));
+    return validMetaWebhookSignature(
+      req.rawBody,
+      req.headers['x-hub-signature-256'],
+      process.env.META_APP_SECRET,
+    );
   }
 }
