@@ -22,10 +22,23 @@ type AgentRow = {
   horario_ativo: boolean | null;
   horario_inicio: string | null;
   horario_fim: string | null;
-  horario_timezone: string | null;
   provider_default_model: string | null;
   provider_key_last4: string | null;
 };
+
+type ReportSetting = {
+  projeto_id: string;
+  projeto_nome: string;
+  ativo: boolean;
+  horario: string;
+  canal: 'whatsapp' | 'email';
+  destino: string;
+  ultimo_envio_em: string | null;
+  ultimo_erro: string | null;
+};
+
+type ProfessionTemplate = { id: string; nome: string; descricao: string };
+type AgentPanel = 'operacao' | 'automacao' | 'ia';
 
 const DEFAULT_PROMPT = `Você é um atendente objetivo, educado e comercial.
 Responda em português do Brasil.
@@ -48,7 +61,7 @@ const STATUS_OPTIONS = [
   {
     value: 'pausado',
     label: 'Pausado',
-    description: 'Pausa temporária: novas mensagens continuam no Inbox, sem resposta da IA.',
+    description: 'Novas mensagens continuam no Inbox, sem resposta da IA.',
   },
   {
     value: 'inativo',
@@ -80,9 +93,16 @@ function connectionTitle(row: AgentRow) {
   return formatPhone(row.whatsapp_number) || 'Número não identificado';
 }
 
+function isSuccessMessage(value: string) {
+  return /salvo|ativado|pausado|desativado|excluido|excluído|enfileirado|enviad/i.test(value);
+}
+
 export default function AgentesPage() {
   const { token, ready } = useStoredToken();
   const [rows, setRows] = useState<AgentRow[]>([]);
+  const [templates, setTemplates] = useState<ProfessionTemplate[]>([]);
+  const [templateId, setTemplateId] = useState('comercial');
+  const [templateProjectName, setTemplateProjectName] = useState('');
   const [selectedId, setSelectedId] = useState<string>('');
   const [form, setForm] = useState({
     prompt_sistema: DEFAULT_PROMPT,
@@ -94,34 +114,63 @@ export default function AgentesPage() {
     horario_inicio: '08:00',
     horario_fim: '18:00',
   });
+  const [reportSettings, setReportSettings] = useState<Record<string, ReportSetting>>({});
+  const [newAgentProjectId, setNewAgentProjectId] = useState('');
+  const [draftProjectId, setDraftProjectId] = useState('');
+  const [reportForm, setReportForm] = useState({
+    ativo: false,
+    horario: '18:00',
+    canal: 'whatsapp' as 'whatsapp' | 'email',
+    destino: '',
+  });
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [removingProjectId, setRemovingProjectId] = useState('');
   const [msg, setMsg] = useState('');
+  const [activePanel, setActivePanel] = useState<AgentPanel>('operacao');
 
   const auth = (t: string) => ({ Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' });
-  const selected = useMemo(() => rows.find((r) => r.projeto_id === selectedId) ?? rows[0], [rows, selectedId]);
+  const configuredRows = useMemo(() => rows.filter((row) => Boolean(row.agente_id)), [rows]);
+  const availableRows = useMemo(() => rows.filter((row) => !row.agente_id), [rows]);
+  const selected = useMemo(
+    () => rows.find((row) => row.projeto_id === selectedId && (Boolean(row.agente_id) || row.projeto_id === draftProjectId)) ?? configuredRows[0],
+    [configuredRows, draftProjectId, rows, selectedId],
+  );
+  const selectedReport = selected ? reportSettings[selected.projeto_id] : null;
+
+  useEffect(() => { if (token) carregar(); }, [token]);
 
   useEffect(() => {
-    if (token) carregar();
-  }, [token]);
+    if (availableRows.some((row) => row.projeto_id === newAgentProjectId)) return;
+    setNewAgentProjectId(availableRows[0]?.projeto_id || '');
+  }, [availableRows, newAgentProjectId]);
 
   useEffect(() => {
     if (!selected) return;
     setSelectedId(selected.projeto_id);
-    const currentStatus = selected.agente_status === 'pausado' || selected.agente_status === 'inativo'
-      ? selected.agente_status
-      : 'ativo';
+    const provider = selected.provider || 'openai';
     setForm({
       prompt_sistema: selected.prompt_sistema || DEFAULT_PROMPT,
-      modelo: selected.modelo || selected.provider_default_model || PROVIDERS[selected.provider || 'openai']?.model || PROVIDERS.openai.model,
-      provider: selected.provider || 'openai',
+      modelo: selected.modelo || selected.provider_default_model || PROVIDERS[provider]?.model || PROVIDERS.openai.model,
+      provider,
       byok_key_ref: selected.byok_key_ref || '',
-      status: currentStatus,
+      status: selected.agente_status === 'pausado' || selected.agente_status === 'inativo' ? selected.agente_status : 'ativo',
       horario_ativo: Boolean(selected.horario_ativo),
       horario_inicio: selected.horario_inicio || '08:00',
       horario_fim: selected.horario_fim || '18:00',
     });
-  }, [selected?.projeto_id]);
+  }, [selected?.agente_id, selected?.projeto_id]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const current = reportSettings[selected.projeto_id];
+    setReportForm({
+      ativo: Boolean(current?.ativo),
+      horario: current?.horario || '18:00',
+      canal: current?.canal || 'whatsapp',
+      destino: current?.destino || '',
+    });
+  }, [selected?.projeto_id, reportSettings]);
 
   function trocarProvider(provider: string) {
     setForm((current) => ({
@@ -136,15 +185,90 @@ export default function AgentesPage() {
     setLoading(true);
     if (!options?.preserveMessage) setMsg('');
     try {
-      const r = await fetch(`${API}/agentes`, { headers: auth(token) });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d?.message || JSON.stringify(d));
-      setRows(d);
-      if (!selectedId && d[0]) setSelectedId(d[0].projeto_id);
+      const [agentsResponse, reportsResponse] = await Promise.all([
+        fetch(`${API}/agentes`, { headers: auth(token) }),
+        fetch(`${API}/reports/settings`, { headers: auth(token) }),
+      ]);
+      const agents = await agentsResponse.json();
+      const reports = await reportsResponse.json();
+      if (!agentsResponse.ok) throw new Error(agents?.message || 'Falha ao carregar agentes');
+      if (!reportsResponse.ok) throw new Error(reports?.message || 'Falha ao carregar relatórios');
+      const list = Array.isArray(agents) ? agents : [];
+      setRows(list);
+      setReportSettings(Object.fromEntries((Array.isArray(reports) ? reports : []).map((item: ReportSetting) => [item.projeto_id, item])));
+      if (!selectedId) {
+        const firstConfigured = list.find((item: AgentRow) => Boolean(item.agente_id));
+        if (firstConfigured) setSelectedId(firstConfigured.projeto_id);
+      }
+      fetch(`${API}/templates/professions`, { headers: auth(token) })
+        .then((response) => response.ok ? response.json() : [])
+        .then((data) => setTemplates(Array.isArray(data) ? data : []))
+        .catch(() => null);
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao carregar agentes');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function criarAgentePorTemplate() {
+    if (!token || !templateId || loading) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const selectedTemplate = templates.find((template) => template.id === templateId);
+      const r = await fetch(`${API}/templates/professions/${templateId}/importar`, {
+        method: 'POST',
+        headers: auth(token),
+        body: JSON.stringify({ nomeProjeto: templateProjectName || selectedTemplate?.nome || 'Novo agente' }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao criar agente por segmento');
+      setTemplateProjectName('');
+      setSelectedId(d.projeto?.id || '');
+      setMsg('Agente criado por template. Conecte um WhatsApp para este projeto.');
+      await carregar({ preserveMessage: true });
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao criar agente por segmento');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function configurarConexaoDisponivel() {
+    if (!newAgentProjectId) return;
+    setDraftProjectId(newAgentProjectId);
+    setSelectedId(newAgentProjectId);
+    setMsg('Preencha a configuração e clique em Salvar agente.');
+  }
+
+  async function excluirConexaoDisponivel() {
+    if (!token || !newAgentProjectId || removingProjectId) return;
+    const project = availableRows.find((row) => row.projeto_id === newAgentProjectId);
+    if (!project) return;
+
+    const target = project.phone_number_id ? 'a conexão WhatsApp e o projeto' : 'o projeto';
+    if (!confirm(`Excluir ${target} "${project.projeto_nome}"? Conversas, contatos, automações e demais dados vinculados também serão removidos. Esta ação não pode ser desfeita.`)) return;
+
+    setRemovingProjectId(project.projeto_id);
+    setMsg('');
+    try {
+      const response = await fetch(`${API}/sessoes/${project.projeto_id}`, { method: 'DELETE', headers: auth(token) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) throw new Error(data?.message || 'Falha ao excluir projeto/conexão');
+
+      setRows((current) => current.filter((row) => row.projeto_id !== project.projeto_id));
+      if (selectedId === project.projeto_id) setSelectedId('');
+      if (draftProjectId === project.projeto_id) setDraftProjectId('');
+      setMsg(data?.warning
+        ? `Projeto removido, mas a instância externa exige verificação: ${data.warning}`
+        : project.phone_number_id
+          ? 'Conexão e projeto excluídos.'
+          : 'Projeto excluído.');
+    } catch (error: any) {
+      setMsg(error?.message || 'Falha ao excluir projeto/conexão');
+    } finally {
+      setRemovingProjectId('');
     }
   }
 
@@ -159,14 +283,9 @@ export default function AgentesPage() {
         body: JSON.stringify(form),
       });
       const d = await r.json();
-      if (!r.ok || d.ok === false) throw new Error(d?.message || JSON.stringify(d));
-
-      const statusMsg = form.status === 'inativo'
-        ? 'Agente salvo e desativado.'
-        : form.status === 'pausado'
-          ? 'Agente salvo e pausado.'
-          : 'Agente salvo e ativado.';
-      setMsg(statusMsg);
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao salvar agente');
+      setDraftProjectId('');
+      setMsg(form.status === 'inativo' ? 'Agente salvo e desativado.' : form.status === 'pausado' ? 'Agente salvo e pausado.' : 'Agente salvo e ativado.');
       await carregar({ preserveMessage: true });
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao salvar agente');
@@ -182,28 +301,75 @@ export default function AgentesPage() {
     setDeleting(true);
     setMsg('');
     try {
-      const r = await fetch(`${API}/agentes/${selected.projeto_id}`, {
-        method: 'DELETE',
-        headers: auth(token),
-      });
+      const r = await fetch(`${API}/agentes/${selected.projeto_id}`, { method: 'DELETE', headers: auth(token) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao excluir agente');
-      setMsg(Number(d.deleted || 0) > 0 ? 'Agente excluído. A conexão WhatsApp foi mantida.' : 'Nenhuma configuração de agente encontrada para excluir.');
-      setForm({
-        prompt_sistema: DEFAULT_PROMPT,
-        modelo: PROVIDERS.openai.model,
-        provider: 'openai',
-        byok_key_ref: '',
-        status: 'ativo',
-        horario_ativo: false,
-        horario_inicio: '08:00',
-        horario_fim: '18:00',
-      });
+      const deleted = Number(d.deleted || 0);
+      if (deleted > 0) {
+        setDraftProjectId('');
+        setSelectedId('');
+        setRows((current) => current.map((row) => row.projeto_id === selected.projeto_id
+          ? {
+              ...row,
+              agente_id: null,
+              prompt_sistema: null,
+              modelo: null,
+              provider: null,
+              byok_key_ref: null,
+              agente_status: null,
+              horario_ativo: null,
+              horario_inicio: null,
+              horario_fim: null,
+            }
+          : row));
+      }
+      setMsg(deleted > 0 ? 'Agente excluído. A conexão WhatsApp foi mantida.' : 'Nenhuma configuração de agente encontrada para excluir.');
       await carregar({ preserveMessage: true });
     } catch (e: any) {
       setMsg(e?.message || 'Falha ao excluir agente');
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function salvarRelatorio() {
+    if (!token || !selected) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/reports/settings/${selected.projeto_id}`, {
+        method: 'PUT',
+        headers: auth(token),
+        body: JSON.stringify({ ...reportForm, timezone: 'America/Sao_Paulo' }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao salvar relatório');
+      setMsg(reportForm.ativo ? 'Relatório diário salvo e ativado.' : 'Relatório diário salvo e desativado.');
+      await carregar({ preserveMessage: true });
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao salvar relatório diário');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function enviarRelatorioTeste() {
+    if (!token || !selected) return;
+    setLoading(true);
+    setMsg('');
+    try {
+      const r = await fetch(`${API}/reports/settings/${selected.projeto_id}/test`, {
+        method: 'POST',
+        headers: auth(token),
+      });
+      const d = await r.json();
+      if (!r.ok || d.ok === false) throw new Error(d?.message || 'Falha ao enfileirar teste');
+      setMsg('Relatório de teste enfileirado. O worker fará o envio em instantes.');
+      await carregar({ preserveMessage: true });
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha ao enviar relatório de teste');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -220,19 +386,78 @@ export default function AgentesPage() {
         <button className="nl-btn nl-btn--ghost" onClick={() => carregar()} disabled={loading}>Atualizar</button>
       </div>
 
+      {templates.length > 0 && (
+        <section className="nl-card nl-card--pad" style={{ maxWidth: 1120, marginBottom: 16 }}>
+          <div className="nl-agent-report-card__head">
+            <div>
+              <div className="eyebrow">Novo agente por segmento</div>
+              <h2>Comece com um modelo profissional</h2>
+              <p className="muted">Cria prompt, pipeline, base inicial, lembrete de agenda e regra de reativacao para o nicho escolhido.</p>
+            </div>
+          </div>
+          <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(220px, 280px) minmax(220px, 1fr) auto', alignItems: 'end' }}>
+            <div>
+              <label className="nl-label">Segmento</label>
+              <select className="nl-select" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+                {templates.map((template) => <option key={template.id} value={template.id}>{template.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="nl-label">Nome do projeto/agente</label>
+              <input className="nl-input" value={templateProjectName} onChange={(e) => setTemplateProjectName(e.target.value)} placeholder="ex: Atendimento Dra. Ana" />
+            </div>
+            <button className="nl-btn nl-btn--ghost" onClick={criarAgentePorTemplate} disabled={loading}>Criar agente</button>
+          </div>
+        </section>
+      )}
+
+      {msg && <div className={`nl-agent-feedback ${isSuccessMessage(msg) ? 'ok' : 'error'}`} style={{ maxWidth: 1120, marginBottom: 16 }}>{msg}</div>}
+
       {rows.length === 0 ? (
         <div className="nl-card nl-card--pad nl-empty" style={{ maxWidth: 520 }}>
           <div className="display display-md">Nenhuma conexão</div>
           <div>Conecte um número em Conectar WhatsApp primeiro.</div>
         </div>
       ) : (
+        <>
+          {availableRows.length > 0 && (
+            <section className="nl-card nl-card--pad" style={{ maxWidth: 1120, marginBottom: 16 }}>
+              <div className="nl-agent-report-card__head">
+                <div>
+                  <div className="eyebrow">Conexões disponíveis</div>
+                  <h2>Configurar outro agente</h2>
+                  <p className="muted">Conexões sem agente ficam disponíveis aqui. Excluir um agente não remove o WhatsApp.</p>
+                </div>
+              </div>
+              <div className="nl-row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select className="nl-select" value={newAgentProjectId} onChange={(event) => setNewAgentProjectId(event.target.value)} style={{ maxWidth: 520 }}>
+                  {availableRows.map((row) => (
+                    <option key={row.projeto_id} value={row.projeto_id}>{row.projeto_nome} - {connectionTitle(row)}</option>
+                  ))}
+                </select>
+                <button className="nl-btn nl-btn--ghost" type="button" onClick={configurarConexaoDisponivel} disabled={!newAgentProjectId || loading || deleting}>
+                  Configurar agente
+                </button>
+                <button className="nl-btn nl-btn--danger" type="button" onClick={excluirConexaoDisponivel} disabled={!newAgentProjectId || loading || deleting || Boolean(removingProjectId)}>
+                  {removingProjectId ? 'Excluindo...' : 'Excluir projeto/conexão'}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {configuredRows.length === 0 && !selected ? (
+            <div className="nl-card nl-card--pad nl-empty" style={{ maxWidth: 520 }}>
+              <div className="display display-md">Nenhum agente configurado</div>
+              <div>Escolha uma conexão disponível acima ou crie um agente por segmento.</div>
+            </div>
+          ) : (
         <div className="nl-agents-grid">
           <section className="nl-stack">
             <div className="nl-agent-list-head">
-              <span>Números WhatsApp</span>
-              <small>Cada conexão pode ter um agente próprio.</small>
+              <span>Agentes configurados</span>
+              <small>Somente agentes existentes aparecem nesta lista.</small>
             </div>
-            {rows.map((row) => (
+            {(selected && !selected.agente_id ? [selected, ...configuredRows] : configuredRows).map((row) => (
               <button
                 key={row.projeto_id}
                 className={`nl-agent-session ${row.projeto_id === selected?.projeto_id ? 'active' : ''}`}
@@ -242,7 +467,6 @@ export default function AgentesPage() {
                   <b>{row.projeto_nome}</b>
                   <small>{connectionTitle(row)}</small>
                   <small>Instância: {row.phone_number_id || 'sem conexão'}</small>
-                  <small>{row.transporte_driver}</small>
                 </span>
                 <i className={row.agente_status === 'ativo' ? 'ok' : row.agente_status === 'inativo' ? 'off' : ''}>
                   {row.agente_status || 'sem agente'}
@@ -261,27 +485,56 @@ export default function AgentesPage() {
                     <p className="muted">WhatsApp / {connectionTitle(selected)}</p>
                     <p className="faint">Instância Evolution: {selected.phone_number_id || 'sem rota'}</p>
                   </div>
-                  <span className={`nl-badge ${badgeClass(selected.agente_status)}`}>
-                    {selected.agente_status || 'sem agente'}
-                  </span>
+                  <span className={`nl-badge ${badgeClass(selected.agente_status)}`}>{selected.agente_status || 'sem agente'}</span>
                 </div>
 
-                {msg && (
-                  <div className={`nl-agent-feedback ${msg.includes('salvo') || msg.includes('excluído') || msg.includes('Nenhuma configuração') ? 'ok' : 'error'}`}>
-                    {msg}
-                  </div>
-                )}
+                <div className="nl-tabs" role="tablist" aria-label="Configuracao do agente">
+                  <button
+                    type="button"
+                    id="agent-tab-operacao"
+                    role="tab"
+                    aria-selected={activePanel === 'operacao'}
+                    aria-controls="agent-panel-operacao"
+                    className={`nl-tab ${activePanel === 'operacao' ? 'active' : ''}`}
+                    onClick={() => setActivePanel('operacao')}
+                  >
+                    Operacao
+                  </button>
+                  <button
+                    type="button"
+                    id="agent-tab-automacao"
+                    role="tab"
+                    aria-selected={activePanel === 'automacao'}
+                    aria-controls="agent-panel-automacao"
+                    className={`nl-tab ${activePanel === 'automacao' ? 'active' : ''}`}
+                    onClick={() => setActivePanel('automacao')}
+                  >
+                    Automacoes
+                  </button>
+                  <button
+                    type="button"
+                    id="agent-tab-ia"
+                    role="tab"
+                    aria-selected={activePanel === 'ia'}
+                    aria-controls="agent-panel-ia"
+                    className={`nl-tab ${activePanel === 'ia' ? 'active' : ''}`}
+                    onClick={() => setActivePanel('ia')}
+                  >
+                    IA e prompt
+                  </button>
+                </div>
 
+                {activePanel === 'operacao' && (
+                  <div className="nl-tab-panel" id="agent-panel-operacao" role="tabpanel" aria-labelledby="agent-tab-operacao">
                 <div className="nl-agent-link-card">
                   <div>
                     <div className="eyebrow">Número vinculado</div>
                     <p>Este agente responde somente pelo número selecionado. Para outro WhatsApp, selecione outra conexão e salve uma configuração própria.</p>
                   </div>
                   <select className="nl-select" value={selected.projeto_id} onChange={(e) => setSelectedId(e.target.value)}>
-                    {rows.map((row) => (
+                    {(selected.agente_id ? configuredRows : [selected, ...configuredRows]).map((row) => (
                       <option key={row.projeto_id} value={row.projeto_id}>
-                        {row.projeto_nome} - {connectionTitle(row)}
-                        {row.phone_number_id ? ` - instância ${row.phone_number_id}` : ''}
+                        {row.projeto_nome} - {connectionTitle(row)}{row.phone_number_id ? ` - instância ${row.phone_number_id}` : ''}
                       </option>
                     ))}
                   </select>
@@ -293,11 +546,13 @@ export default function AgentesPage() {
                       <b>Estado do agente</b>
                       <small>Controla se a IA pode responder automaticamente neste número.</small>
                     </div>
-                    <div className="nl-agent-status-options">
+                    <div className="nl-agent-status-options" role="radiogroup" aria-label="Estado do agente">
                       {STATUS_OPTIONS.map((option) => (
                         <button
                           key={option.value}
                           type="button"
+                          role="radio"
+                          aria-checked={form.status === option.value}
                           className={`nl-agent-status-option ${form.status === option.value ? 'active' : ''} ${option.value}`}
                           onClick={() => setForm({ ...form, status: option.value })}
                         >
@@ -323,28 +578,71 @@ export default function AgentesPage() {
                     <div className="nl-agent-schedule__times">
                       <div>
                         <label className="nl-label">Início</label>
-                        <input
-                          className="nl-input"
-                          type="time"
-                          value={form.horario_inicio}
-                          disabled={!form.horario_ativo}
-                          onChange={(e) => setForm({ ...form, horario_inicio: e.target.value })}
-                        />
+                        <input className="nl-input" type="time" value={form.horario_inicio} disabled={!form.horario_ativo} onChange={(e) => setForm({ ...form, horario_inicio: e.target.value })} />
                       </div>
                       <div>
                         <label className="nl-label">Fim</label>
-                        <input
-                          className="nl-input"
-                          type="time"
-                          value={form.horario_fim}
-                          disabled={!form.horario_ativo}
-                          onChange={(e) => setForm({ ...form, horario_fim: e.target.value })}
-                        />
+                        <input className="nl-input" type="time" value={form.horario_fim} disabled={!form.horario_ativo} onChange={(e) => setForm({ ...form, horario_fim: e.target.value })} />
                       </div>
                     </div>
                   </div>
                 </div>
+                  </div>
+                )}
 
+                {activePanel === 'automacao' && (
+                  <div className="nl-tab-panel" id="agent-panel-automacao" role="tabpanel" aria-labelledby="agent-tab-automacao">
+                <div className="nl-agent-report-card">
+                  <div className="nl-agent-report-card__head">
+                    <div>
+                      <div className="eyebrow">Relatório diário</div>
+                      <h3>Resumo automático da operação</h3>
+                      <p className="muted">Envia conversas, respostas da IA, novos contatos, agendamentos e handoffs para WhatsApp ou e-mail.</p>
+                    </div>
+                    <label className="nl-switch">
+                      <input type="checkbox" checked={reportForm.ativo} onChange={(e) => setReportForm({ ...reportForm, ativo: e.target.checked })} />
+                      <span>{reportForm.ativo ? 'Ativo' : 'Inativo'}</span>
+                    </label>
+                  </div>
+
+                  <div className="nl-grid nl-agent-report-grid">
+                    <div>
+                      <label className="nl-label">Horário de envio</label>
+                      <input className="nl-input" type="time" value={reportForm.horario} onChange={(e) => setReportForm({ ...reportForm, horario: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="nl-label">Canal</label>
+                      <select className="nl-select" value={reportForm.canal} onChange={(e) => setReportForm({ ...reportForm, canal: e.target.value as 'whatsapp' | 'email', destino: '' })}>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="email">E-mail</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="nl-label">{reportForm.canal === 'whatsapp' ? 'WhatsApp destino' : 'E-mail destino'}</label>
+                      <input
+                        className="nl-input"
+                        value={reportForm.destino}
+                        onChange={(e) => setReportForm({ ...reportForm, destino: e.target.value })}
+                        placeholder={reportForm.canal === 'whatsapp' ? '5511999999999' : 'gestor@empresa.com'}
+                      />
+                    </div>
+                    <div className="nl-agent-report-action" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button className="nl-btn nl-btn--ghost" onClick={salvarRelatorio} disabled={loading}>Salvar relatório</button>
+                      <button className="nl-btn nl-btn--accent" onClick={enviarRelatorioTeste} disabled={loading}>Enviar teste</button>
+                    </div>
+                  </div>
+                  <div className="faint">
+                    {selectedReport?.ultimo_envio_em
+                      ? `Último envio: ${new Date(selectedReport.ultimo_envio_em).toLocaleString('pt-BR')}`
+                      : 'Ainda nenhum relatório foi enviado.'}
+                    {selectedReport?.ultimo_erro ? ` Erro recente: ${selectedReport.ultimo_erro}` : ''}
+                  </div>
+                </div>
+                  </div>
+                )}
+
+                {activePanel === 'ia' && (
+                  <div className="nl-tab-panel" id="agent-panel-ia" role="tabpanel" aria-labelledby="agent-tab-ia">
                 {form.status !== 'inativo' && form.provider !== 'openai' && !selected.provider_key_last4 && !form.byok_key_ref && (
                   <div className="nl-error" style={{ marginBottom: 14 }}>
                     Chave {PROVIDERS[form.provider]?.keyPageLabel || form.provider} ainda não foi salva em IA e Custos.
@@ -369,7 +667,7 @@ export default function AgentesPage() {
                 <div className="nl-card nl-card--pad" style={{ background: 'rgba(21,101,255,0.06)', marginBottom: 14 }}>
                   <b>Chave {PROVIDERS[form.provider]?.keyPageLabel || 'IA'}</b>
                   <p className="muted" style={{ margin: '6px 0 12px', fontSize: '0.9rem' }}>
-                    Configure, teste e salve a chave em IA e Custos. Anthropic e Google respondem texto; tools avançadas ainda ficam no OpenAI.
+                    Configure, teste e salve a chave em IA e Custos. OpenAI, Anthropic e Google executam ferramentas como agenda, base de conhecimento e handoff.
                     {selected.provider_key_last4 ? ` Chave salva: ****${selected.provider_key_last4}.` : ''}
                   </p>
                   <a className="nl-btn nl-btn--ghost nl-btn--sm" href="/ai-settings">Abrir IA e Custos</a>
@@ -385,30 +683,29 @@ export default function AgentesPage() {
                 />
 
                 <label className="nl-label">Prompt do sistema</label>
-                <textarea
-                  className="nl-textarea"
-                  value={form.prompt_sistema}
-                  onChange={(e) => setForm({ ...form, prompt_sistema: e.target.value })}
-                />
+                <textarea className="nl-textarea" value={form.prompt_sistema} onChange={(e) => setForm({ ...form, prompt_sistema: e.target.value })} />
+                  </div>
+                )}
 
                 <div className="nl-agent-actions">
                   <span className="faint">O worker responde somente quando o agente está ativo e dentro do horário configurado.</span>
                   <div className="nl-row" style={{ gap: 8 }}>
-                    <button
-                      className="nl-btn nl-btn--danger"
-                      onClick={excluirAgente}
-                      disabled={loading || deleting}
-                    >
-                      {deleting ? 'Excluindo...' : 'Excluir agente'}
+                    {selected.agente_id && (
+                      <button className="nl-btn nl-btn--danger" onClick={excluirAgente} disabled={loading || deleting}>
+                        {deleting ? 'Excluindo...' : 'Excluir agente'}
+                      </button>
+                    )}
+                    <button className="nl-btn nl-btn--accent" onClick={salvar} disabled={loading || deleting}>
+                      {selected.agente_id ? 'Salvar agente' : 'Criar agente'}
                     </button>
-                    <button className="nl-btn nl-btn--accent" onClick={salvar} disabled={loading || deleting}>Salvar agente</button>
                   </div>
                 </div>
-
               </>
             )}
           </section>
         </div>
+          )}
+        </>
       )}
     </Shell>
   );

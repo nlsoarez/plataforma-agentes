@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, Put, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { assertLimit } from '../billing/entitlements';
 import { encryptSecret } from '../secrets/crypto';
 
@@ -39,7 +40,8 @@ function pareceChaveDireta(ref?: string | null) {
 }
 
 @Controller('agentes')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class AgentesController {
   @Get()
   listar(@Req() req: any) {
@@ -208,7 +210,13 @@ export class AgentesController {
       const projeto = await q(`select id from projetos where id=$1 and tenant_id=$2`, [projetoId, req.user.tenantId]);
       if (!projeto.rows[0]) return { ok: false, message: 'Projeto nao encontrado' };
 
-      const deleted = await q(`delete from agentes where tenant_id=$1 and projeto_id=$2 returning id`, [req.user.tenantId, projetoId]);
+      const deleted = await q(
+        `update agentes
+            set status='deleted'
+          where tenant_id=$1 and projeto_id=$2 and status in ('ativo','pausado','inativo')
+          returning id`,
+        [req.user.tenantId, projetoId],
+      );
       return { ok: true, deleted: deleted.rowCount ?? deleted.rows.length };
     });
   }

@@ -26,3 +26,4 @@ export interface MidiaRef { tipo: 'image' | 'document' | 'audio' | 'video'; url:
 export interface Sessao { sub: string; tenantId: string; papel: Papel; }
 
 export { resolverSegredo, guardarSegredo } from './secrets';
+export { requireSecret, validateApiRuntimeConfig, validateWorkerRuntimeConfig } from './runtime-config';

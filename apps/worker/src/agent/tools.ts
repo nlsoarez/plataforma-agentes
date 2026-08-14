@@ -4,7 +4,10 @@ import { publicar } from '@plataforma/bus';
 import { enviarConversao } from './conversoes';
 import { dispararWebhooks, leadPayload } from '../integrations/webhooks';
 import { buscarConhecimento } from './knowledge';
-import { criarEventoGoogleCalendar, criarEventoGoogleCalendarTenant, googleCalendarConfigured } from '../integrations/google-calendar';
+import {
+  criarEventoGoogleCalendarTenant,
+  verificarDisponibilidadeGoogleCalendarTenant,
+} from '../integrations/google-calendar';
 
 // Contexto que todo executor recebe.
 export interface ToolCtx {
@@ -22,8 +25,10 @@ export const TOOLS_SCHEMA = [
       parameters: { type: 'object', properties: { etapa: { type: 'string', description: 'Nome da etapa de destino' } }, required: ['etapa'] } } },
   { type: 'function', function: { name: 'taguear', description: 'Adiciona tags ao contato.',
       parameters: { type: 'object', properties: { tags: { type: 'array', items: { type: 'string' } } }, required: ['tags'] } } },
-  { type: 'function', function: { name: 'agendar', description: 'Agenda um horario com o lead.',
-      parameters: { type: 'object', properties: { datetime: { type: 'string', description: 'ISO 8601' }, descricao: { type: 'string' } }, required: ['datetime'] } } },
+  { type: 'function', function: { name: 'consultar_disponibilidade', description: 'Consulta se um horario esta livre antes de oferecer ou confirmar agendamento.',
+      parameters: { type: 'object', properties: { datetime: { type: 'string', description: 'ISO 8601' }, duracao_minutos: { type: 'number', description: 'Duracao em minutos. Padrao: 60' } }, required: ['datetime'] } } },
+  { type: 'function', function: { name: 'agendar', description: 'Agenda um horario com o lead somente se nao houver conflito na agenda.',
+      parameters: { type: 'object', properties: { datetime: { type: 'string', description: 'ISO 8601' }, descricao: { type: 'string' }, duracao_minutos: { type: 'number', description: 'Duracao em minutos. Padrao: 60' } }, required: ['datetime'] } } },
   { type: 'function', function: { name: 'consultar_base', description: 'Consulta a base de conhecimento (RAG).',
       parameters: { type: 'object', properties: { consulta: { type: 'string' } }, required: ['consulta'] } } },
   { type: 'function', function: { name: 'handoff_humano', description: 'Transfere a conversa para um atendente humano e pausa a IA.',
@@ -53,23 +58,42 @@ const executores: Record<string, Executor> = {
     if (payload) await dispararWebhooks(ctx.q, ctx.tenantId, 'LEAD_TAG_ADDED', { ...payload, tags });
     return { ok: true, tags };
   },
-  async agendar(ctx, { datetime, descricao }) {
+  async consultar_disponibilidade(ctx, { datetime, duracao_minutos }) {
     const inicio = new Date(datetime);
     if (Number.isNaN(inicio.getTime())) return { ok: false, motivo: 'datetime invalido' };
+    return consultarDisponibilidade(ctx, inicio, normalizarDuracao(duracao_minutos));
+  },
+  async agendar(ctx, { datetime, descricao, duracao_minutos }) {
+    const inicio = new Date(datetime);
+    if (Number.isNaN(inicio.getTime())) return { ok: false, motivo: 'datetime invalido' };
+    const duracao = normalizarDuracao(duracao_minutos);
+
+    const disponibilidade = await consultarDisponibilidade(ctx, inicio, duracao);
+    if (!disponibilidade.available) {
+      return {
+        ok: false,
+        motivo: 'horario_indisponivel',
+        conflitos: disponibilidade.conflitos,
+        sugestao: 'Pergunte ao cliente por outro dia ou horario antes de tentar agendar novamente.',
+      };
+    }
 
     const contato = (await ctx.q(`select nome, telefone from contatos where id=$1`, [ctx.contatoId])).rows[0] || {};
+    const fim = new Date(inicio.getTime() + duracao * 60_000);
     const created = await ctx.q(
       `insert into agendamentos (
-         tenant_id, projeto_id, conversa_id, contato_id, inicio_em, descricao, status, provider
+         tenant_id, projeto_id, conversa_id, contato_id, inicio_em, fim_em, duracao_minutos, descricao, status, provider
        )
-       values ($1,$2,$3,$4,$5,$6,'pendente',$7)
-       returning id, inicio_em, descricao, status`,
+       values ($1,$2,$3,$4,$5,$6,$7,$8,'pendente',$9)
+       returning id, inicio_em, fim_em, duracao_minutos, descricao, status`,
       [
         ctx.tenantId,
         ctx.projetoId,
         ctx.conversaId,
         ctx.contatoId,
         inicio.toISOString(),
+        fim.toISOString(),
+        duracao,
         descricao ?? null,
         'calendar',
       ],
@@ -85,6 +109,7 @@ const executores: Record<string, Executor> = {
           `Conversa: ${ctx.conversaId}`,
         ].filter(Boolean).join('\n'),
         startsAt: inicio,
+        durationMinutes: duracao,
       });
       if (eventoTenant) {
         await ctx.q(
@@ -106,76 +131,22 @@ const executores: Record<string, Executor> = {
       return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
     }
 
-    if (googleCalendarConfigured()) {
-      try {
-        const evento = await criarEventoGoogleCalendar({
-          summary: `Atendimento ${contato.nome || contato.telefone || 'lead'}`,
-          description: [
-            descricao || 'Agendamento criado pelo agente.',
-            contato.telefone ? `Telefone: ${contato.telefone}` : null,
-            `Conversa: ${ctx.conversaId}`,
-          ].filter(Boolean).join('\n'),
-          startsAt: inicio,
-        });
-        await ctx.q(
-          `update agendamentos
-           set status='sincronizado', provider='google_calendar', provider_ref=$2,
-               metadata=metadata || $3::jsonb, erro=null, atualizado_em=now()
-           where id=$1`,
-          [agendamento.id, evento.id, JSON.stringify({ googleCalendar: evento })],
-        );
-        return { ok: true, agendamento: { ...agendamento, status: 'sincronizado', provider_ref: evento.id }, calendar: evento };
-      } catch (e: any) {
-        await ctx.q(
-          `update agendamentos
-           set status='falha', provider='google_calendar', erro=$2, atualizado_em=now()
-           where id=$1`,
-          [agendamento.id, e?.message || 'erro desconhecido'],
-        );
-        return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
-      }
-    }
+    await ctx.q(
+      `update agendamentos
+          set status='pendente',
+              provider='manual',
+              erro='Google Calendar do cliente nao conectado em Integracoes',
+              atualizado_em=now()
+        where id=$1`,
+      [agendamento.id],
+    );
 
-    if (!process.env.CALENDAR_WEBHOOK_URL) {
-      return {
-        ok: true,
-        agendamento,
-        nota: 'agendamento salvo; configure CALENDAR_WEBHOOK_URL para sincronizar com Google Calendar ou outro calendario',
-      };
-    }
-
-    const payload = JSON.stringify({
-      type: 'APPOINTMENT_CREATED',
-      tenantId: ctx.tenantId,
-      projetoId: ctx.projetoId,
-      conversaId: ctx.conversaId,
-      contatoId: ctx.contatoId,
-      appointmentId: agendamento.id,
-      startsAt: agendamento.inicio_em,
-      description: agendamento.descricao,
-    });
-
-    try {
-      const response = await fetch(process.env.CALENDAR_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-      });
-      const text = await response.text().catch(() => '');
-      await ctx.q(
-        `update agendamentos
-         set status=$2, provider_ref=$3, erro=$4, atualizado_em=now()
-         where id=$1`,
-        [agendamento.id, response.ok ? 'sincronizado' : 'falha', text.slice(0, 500) || null, response.ok ? null : `HTTP ${response.status}`],
-      );
-      return { ok: response.ok, agendamento: { ...agendamento, status: response.ok ? 'sincronizado' : 'falha' }, status: response.status };
-    } catch (e: any) {
-      await ctx.q(
-        `update agendamentos set status='falha', erro=$2, atualizado_em=now() where id=$1`,
-        [agendamento.id, e?.message || 'erro desconhecido'],
-      );
-      return { ok: false, agendamento, motivo: e?.message || 'erro desconhecido' };
-    }
+    return {
+      ok: true,
+      agendamento: { ...agendamento, provider: 'manual' },
+      calendar: null,
+      aviso: 'Google Calendar do cliente nao conectado; agendamento salvo somente na agenda interna da Comunora.',
+    };
   },
   async consultar_base(_ctx, { consulta }) {
     const query = String(consulta || '').trim();
@@ -196,6 +167,76 @@ const executores: Record<string, Executor> = {
     catch (e: any) { return { ok: false, motivo: e.message }; }
   },
 };
+
+function normalizarDuracao(value: unknown) {
+  const n = Number(value || 60);
+  if (!Number.isFinite(n)) return 60;
+  return Math.min(480, Math.max(15, Math.round(n)));
+}
+
+async function consultarDisponibilidade(ctx: ToolCtx, inicio: Date, duracao: number) {
+  const fim = new Date(inicio.getTime() + duracao * 60_000);
+  if (inicio.getTime() < Date.now() - 60_000) {
+    return { available: false, conflitos: [{ tipo: 'passado', inicio: inicio.toISOString(), fim: fim.toISOString() }] };
+  }
+
+  const local = await ctx.q(
+    `select id, inicio_em,
+            coalesce(fim_em, inicio_em + make_interval(mins => greatest(15, duracao_minutos))) as fim_em,
+            descricao, status
+       from agendamentos
+      where tenant_id=$1
+        and projeto_id=$2
+        and status in ('pendente','sincronizado')
+        and tstzrange(inicio_em, coalesce(fim_em, inicio_em + make_interval(mins => greatest(15, duracao_minutos))), '[)')
+            && tstzrange($3::timestamptz, $4::timestamptz, '[)')
+      order by inicio_em asc
+      limit 5`,
+    [ctx.tenantId, ctx.projetoId, inicio.toISOString(), fim.toISOString()],
+  );
+  if (local.rows.length > 0) {
+    return {
+      available: false,
+      conflitos: local.rows.map((row: any) => ({
+        tipo: 'agenda_local',
+        id: row.id,
+        inicio: row.inicio_em,
+        fim: row.fim_em,
+        descricao: row.descricao,
+      })),
+    };
+  }
+
+  const avisos: string[] = [];
+  try {
+    const googleTenant = await verificarDisponibilidadeGoogleCalendarTenant(ctx.q, ctx.tenantId, {
+      startsAt: inicio,
+      durationMinutes: duracao,
+    });
+    if (googleTenant && !googleTenant.available) {
+      return {
+        available: false,
+        conflitos: googleTenant.busy.map((busy) => ({ tipo: 'google_calendar', inicio: busy.start, fim: busy.end })),
+      };
+    }
+    if (!googleTenant) {
+      avisos.push('Google Calendar do cliente nao conectado; disponibilidade validada somente na agenda interna.');
+    }
+  } catch (e: any) {
+    return {
+      available: false,
+      conflitos: [{ tipo: 'google_calendar_erro', motivo: e?.message || 'falha ao consultar disponibilidade' }],
+    };
+  }
+
+  return {
+    available: true,
+    inicio: inicio.toISOString(),
+    fim: fim.toISOString(),
+    duracao_minutos: duracao,
+    avisos,
+  };
+}
 
 export async function executarTool(ctx: ToolCtx, nome: string, args: any): Promise<unknown> {
   const fn = executores[nome];

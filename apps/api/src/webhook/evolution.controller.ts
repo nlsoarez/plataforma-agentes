@@ -1,7 +1,8 @@
-import { Body, Controller, Headers, HttpStatus, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Headers, HttpStatus, Param, Post, Res, ServiceUnavailableException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { EvolutionDriver } from '@plataforma/transport';
-import { pool } from '@plataforma/db';
+import { comTenant, resolverProjetoPorNumero } from '@plataforma/db';
+import { sharedSecretMatches } from './webhook-auth';
 
 const fila = new Queue('eventos-whatsapp', { connection: { url: process.env.REDIS_URL } as any });
 const driver = new EvolutionDriver();
@@ -41,11 +42,10 @@ function extrairEstado(body: any): string | null {
 }
 
 async function buscarProjetoPorInstancia(instancia: string) {
-  const r = await pool.query(
-    `select id, tenant_id from projetos where phone_number_id=$1 limit 1`,
-    [instancia],
-  );
-  return r.rows[0] as { id: string; tenant_id: string } | undefined;
+  const projeto = await resolverProjetoPorNumero(instancia);
+  return projeto
+    ? { id: projeto.projeto_id, tenant_id: projeto.tenant_id }
+    : undefined;
 }
 
 async function logarWebhook(
@@ -59,11 +59,11 @@ async function logarWebhook(
   try {
     const projeto = await buscarProjetoPorInstancia(instancia);
     if (!projeto) return;
-    await pool.query(
+    await comTenant(projeto.tenant_id, (q) => q(
       `insert into eventos_operacionais (tenant_id, projeto_id, origem, nivel, evento, mensagem, payload)
        values ($1,$2,'evolution',$3,$4,$5,$6)`,
       [projeto.tenant_id, projeto.id, nivel, evento, mensagem, JSON.stringify(payload ?? {})],
-    );
+    ));
   } catch (err: any) {
     console.warn('[webhook] falha ao registrar evento operacional', err?.message);
   }
@@ -89,7 +89,10 @@ export class EvolutionWebhookController {
 
   private async processar(body: any, headers: Record<string, string>, res: any, eventPath?: string) {
     const apikey = headers?.apikey ?? headers?.['x-api-key'];
-    if (apikey && process.env.EVOLUTION_API_KEY && apikey !== process.env.EVOLUTION_API_KEY) {
+    if (!process.env.EVOLUTION_API_KEY) {
+      throw new ServiceUnavailableException('webhook Evolution nao configurado');
+    }
+    if (!sharedSecretMatches(apikey, process.env.EVOLUTION_API_KEY)) {
       return res.sendStatus(HttpStatus.UNAUTHORIZED);
     }
 
@@ -134,7 +137,9 @@ export class EvolutionWebhookController {
     if (!instancia || !state) return;
     if (!event.includes('CONNECTION') && !isEstadoConexao(state)) return;
 
-    await pool.query(
+    const projeto = await buscarProjetoPorInstancia(instancia);
+    if (!projeto) return;
+    await comTenant(projeto.tenant_id, (q) => q(
       `update projetos
        set connection_state=$2,
            status=case
@@ -146,8 +151,8 @@ export class EvolutionWebhookController {
            session_meta=$3,
            last_error=case when $2='open' then null else last_error end,
            last_error_at=case when $2='open' then null else last_error_at end
-       where phone_number_id=$1`,
-      [instancia, state || 'unknown', JSON.stringify(body)],
-    );
+       where tenant_id=$4 and id=$1`,
+      [projeto.id, state || 'unknown', JSON.stringify(body), projeto.tenant_id],
+    ));
   }
 }

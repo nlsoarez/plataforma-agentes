@@ -29,9 +29,9 @@ export class KnowledgeService {
         `select id, projeto_id, titulo, tipo, status, conteudo, metadata, criado_em, chunk_count,
                 embedding_model, indexado_em
          from knowledge_documents
-         where id=$1
+         where id=$1 and tenant_id=$2
          limit 1`,
-        [id],
+        [id, tenantId],
       );
       return r.rows[0] ?? { ok: false, message: 'Documento nao encontrado' };
     });
@@ -54,7 +54,7 @@ export class KnowledgeService {
 
   async atualizar(tenantId: string, id: string, body: { titulo: string; conteudo: string; tipo?: string; metadata?: any }) {
     return comTenant(tenantId, async (q) => {
-      const current = await q(`select id, projeto_id from knowledge_documents where id=$1 limit 1`, [id]);
+      const current = await q(`select id, projeto_id from knowledge_documents where id=$1 and tenant_id=$2 limit 1`, [id, tenantId]);
       if (!current.rows[0]) return { ok: false, message: 'Documento nao encontrado' };
 
       await q(
@@ -64,11 +64,11 @@ export class KnowledgeService {
              conteudo=$4,
              metadata=coalesce($5::jsonb, metadata),
              status='ativo'
-         where id=$1`,
-        [id, body.titulo, body.tipo || 'text', body.conteudo, body.metadata ? JSON.stringify(body.metadata) : null],
+         where id=$1 and tenant_id=$6`,
+        [id, body.titulo, body.tipo || 'text', body.conteudo, body.metadata ? JSON.stringify(body.metadata) : null, tenantId],
       );
 
-      await q(`delete from knowledge_chunks where document_id=$1`, [id]);
+      await q(`delete from knowledge_chunks where document_id=$1 and tenant_id=$2`, [id, tenantId]);
       const indexed = await this.reindexar(q, tenantId, id, current.rows[0].projeto_id || null, body.conteudo);
       return { ok: true, id, chunk_count: indexed.chunk_count, embedding_model: indexed.embedding_model };
     });
@@ -76,8 +76,8 @@ export class KnowledgeService {
 
   async excluir(tenantId: string, id: string) {
     return comTenant(tenantId, async (q) => {
-      await q(`delete from knowledge_chunks where document_id=$1`, [id]);
-      await q(`delete from knowledge_documents where id=$1`, [id]);
+      await q(`delete from knowledge_chunks where document_id=$1 and tenant_id=$2`, [id, tenantId]);
+      await q(`delete from knowledge_documents where id=$1 and tenant_id=$2`, [id, tenantId]);
       return { ok: true };
     });
   }
@@ -115,7 +115,12 @@ export class KnowledgeService {
         .map((row: any) => ({ ...row, score: cosine(queryEmbedding, row.embedding) }))
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, limit)
-        .map(({ embedding, ...row }: any) => row);
+        .map((row: any) => ({
+          titulo: row.titulo,
+          conteudo: row.conteudo,
+          chunk_index: row.chunk_index,
+          score: row.score,
+        }));
     }
 
     const r = await q(

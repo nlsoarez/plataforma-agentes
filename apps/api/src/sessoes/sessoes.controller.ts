@@ -1,6 +1,8 @@
 import { Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { evolutionWebhookConfig } from '../onboarding/evolution-onboarding';
+import { Roles, RolesGuard } from '../auth/roles';
 
 function normalizarEstado(value: unknown): string {
   const raw = String(value ?? '').trim().toLowerCase();
@@ -29,7 +31,8 @@ function asArray(value: any): any[] {
 }
 
 @Controller('sessoes')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class SessoesController {
   private base = (process.env.EVOLUTION_API_URL ?? '').replace(/\/+$/, '');
   private apikey = process.env.EVOLUTION_API_KEY ?? '';
@@ -40,14 +43,7 @@ export class SessoesController {
   }
   private webhookConfig(url: string) {
     return {
-      webhook: {
-        enabled: true,
-        url,
-        headers: {},
-        webhookByEvents: false,
-        webhookBase64: true,
-        events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE', 'QRCODE_UPDATED'],
-      },
+      webhook: evolutionWebhookConfig(url, this.apikey),
     };
   }
   private async buscarDetalhesInstancia(instanceName: string) {
@@ -134,7 +130,7 @@ export class SessoesController {
         const webhookUrl = this.webhookUrl();
         let webhookOk: boolean | null = null;
         if (webhookUrl) {
-          const webhookRes = await fetch(`${this.base}/webhook/set/${p.phone_number_id}`, {
+          const webhookRes = await fetch(`${this.base}/webhook/set/${encodeURIComponent(p.phone_number_id)}`, {
             method: 'POST',
             headers: this.headers(),
             body: JSON.stringify(this.webhookConfig(webhookUrl)),
@@ -148,7 +144,7 @@ export class SessoesController {
           }
         }
 
-        const r = await fetch(`${this.base}/instance/connectionState/${p.phone_number_id}`, { headers: this.headers() });
+        const r = await fetch(`${this.base}/instance/connectionState/${encodeURIComponent(p.phone_number_id)}`, { headers: this.headers() });
         const data = await readJson(r);
         if (!r.ok) {
           const message = `Evolution connectionState ${r.status}: ${JSON.stringify(data)}`;
@@ -190,7 +186,7 @@ export class SessoesController {
       if (!p?.phone_number_id) return { ok: false, message: 'Projeto sem instancia' };
       if (!this.base || !this.apikey) return { ok: false, message: 'Evolution API nao configurada no .env' };
 
-      const r = await fetch(`${this.base}/instance/logout/${p.phone_number_id}`, { method: 'DELETE', headers: this.headers() });
+      const r = await fetch(`${this.base}/instance/logout/${encodeURIComponent(p.phone_number_id)}`, { method: 'DELETE', headers: this.headers() });
       await q(
         `update projetos
          set connection_state='close', status='onboarding', last_connection_update=now()
@@ -205,11 +201,21 @@ export class SessoesController {
   async remover(@Param('id') id: string, @Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       const p = (await q(`select phone_number_id from projetos where id=$1`, [id])).rows[0];
+      if (!p) return { ok: false, message: 'Projeto ou conexao nao encontrado' };
+
+      let warning: string | null = null;
       if (p?.phone_number_id && this.base && this.apikey) {
-        await fetch(`${this.base}/instance/delete/${p.phone_number_id}`, { method: 'DELETE', headers: this.headers() }).catch(() => null);
+        try {
+          const response = await fetch(`${this.base}/instance/delete/${encodeURIComponent(p.phone_number_id)}`, { method: 'DELETE', headers: this.headers() });
+          if (!response.ok && response.status !== 404) warning = `Evolution API respondeu HTTP ${response.status}`;
+        } catch (error: any) {
+          warning = error?.message || 'Falha ao remover a instancia na Evolution API';
+        }
+      } else if (p?.phone_number_id) {
+        warning = 'Evolution API nao configurada; a instancia externa pode continuar existente';
       }
       await q(`delete from projetos where id=$1`, [id]);
-      return { ok: true };
+      return { ok: true, warning };
     });
   }
 }

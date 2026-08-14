@@ -23,6 +23,7 @@ import { TemplatesModule } from './templates/templates.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { HealthModule } from './health/health.module';
 import { AccountModule } from './account/account.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AccountModule } from './account/account.module';
     ApiKeysModule, WebhooksOutModule, KnowledgeModule, AutomacoesModule,
     SessoesModule, LeadsModule, PublicApiModule, SettingsModule, EquipeModule,
     AiSettingsModule, TemplatesModule, AgendaModule, HealthModule, AccountModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

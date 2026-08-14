@@ -1,0 +1,10 @@
+[Unit]
+Description=Teste semanal de restauracao da Comunora
+
+[Timer]
+OnCalendar=Sun *-*-* 05:30:00 America/Sao_Paulo
+Persistent=true
+RandomizedDelaySec=20m
+
+[Install]
+WantedBy=timers.target

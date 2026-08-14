@@ -13,6 +13,8 @@ export interface TransportDriver {
 
 export { CloudApiDriver } from './cloud-api.driver';
 export { EvolutionDriver } from './evolution.driver';
+export { isPublicIp, resolveSafeWebhookTarget, safeWebhookPost } from './safe-webhook';
+export type { SafeWebhookResponse } from './safe-webhook';
 
 import { CloudApiDriver } from './cloud-api.driver';
 import { EvolutionDriver } from './evolution.driver';

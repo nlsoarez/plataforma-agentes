@@ -1,13 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
+import { resolveSafeWebhookTarget, safeWebhookPost } from '@plataforma/transport';
 import { createHmac } from 'crypto';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { assertLimit } from '../billing/entitlements';
 import {
   calendarRedirectUri,
+  atualizarGoogleCalendarSelecionado,
   concluirGoogleCalendarOAuth,
   googleCalendarOAuthConfigured,
   iniciarGoogleCalendarOAuth,
+  listarGoogleCalendarsTenant,
 } from './google-calendar-oauth';
 
 const EVENTOS_PADRAO = ['LEAD_CREATED', 'LEAD_INTERACTION', 'AI_RESPONSE', 'LEAD_KANBAN_UPDATED', 'LEAD_TAG_ADDED', 'LEAD_TAG_REMOVED', 'ERROR'];
@@ -16,39 +20,38 @@ function assinarWebhook(secret: string, payload: string) {
   return createHmac('sha256', secret).update(payload).digest('hex');
 }
 
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 @Controller('integracoes')
 export class WebhooksOutController {
   @Get('status')
   status(@Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
       const integration = (await q(
-        `select account_email, calendar_id, token_expires_at, last_sync_at, last_error
+        `select account_email, calendar_id, token_expires_at, last_sync_at, last_error,
+                calendars_cache, calendars_cache_at
            from calendar_integrations
           where provider='google' and ativo=true
           order by atualizado_em desc
           limit 1`,
       )).rows[0];
 
-    const googleCalendar = Boolean(
-      process.env.GOOGLE_CALENDAR_ID &&
-      (process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) &&
-      (process.env.GOOGLE_CALENDAR_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY),
-    );
     return {
       googleCalendar: {
-        configured: Boolean(integration) || googleCalendar,
+        configured: Boolean(integration),
         tenantConnected: Boolean(integration),
         accountEmail: integration?.account_email ? maskEmail(integration.account_email) : null,
-        calendarId: integration?.calendar_id || (process.env.GOOGLE_CALENDAR_ID ? mask(process.env.GOOGLE_CALENDAR_ID) : null),
-        mode: integration ? 'tenant_oauth' : (googleCalendar ? 'service_account' : null),
+        calendarId: integration?.calendar_id || null,
+        mode: integration ? 'tenant_oauth' : null,
         lastSyncAt: integration?.last_sync_at || null,
         lastError: integration?.last_error || null,
         oauthConfigured: googleCalendarOAuthConfigured(),
         redirectUri: calendarRedirectUri(),
+        calendars: integration?.calendars_cache || [],
+        calendarsCacheAt: integration?.calendars_cache_at || null,
       },
       calendarWebhook: {
-        configured: Boolean(process.env.CALENDAR_WEBHOOK_URL),
+        configured: false,
       },
     };
     });
@@ -76,6 +79,40 @@ export class WebhooksOutController {
     });
   }
 
+  @Get('google-calendar/calendars')
+  listarCalendarios(@Req() req: any) {
+    return listarGoogleCalendarsTenant(req.user.tenantId);
+  }
+
+  @Put('google-calendar/calendar')
+  atualizarCalendario(@Req() req: any, @Body() body: { calendarId?: string }) {
+    return atualizarGoogleCalendarSelecionado(req.user.tenantId, body.calendarId || '');
+  }
+
+  @Get('automations/status')
+  automationsStatus(@Req() req: any) {
+    return comTenant(req.user.tenantId, async (q) => {
+      const reminders = (await q(
+        `select
+           count(*) filter (where status='pendente')::int as pendentes,
+           count(*) filter (where status='enviado' and sent_at >= now() - interval '24 hours')::int as enviados_24h,
+           count(*) filter (where status='falha' and atualizado_em >= now() - interval '24 hours')::int as falhas_24h
+         from appointment_reminders`,
+      )).rows[0] || {};
+      const reactivation = (await q(
+        `select
+           count(*) filter (where status='pendente')::int as pendentes,
+           count(*) filter (where status='enviado' and sent_at >= now() - interval '24 hours')::int as enviados_24h,
+           count(*) filter (where status='falha' and atualizado_em >= now() - interval '24 hours')::int as falhas_24h
+         from lead_reactivation_runs`,
+      )).rows[0] || {};
+      return {
+        appointmentReminders: reminders,
+        leadReactivation: reactivation,
+      };
+    });
+  }
+
   @Get('webhooks')
   listar(@Req() req: any) {
     return comTenant(req.user.tenantId, async (q) => {
@@ -91,12 +128,13 @@ export class WebhooksOutController {
   @Post('webhooks')
   async criar(@Body() body: { nome?: string; url: string; secret?: string; eventos?: string[] }, @Req() req: any) {
     await assertLimit(req.user.tenantId, 'outbound_webhooks', 1);
+    const url = await this.validarWebhookUrl(body.url);
     return comTenant(req.user.tenantId, async (q) => {
       const r = await q(
         `insert into webhook_subscriptions (tenant_id, nome, url, secret, eventos)
          values ($1,$2,$3,$4,$5)
          returning id, nome, url, eventos, ativo, criado_em`,
-        [req.user.tenantId, body.nome || 'Webhook', body.url, body.secret || null, body.eventos?.length ? body.eventos : EVENTOS_PADRAO],
+        [req.user.tenantId, body.nome || 'Webhook', url, body.secret || null, body.eventos?.length ? body.eventos : EVENTOS_PADRAO],
       );
       return r.rows[0];
     });
@@ -115,8 +153,12 @@ export class WebhooksOutController {
         headers['x-comunora-signature'] = signature;
         headers['x-attende-signature'] = signature;
       }
-      const res = await fetch(sub.url, { method: 'POST', headers, body: payload });
-      return { ok: res.ok, status: res.status };
+      try {
+        const result = await safeWebhookPost(sub.url, headers, payload);
+        return { ok: result.ok, status: result.status };
+      } catch (error: any) {
+        throw new BadRequestException(error?.message || 'destino de webhook bloqueado');
+      }
     });
   }
 
@@ -126,6 +168,14 @@ export class WebhooksOutController {
       await q(`update webhook_subscriptions set ativo=false where id=$1`, [id]);
       return { ok: true };
     });
+  }
+
+  private async validarWebhookUrl(rawUrl: string): Promise<string> {
+    try {
+      return (await resolveSafeWebhookTarget(rawUrl)).url.toString();
+    } catch (error: any) {
+      throw new BadRequestException(error?.message || 'URL de webhook invalida');
+    }
   }
 }
 

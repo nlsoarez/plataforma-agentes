@@ -1,14 +1,16 @@
 import jwt from 'jsonwebtoken';
 import type { Sessao } from '@plataforma/shared';
+import { requireSecret } from '@plataforma/shared';
 
-const SEGREDO = () => process.env.JWT_SECRET || 'troque-isto-em-producao';
+const SEGREDO = () => requireSecret('JWT_SECRET', process.env, 'dev-only-jwt-secret');
+const JWT_OPTIONS = { issuer: 'comunora-api', audience: 'comunora-web' } as const;
 
 export function assinarToken(s: Sessao): string {
-  return jwt.sign(s, SEGREDO(), { expiresIn: '12h' });
+  return jwt.sign(s, SEGREDO(), { algorithm: 'HS256', expiresIn: '12h', ...JWT_OPTIONS });
 }
 
 export function verificarToken(token: string): Sessao {
-  return jwt.verify(token, SEGREDO()) as Sessao;
+  return jwt.verify(token, SEGREDO(), { algorithms: ['HS256'], ...JWT_OPTIONS }) as Sessao;
 }
 
 export interface EstadoGoogleOAuth {
@@ -27,11 +29,11 @@ export interface EstadoGoogleCalendarOAuth {
 }
 
 export function assinarEstadoGoogleOAuth(estado: EstadoGoogleOAuth): string {
-  return jwt.sign(estado, SEGREDO(), { expiresIn: '10m' });
+  return jwt.sign(estado, SEGREDO(), { algorithm: 'HS256', expiresIn: '10m', ...JWT_OPTIONS });
 }
 
 export function verificarEstadoGoogleOAuth(token: string): EstadoGoogleOAuth {
-  const estado = jwt.verify(token, SEGREDO()) as EstadoGoogleOAuth;
+  const estado = jwt.verify(token, SEGREDO(), { algorithms: ['HS256'], ...JWT_OPTIONS }) as EstadoGoogleOAuth;
   if (estado.typ !== 'google_oauth' || !estado.dominio || !estado.origem || !estado.codeVerifier) {
     throw new Error('estado oauth invalido');
   }
@@ -39,11 +41,11 @@ export function verificarEstadoGoogleOAuth(token: string): EstadoGoogleOAuth {
 }
 
 export function assinarEstadoGoogleCalendarOAuth(estado: EstadoGoogleCalendarOAuth): string {
-  return jwt.sign(estado, SEGREDO(), { expiresIn: '10m' });
+  return jwt.sign(estado, SEGREDO(), { algorithm: 'HS256', expiresIn: '10m', ...JWT_OPTIONS });
 }
 
 export function verificarEstadoGoogleCalendarOAuth(token: string): EstadoGoogleCalendarOAuth {
-  const estado = jwt.verify(token, SEGREDO()) as EstadoGoogleCalendarOAuth;
+  const estado = jwt.verify(token, SEGREDO(), { algorithms: ['HS256'], ...JWT_OPTIONS }) as EstadoGoogleCalendarOAuth;
   if (estado.typ !== 'google_calendar_oauth' || !estado.tenantId || !estado.userId || !estado.origem || !estado.codeVerifier) {
     throw new Error('estado oauth calendar invalido');
   }

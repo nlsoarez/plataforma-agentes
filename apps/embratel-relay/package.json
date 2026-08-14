@@ -1,0 +1,16 @@
+{
+  "name": "embratel-rec-whatsapp-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Relay central para alertas WhatsApp de REC/ETIT com deduplicacao.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node --check server.js",
+    "check": "node --check server.js",
+    "test": "node --test server.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

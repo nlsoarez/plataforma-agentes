@@ -1,0 +1,13 @@
+[Unit]
+Description=Backup criptografado da Comunora
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/srv/comunora/app
+ExecStart=/srv/comunora/app/scripts/oci/backup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

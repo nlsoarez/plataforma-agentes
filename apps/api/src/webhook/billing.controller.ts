@@ -1,6 +1,7 @@
-import { BadRequestException, Body, Controller, Headers, HttpStatus, Post, Req, Res } from '@nestjs/common';
-import { comTenant, definirStatusTenant, pool, resolverAssinatura, resolverAssinaturaProvider } from '@plataforma/db';
+import { BadRequestException, Body, Controller, Headers, HttpStatus, Post, Req, Res, ServiceUnavailableException } from '@nestjs/common';
+import { comTenant, definirStatusTenant, resolverAssinatura, resolverAssinaturaProvider } from '@plataforma/db';
 import Stripe from 'stripe';
+import { sharedSecretMatches } from './webhook-auth';
 
 @Controller('webhook')
 export class BillingWebhookController {
@@ -11,7 +12,10 @@ export class BillingWebhookController {
     @Res() res: any,
   ) {
     const configuredToken = process.env.ASAAS_WEBHOOK_TOKEN;
-    if (configuredToken && token !== configuredToken) {
+    if (!configuredToken) {
+      throw new ServiceUnavailableException('webhook Asaas nao configurado');
+    }
+    if (!sharedSecretMatches(token, configuredToken)) {
       throw new BadRequestException('webhook asaas invalido');
     }
 
@@ -27,7 +31,7 @@ export class BillingWebhookController {
     const tenantIdFromPayload = isUuid(payment?.externalReference) ? payment.externalReference : null;
     const tenantId = ass?.tenant_id ?? tenantIdFromPayload;
     if (!tenantId) {
-      await recordBillingEvent(null, null, 'asaas', externalEventId, eventType, body, 'ignored', 'assinatura nao encontrada');
+      console.warn('[billing] webhook ignorado: assinatura nao encontrada', externalEventId, eventType);
       return res.sendStatus(HttpStatus.OK);
     }
 
@@ -86,9 +90,9 @@ export class BillingWebhookController {
         }
       });
 
-      await markBillingEvent(externalEventId, 'processed', null);
+      await markBillingEvent(tenantId, externalEventId, 'processed', null);
     } catch (err: any) {
-      await markBillingEvent(externalEventId, 'failed', err?.message || 'erro ao processar webhook');
+      await markBillingEvent(tenantId, externalEventId, 'failed', err?.message || 'erro ao processar webhook');
       throw err;
     }
 
@@ -129,7 +133,7 @@ export class BillingWebhookController {
 }
 
 async function recordBillingEvent(
-  tenantId: string | null,
+  tenantId: string,
   subscriptionId: string | null,
   provider: string,
   externalEventId: string,
@@ -138,26 +142,28 @@ async function recordBillingEvent(
   status: string,
   error: string | null,
 ): Promise<boolean> {
-  const r = await pool.query(
-    `insert into billing_events
+  return comTenant(tenantId, async (q) => {
+    const r = await q(
+      `insert into billing_events
       (tenant_id, subscription_id, provider, external_event_id, event_type, payload,
        processing_status, processing_error, processed_at)
      values ($1,$2,$3,$4,$5,$6,$7,$8,case when $7='processed' or $7='ignored' then now() else null end)
      on conflict (provider, external_event_id) do nothing`,
-    [tenantId, subscriptionId, provider, externalEventId, eventType, payload, status, error],
-  );
-  return r.rowCount > 0;
+      [tenantId, subscriptionId, provider, externalEventId, eventType, payload, status, error],
+    );
+    return r.rowCount > 0;
+  });
 }
 
-async function markBillingEvent(externalEventId: string, status: string, error: string | null): Promise<void> {
-  await pool.query(
+async function markBillingEvent(tenantId: string, externalEventId: string, status: string, error: string | null): Promise<void> {
+  await comTenant(tenantId, (q) => q(
     `update billing_events
         set processing_status=$2,
             processing_error=$3,
             processed_at=now()
       where provider='asaas' and external_event_id=$1`,
     [externalEventId, status, error],
-  );
+  ));
 }
 
 async function upsertInvoice(q: any, tenantId: string, subscriptionId: string, payment: any): Promise<void> {

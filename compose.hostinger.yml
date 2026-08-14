@@ -1,0 +1,149 @@
+name: comunora
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+  args:
+    NEXT_PUBLIC_API_URL: https://api.comunora.com.br
+    NEXT_PUBLIC_APP_URL: https://app.comunora.com.br
+    NEXT_PUBLIC_SITE_URL: https://comunora.com.br
+    NEXT_PUBLIC_DOCS_URL: https://docs.comunora.com.br
+    NEXT_PUBLIC_STATUS_URL: https://status.comunora.com.br
+    NEXT_PUBLIC_BRAND_NAME: Comunora
+    NEXT_PUBLIC_SUPPORT_EMAIL: suporte@comunora.com.br
+
+services:
+  platform-postgres:
+    image: comunora-pgvector-hardened:0.8.2-pg18
+    build:
+      context: .
+      dockerfile: infra/hostinger/hardened/Dockerfile.pgvector
+    container_name: comunora-postgres
+    env_file: /opt/comunora/secrets/platform-db.env
+    volumes:
+      # PostgreSQL 18 stores versioned clusters below /var/lib/postgresql.
+      - /srv/comunora/platform-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [data]
+
+  platform-redis:
+    image: comunora-redis-hardened:8.2.1
+    build:
+      context: .
+      dockerfile: infra/hostinger/hardened/Dockerfile.redis
+    container_name: comunora-redis
+    env_file: /opt/comunora/secrets/platform-redis.env
+    command: >-
+      sh -ec 'exec redis-server --requirepass "$$REDIS_PASSWORD"
+      --appendonly yes --appendfsync everysec
+      --save 900 1 --save 300 10 --save 60 10000'
+    volumes:
+      - /srv/comunora/platform-redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [data]
+
+  api:
+    build:
+      <<: *app-build
+      target: api
+    container_name: comunora-api
+    env_file: /opt/comunora/secrets/platform-runtime.env
+    depends_on:
+      platform-postgres: { condition: service_healthy }
+      platform-redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [edge, data]
+
+  web:
+    build:
+      <<: *app-build
+      target: web
+    container_name: comunora-web
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [edge]
+
+  worker:
+    build:
+      <<: *app-build
+      target: worker
+    container_name: comunora-worker
+    env_file: /opt/comunora/secrets/platform-runtime.env
+    depends_on:
+      platform-postgres: { condition: service_healthy }
+      platform-redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/node", "-e", "process.exit(0)"]
+      interval: 20s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [edge, data]
+
+  migrate:
+    build:
+      <<: *app-build
+      target: migration
+    profiles: [ops]
+    env_file: /opt/comunora/secrets/platform-admin.env
+    depends_on:
+      platform-postgres: { condition: service_healthy }
+    networks: [data]
+
+  seed:
+    build:
+      <<: *app-build
+      target: api
+    profiles: [ops]
+    env_file:
+      - /opt/comunora/secrets/platform-admin.env
+      - /opt/comunora/secrets/seed.env
+    command: ["node", "apps/api/dist/seed.js"]
+    depends_on:
+      platform-postgres: { condition: service_healthy }
+    networks: [data]
+
+networks:
+  edge:
+    name: comunora-edge
+    external: true
+  data:
+    internal: true

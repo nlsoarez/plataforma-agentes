@@ -16,6 +16,8 @@ export class CampanhasService {
       const proj = await q(`select phone_number_id from projetos where id=$1`, [dto.projetoId]);
       if (!proj.rows[0]) throw new NotFoundException('projeto nao encontrado');
       const phoneNumberId = proj.rows[0].phone_number_id;
+      if (!phoneNumberId) throw new BadRequestException('Conecte um WhatsApp antes de iniciar uma campanha');
+      if (!String(dto.texto || '').trim()) throw new BadRequestException('Informe a mensagem da campanha');
 
       const camp = await q(
         `insert into campanhas (tenant_id, projeto_id, template_nome, segmento, status)
@@ -27,10 +29,24 @@ export class CampanhasService {
       const tags = dto.segmento?.tags;
       const contatos = (await q(
         contatoIds.length
-          ? `select id, telefone from contatos where projeto_id=$1 and id = any($2::uuid[])`
+          ? `select id, telefone
+               from contatos
+              where projeto_id=$1
+                and id = any($2::uuid[])
+                and telefone is not null
+                and coalesce(opt_out_whatsapp,false)=false`
           : tags?.length
-            ? `select id, telefone from contatos where projeto_id=$1 and tags && $2::text[]`
-            : `select id, telefone from contatos where projeto_id=$1`,
+            ? `select id, telefone
+                 from contatos
+                where projeto_id=$1
+                  and tags && $2::text[]
+                  and telefone is not null
+                  and coalesce(opt_out_whatsapp,false)=false`
+            : `select id, telefone
+                 from contatos
+                where projeto_id=$1
+                  and telefone is not null
+                  and coalesce(opt_out_whatsapp,false)=false`,
         contatoIds.length ? [dto.projetoId, contatoIds] : tags?.length ? [dto.projetoId, tags] : [dto.projetoId])).rows;
 
       if (!contatos.length) {

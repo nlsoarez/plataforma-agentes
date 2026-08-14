@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EMBRATEL Nova REC - Opcoes</title>
+  <style>
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f6f8fb; color: #182235; }
+    main { width: min(680px, calc(100vw - 32px)); margin: 32px auto; }
+    h1 { font-size: 24px; margin: 0 0 18px; }
+    form, section { background: #fff; border: 1px solid #d9e1ec; border-radius: 8px; padding: 18px; box-shadow: 0 8px 24px rgba(24,34,53,.08); }
+    label { display: block; font-weight: 700; margin: 0 0 6px; }
+    input, select { width: 100%; box-sizing: border-box; border: 1px solid #bcc7d6; border-radius: 6px; padding: 10px 12px; font-size: 14px; background: #fff; }
+    input[type="checkbox"] { width: auto; margin: 0; }
+    .grid { display: grid; gap: 14px; }
+    .checks { display: flex; flex-wrap: wrap; gap: 14px; }
+    .check { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    button { border: 0; border-radius: 6px; background: #1765b3; color: #fff; padding: 10px 14px; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #e8eef6; color: #182235; }
+    button.danger { background: #b91c1c; }
+    pre { white-space: pre-wrap; overflow: auto; background: #111827; color: #e5e7eb; padding: 12px; border-radius: 8px; }
+    .hint { color: #5f6c80; font-size: 13px; margin-top: 6px; }
+    section { margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>EMBRATEL Nova REC</h1>
+    <form id="config-form">
+      <div class="grid">
+        <div>
+          <label for="monitor-mode">Modo de monitoramento</label>
+          <select id="monitor-mode" name="monitorMode">
+            <option value="local">Local no site logado</option>
+            <option value="server">Servidor central legado</option>
+          </select>
+          <div class="hint">No modo local, cada usuario abre o site EMBRATEL logado e a extensao monitora aquela aba.</div>
+        </div>
+        <div>
+          <label for="server-url">Servidor do monitor</label>
+          <input id="server-url" name="serverUrl" placeholder="http://SEU-IP:8787" autocomplete="off">
+          <div class="hint">Usado somente no modo servidor central legado.</div>
+        </div>
+        <div>
+          <label for="poll-minutes">Intervalo de consulta em minutos</label>
+          <input id="poll-minutes" name="pollMinutes" type="number" min="0.5" step="0.5">
+        </div>
+        <div>
+          <label for="relay-url">Relay WhatsApp</label>
+          <input id="relay-url" name="relayUrl" type="url" value="https://relay.comunora.com.br" autocomplete="off">
+          <div class="hint">Endpoint HTTPS administrado pela Comunora.</div>
+        </div>
+        <div>
+          <label for="relay-secret">Credencial do relay</label>
+          <input id="relay-secret" name="relaySecret" type="password" minlength="32" autocomplete="new-password">
+          <div class="hint">Nao fica no codigo da extensao. Cole a nova credencial depois da migracao.</div>
+        </div>
+        <div>
+          <label>Tipos de REC para notificar</label>
+          <div class="checks">
+            <label class="check" for="type-fibra-rio-es">
+              <input id="type-fibra-rio-es" name="recType" type="checkbox" value="fibra-rio-es">
+              Fibra Rio/ES
+            </label>
+            <label class="check" for="type-fibra-leste">
+              <input id="type-fibra-leste" name="recType" type="checkbox" value="fibra-leste">
+              Fibra Leste
+            </label>
+            <label class="check" for="type-bsod">
+              <input id="type-bsod" name="recType" type="checkbox" value="bsod">
+              BSOD
+            </label>
+          </div>
+          <div class="hint">Se deixar todos desmarcados, a extensao notifica todos os tipos.</div>
+        </div>
+        <div>
+          <label class="check" for="sound-enabled">
+            <input id="sound-enabled" type="checkbox" checked>
+            Alarme sonoro
+          </label>
+          <div class="hint">Desmarque para manter o popup visual sem som.</div>
+        </div>
+        <div>
+          <label for="sound-type">Tipo de alarme sonoro</label>
+          <select id="sound-type" name="soundType">
+            <option value="beep">Padrao</option>
+            <option value="bip">BIP</option>
+            <option value="urgent">Urgente</option>
+            <option value="triple">Triplo</option>
+            <option value="voice">Voz</option>
+          </select>
+          <div class="hint">Usado somente quando o alarme sonoro estiver marcado.</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit">Salvar</button>
+        <button type="button" class="secondary" id="test-now">Testar agora</button>
+        <button type="button" class="secondary" id="test-notification">Testar notificacao</button>
+        <button type="button" class="secondary" id="test-whatsapp">Testar WhatsApp</button>
+        <button type="button" class="secondary" id="notify-recent">Notificar recentes</button>
+        <button type="button" class="danger" id="reset-baseline">Resetar base local</button>
+      </div>
+    </form>
+    <section>
+      <pre id="status">Carregando...</pre>
+    </section>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

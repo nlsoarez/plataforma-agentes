@@ -33,11 +33,45 @@ export type QueryFn = (sql: string, params?: unknown[]) => Promise<any>;
 export async function comTenant<T>(tenantId: string, fn: (q: QueryFn) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     await client.query("select set_config('app.tenant_id', $1, true)", [tenantId]);
-    return await fn((sql, params) => client.query(sql, params));
+    const result = await fn((sql, params) => client.query(sql, params));
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
   } finally {
     client.release();
   }
+}
+
+export async function assertSafeRuntimeDatabaseRole(env = process.env): Promise<void> {
+  const result = await pool.query<{
+    current_user: string;
+    rolbypassrls: boolean;
+    owns_rls_tables: boolean;
+  }>(`
+    select current_user,
+           coalesce((select rolbypassrls from pg_roles where rolname=current_user), false) as rolbypassrls,
+           exists (
+             select 1
+               from pg_class c
+               join pg_namespace n on n.oid=c.relnamespace
+              where n.nspname='public'
+                and c.relkind='r'
+                and c.relrowsecurity=true
+                and pg_get_userbyid(c.relowner)=current_user
+           ) as owns_rls_tables
+  `);
+  const role = result.rows[0];
+  const unsafe = Boolean(role?.rolbypassrls || role?.owns_rls_tables);
+  if (!unsafe) return;
+
+  const message = `A credencial DATABASE_URL (${role?.current_user || 'desconhecida'}) ignora RLS. `
+    + 'Use uma role de runtime sem ownership/BYPASSRLS e reserve DATABASE_ADMIN_URL para migrations.';
+  if (env.NODE_ENV === 'production') throw new Error(message);
+  console.warn(`[db-security] ${message}`);
 }
 
 export async function resolverProjetoPorNumero(phoneNumberId: string): Promise<{ tenant_id: string; projeto_id: string } | null> {
@@ -125,7 +159,8 @@ export async function acessoBillingTenant(tenantId: string): Promise<{
   state: BillingAccessState;
   canUsePaidFeatures: boolean;
 }> {
-  const r = await pool.query(
+  return comTenant(tenantId, async (q) => {
+    const r = await q(
     `select status, trial_ends_at, grace_period_ends_at
        from assinaturas
       where tenant_id=$1
@@ -139,21 +174,22 @@ export async function acessoBillingTenant(tenantId: string): Promise<{
       limit 1`,
     [tenantId],
   );
-  const row = r.rows[0];
-  if (!row) return { state: 'needs_subscription', canUsePaidFeatures: false };
+    const row = r.rows[0];
+    if (!row) return { state: 'needs_subscription', canUsePaidFeatures: false };
 
-  const status = String(row.status || '').toLowerCase();
-  const now = Date.now();
-  const trialEndsAt = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
-  const graceEndsAt = row.grace_period_ends_at ? new Date(row.grace_period_ends_at).getTime() : 0;
+    const status = String(row.status || '').toLowerCase();
+    const now = Date.now();
+    const trialEndsAt = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
+    const graceEndsAt = row.grace_period_ends_at ? new Date(row.grace_period_ends_at).getTime() : 0;
 
-  if (['ativa', 'active'].includes(status)) return { state: 'active', canUsePaidFeatures: true };
-  if (['trialing', 'trial'].includes(status) && (!trialEndsAt || trialEndsAt >= now)) {
-    return { state: 'trialing', canUsePaidFeatures: true };
-  }
-  if (['inadimplente', 'past_due', 'overdue'].includes(status) && graceEndsAt >= now) {
-    return { state: 'past_due_grace', canUsePaidFeatures: true };
-  }
+    if (['ativa', 'active'].includes(status)) return { state: 'active', canUsePaidFeatures: true };
+    if (['trialing', 'trial'].includes(status) && (!trialEndsAt || trialEndsAt >= now)) {
+      return { state: 'trialing', canUsePaidFeatures: true };
+    }
+    if (['inadimplente', 'past_due', 'overdue'].includes(status) && graceEndsAt >= now) {
+      return { state: 'past_due_grace', canUsePaidFeatures: true };
+    }
 
-  return { state: 'restricted', canUsePaidFeatures: false };
+    return { state: 'restricted', canUsePaidFeatures: false };
+  });
 }

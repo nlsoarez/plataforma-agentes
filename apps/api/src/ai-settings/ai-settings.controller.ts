@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { decryptSecret, encryptSecret } from '../secrets/crypto';
 
 const PROVIDERS = {
@@ -36,7 +37,8 @@ function escolherModeloAnthropic(modelos: string[], preferido?: string) {
 }
 
 @Controller('ai-settings')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class AiSettingsController {
   @Get()
   listar(@Req() req: any) {

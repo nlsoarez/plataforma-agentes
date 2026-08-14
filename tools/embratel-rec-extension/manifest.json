@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "EMBRATEL Nova REC",
+  "version": "1.16.0",
+  "description": "Monitora a tela EMBRATEL logada pelo usuario e alerta novas REC.",
+  "permissions": [
+    "alarms",
+    "notifications",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://10.13.54.150:20020/*",
+        "http://10.53.224.155/*",
+        "http://sir.nt.embratel.com.br/*",
+        "http://172.30.130.133/*"
+      ],
+      "js": [
+        "local-monitor.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "action": {
+    "default_title": "EMBRATEL Nova REC",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "icons": {
+    "128": "icons/icon-128.png"
+  }
+}

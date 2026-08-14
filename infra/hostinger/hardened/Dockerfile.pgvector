@@ -1,0 +1,9 @@
+FROM golang:1.26.5-alpine3.24 AS gosu-builder
+RUN CGO_ENABLED=0 go install github.com/tianon/gosu@1.19
+
+FROM pgvector/pgvector:0.8.2-pg18-bookworm
+USER root
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=gosu-builder /go/bin/gosu /usr/local/bin/gosu

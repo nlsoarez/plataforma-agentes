@@ -2,11 +2,13 @@ import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nes
 import { randomBytes } from 'crypto';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { hashApiKey } from '../public-api/api-key-auth';
 import { assertFeature, assertLimit } from '../billing/entitlements';
 
 @Controller('api-keys')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class ApiKeysController {
   @Get()
   listar(@Req() req: any) {

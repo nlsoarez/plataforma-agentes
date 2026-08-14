@@ -1,0 +1,104 @@
+{
+  admin off
+}
+
+(secure_headers) {
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "SAMEORIGIN"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+    -Server
+  }
+}
+
+{$EVOLUTION_DOMAIN} {
+  import secure_headers
+  handle /manager* {
+    respond 404
+  }
+  handle {
+    reverse_proxy evolution:8080 {
+      header_down -X-Powered-By
+      header_down -Server
+    }
+  }
+  log {
+    output stdout
+    format json
+  }
+}
+
+{$RELAY_DOMAIN} {
+  import secure_headers
+  reverse_proxy relay:8788
+  log {
+    output stdout
+    format json
+  }
+}
+
+{$GENERATOR_DOMAIN} {
+  import secure_headers
+  handle /api/send-message {
+    rewrite * /api/generator-message
+    reverse_proxy relay:8788 {
+      header_up X-Relay-Secret {$RELAY_SHARED_SECRET}
+    }
+  }
+  handle /api/incidents {
+    reverse_proxy relay:8788 {
+      header_up X-Relay-Secret {$RELAY_SHARED_SECRET}
+    }
+  }
+  handle {
+    root * /srv/generator
+    file_server
+  }
+  header Cache-Control "no-store"
+  log {
+    output stdout
+    format json
+  }
+}
+
+validador.179-198-124-8.sslip.io {
+  import secure_headers
+  reverse_proxy validador-outage:3000
+  log {
+    output stdout
+    format json
+  }
+}
+
+comunora.com.br, www.comunora.com.br, comunora.179-198-124-8.sslip.io {
+  import secure_headers
+  reverse_proxy comunora-web:3001
+  log {
+    output stdout
+    format json
+  }
+}
+
+app.comunora.com.br, app-comunora.179-198-124-8.sslip.io {
+  import secure_headers
+  reverse_proxy comunora-web:3001
+  log {
+    output stdout
+    format json
+  }
+}
+
+api.comunora.com.br, api-comunora.179-198-124-8.sslip.io {
+  import secure_headers
+  request_body {
+    max_size 25MB
+  }
+  reverse_proxy comunora-api:3000
+  log {
+    output stdout
+    format json
+  }
+}

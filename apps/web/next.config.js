@@ -1,2 +1,10 @@
 /** @type {import('next').NextConfig} */
-module.exports = { reactStrictMode: true };
+const path = require('node:path');
+const standalone = process.env.NEXT_OUTPUT_STANDALONE === 'true' || process.platform !== 'win32';
+
+module.exports = {
+  reactStrictMode: true,
+  poweredByHeader: false,
+  ...(standalone ? { output: 'standalone' } : {}),
+  outputFileTracingRoot: path.join(__dirname, '../..'),
+};

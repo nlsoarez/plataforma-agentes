@@ -1,5 +1,7 @@
 # Comunora
 
+O ambiente de producao OCI, o ensaio, o corte, o rollback e os backups estao documentados em [docs/oci-migration-runbook.md](docs/oci-migration-runbook.md).
+
 Comunicação inteligente. Resultados reais.
 
 A Comunora é uma plataforma white-label multi-tenant para empresas centralizarem atendimento no WhatsApp, agentes de IA, CRM, automações, campanhas e atendimento humano usando Evolution API.
@@ -116,6 +118,13 @@ tera prova confiavel para liberar o dashboard.
 ## Fluxo Evolution
 
 Para o QR apenas conectar, `EVOLUTION_API_URL` e `EVOLUTION_API_KEY` bastam.
+
+Na hospedagem atual da Hostinger, a Evolution API responde em
+`https://evolution.179-198-124-8.sslip.io` e o Manager em
+`https://evolution.179-198-124-8.sslip.io/manager/login`. O Manager e apenas uma
+ferramenta administrativa e de diagnostico: o fluxo normal acontece em
+`/onboarding`, onde a Comunora cria a instancia pela API, configura o webhook e
+mostra o QR Code automaticamente.
 Para mensagens reais chegarem ao sistema, `API_PUBLIC_URL` precisa apontar para a API publica:
 
 ```env
@@ -151,7 +160,8 @@ URLs locais:
 
 ## Checklist Minimo de Producao
 
-- `DATABASE_URL` com Postgres persistente.
+- `DATABASE_URL` com Postgres persistente usando uma role de runtime sem ownership e sem `BYPASSRLS`.
+- `DATABASE_ADMIN_URL` reservada exclusivamente para migrations e provisionamento.
 - `REDIS_URL` com Redis persistente.
 - `JWT_SECRET` forte.
 - `SECRETS_MASTER_KEY` forte, com 32+ caracteres.
@@ -173,17 +183,42 @@ BYOK criptografada.
 - Anthropic/Google: suportam resposta textual. Tools avancadas ainda dependem
   do tradutor de function calling desses providers.
 
-## Agenda
+## Agenda, lembretes e reativacao
 
 A tool `agendar` salva compromissos na tabela `agendamentos` e eles aparecem em
-`/agenda`. Para sincronizar com Google Calendar, n8n ou Make, configure:
+`/agenda`. Quando o usuario conecta Google Calendar em `/integracoes`, a
+plataforma consulta disponibilidade e cria eventos na agenda autorizada via OAuth.
 
-```env
-CALENDAR_WEBHOOK_URL=https://seu-webhook-de-agenda
-```
+O fluxo de agenda suporta:
 
-Sem esse webhook, o compromisso fica salvo como pendente. Isso e melhor do que
-fingir integracao com Google Calendar sem OAuth configurado.
+- consulta de disponibilidade;
+- criacao de eventos no Google Calendar;
+- cancelamento local e tentativa de cancelamento no Google Calendar;
+- lembrete automatico por WhatsApp;
+- resposta `1` para confirmar;
+- resposta `2` para remarcar;
+- resposta `3` para cancelar.
+
+Leads inativos podem ser reativados em `/leads`, com configuracao por projeto:
+
+- dias de inatividade;
+- horario de envio;
+- limite diario;
+- janela minima para reenvio;
+- mensagem personalizada.
+
+Para producao, o worker precisa estar rodando continuamente, porque lembretes e
+reativacoes dependem das filas BullMQ.
+
+## Documentacao operacional
+
+Guias internos disponiveis:
+
+- `docs/onboarding-clientes-comunora.md`: fluxo de implantacao de clientes.
+- `docs/playbook-suporte-comunora.md`: diagnostico de suporte.
+- `docs/checklist-lancamento-comercial.md`: checklist antes de venda oficial.
+- `docs/deploy-comunora-dominios.md`: dominios, DNS e Railway.
+- `docs/checklist-virada-comunora.md`: checklist do rebranding.
 
 ## Deploy Railway
 
@@ -195,6 +230,24 @@ Crie tres servicos apontando para o mesmo repositorio:
 
 Adicione Postgres e Redis. Configure as variaveis do `.env.example` no painel.
 Segredos nunca devem ir para o repositorio.
+
+Antes de iniciar API e worker em producao, aplique as migrations com a credencial
+administrativa e provisione uma role separada para o runtime:
+
+```bash
+DATABASE_ADMIN_URL=... pnpm --filter @plataforma/db migrate
+DATABASE_ADMIN_URL=... DATABASE_RUNTIME_USER=plataforma_runtime DATABASE_RUNTIME_PASSWORD=... \
+  pnpm --filter @plataforma/db provision:runtime-role
+```
+
+Depois, configure `DATABASE_URL` da API e do worker com a role `plataforma_runtime`.
+O startup falha deliberadamente em producao quando a credencial e dona de tabelas
+RLS ou possui `BYPASSRLS`.
+
+Deploys desta versao invalidam JWTs emitidos por versoes anteriores; os usuarios
+precisam autenticar novamente. Webhooks Evolution e Asaas sem segredo agora sao
+rejeitados, portanto configure `EVOLUTION_API_KEY` e `ASAAS_WEBHOOK_TOKEN` antes
+da virada.
 
 Para o dominio oficial `comunora.com.br`, use o guia:
 

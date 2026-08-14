@@ -1,18 +1,26 @@
 {
   "name": "plataforma-agentes",
   "private": true,
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
     "dev": "dotenv -e .env -- turbo run dev",
     "build": "turbo run build",
     "start": "node scripts/railway-start.mjs",
-    "lint": "turbo run lint",
+    "lint": "eslint . --max-warnings=0",
     "test": "turbo run test",
-    "check:prod": "node scripts/comunora-production-check.mjs"
+    "check:prod": "node scripts/comunora-production-check.mjs",
+    "build:extension": "node scripts/build-embratel-extension.mjs",
+    "check:oci": "node scripts/oci-production-check.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0",
     "typescript": "^5.4.0",
-    "dotenv-cli": "^7.4.2"
+    "dotenv-cli": "^7.4.2",
+    "eslint": "9.39.5",
+    "eslint-config-next": "15.5.21",
+    "@eslint/eslintrc": "3.3.4",
+    "globals": "16.5.0",
+    "sharp": "0.35.3",
+    "typescript-eslint": "8.66.0"
   }
 }

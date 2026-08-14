@@ -1,0 +1,17 @@
+FROM golang:1.26.5-alpine3.24 AS builder
+
+ARG CADDY_VERSION=v2.11.4
+RUN apk add --no-cache git \
+    && git clone --depth 1 --branch "$CADDY_VERSION" https://github.com/caddyserver/caddy.git /src
+WORKDIR /src
+RUN go get golang.org/x/net@v0.56.0 \
+           golang.org/x/text@v0.39.0 \
+           google.golang.org/grpc@v1.82.1 \
+    && go mod tidy \
+    && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/caddy ./cmd/caddy
+
+FROM caddy:2.11-alpine
+USER root
+RUN apk upgrade --no-cache
+COPY --from=builder /out/caddy /usr/bin/caddy
+

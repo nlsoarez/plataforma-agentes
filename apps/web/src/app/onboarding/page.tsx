@@ -24,6 +24,7 @@ type QrResponse = {
 };
 
 type Projeto = { id: string; nome: string; phone_number_id: string | null; status: string };
+type ProfessionTemplate = { id: string; nome: string; descricao: string; segmento?: string };
 
 function looksLikeImageBase64(value: string) {
   return /^(iVBORw0KGgo|\/9j\/|R0lGOD|PHN2Zy)/.test(value);
@@ -121,6 +122,8 @@ export default function Onboarding() {
   const { token, ready } = useStoredToken();
   const [nome, setNome] = useState('');
   const [projetos, setProjetos] = useState<Projeto[]>([]);
+  const [templates, setTemplates] = useState<ProfessionTemplate[]>([]);
+  const [templateId, setTemplateId] = useState('comercial');
   const [projetoId, setProjetoId] = useState('');
   const [instancia, setInstancia] = useState<string | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
@@ -136,23 +139,32 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!token) return;
-    fetch(`${API}/projetos`, { headers: auth(token) })
-      .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(ensureAuth(r, data));
-        return data;
-      })
-      .then((rows) => {
-        const list = Array.isArray(rows) ? rows : [];
-        setProjetos(list);
-        const pending = list.find((p: Projeto) => !p.phone_number_id);
-        if (pending && !projetoId) {
-          setProjetoId(pending.id);
-          setNome(pending.nome);
-        }
-      })
-      .catch(() => null);
+    carregarContexto();
   }, [token]);
+
+  async function carregarContexto() {
+    if (!token) return;
+    try {
+      const [projetosRes, templatesRes] = await Promise.all([
+        fetch(`${API}/projetos`, { headers: auth(token) }),
+        fetch(`${API}/templates/professions`, { headers: auth(token) }),
+      ]);
+      const projetosData = await projetosRes.json();
+      const templatesData = await templatesRes.json();
+      if (!projetosRes.ok) throw new Error(ensureAuth(projetosRes, projetosData));
+      if (!templatesRes.ok) throw new Error(ensureAuth(templatesRes, templatesData));
+      const list = Array.isArray(projetosData) ? projetosData : [];
+      setProjetos(list);
+      setTemplates(Array.isArray(templatesData) ? templatesData : []);
+      const pending = list.find((p: Projeto) => !p.phone_number_id);
+      if (pending && !projetoId) {
+        setProjetoId(pending.id);
+        setNome(pending.nome);
+      }
+    } catch {
+      // O onboarding ainda funciona sem templates, apenas com conexao manual.
+    }
+  }
 
   function aplicarQr(data: QrResponse) {
     const next = splitQrPayload(data);
@@ -186,6 +198,31 @@ export default function Onboarding() {
       iniciarPolling(d.instancia);
     } catch (e: any) {
       setErro(e?.message || 'Falha ao criar conexão');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function criarPorSegmento() {
+    if (!token || !nome.trim() || loading) return;
+    setLoading(true);
+    setErro('');
+    setWarning('');
+    try {
+      const r = await fetch(`${API}/templates/professions/${templateId}/importar`, {
+        method: 'POST',
+        headers: auth(token),
+        body: JSON.stringify({ nomeProjeto: nome }),
+      });
+      const d = await parseJson(r);
+      if (!r.ok || d.ok === false) throw new Error(ensureAuth(r, d));
+      const projeto = d.projeto;
+      setProjetoId(projeto.id);
+      setNome(projeto.nome);
+      setProjetos((current) => [{ id: projeto.id, nome: projeto.nome, status: projeto.status, phone_number_id: null }, ...current]);
+      setWarning('Template aplicado. Agora gere o QR Code para conectar o WhatsApp deste projeto.');
+    } catch (e: any) {
+      setErro(e?.message || 'Falha ao criar projeto por segmento');
     } finally {
       setLoading(false);
     }
@@ -237,7 +274,39 @@ export default function Onboarding() {
         </div>
       </div>
 
-      <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(280px, 380px) minmax(280px, 360px)', maxWidth: 800, alignItems: 'start' }}>
+      <div className="nl-grid" style={{ gridTemplateColumns: 'minmax(280px, 380px) minmax(280px, 380px) minmax(280px, 360px)', maxWidth: 1180, alignItems: 'start' }}>
+        <div className="nl-card nl-card--pad">
+          <div className="eyebrow" style={{ marginBottom: 12 }}>Comecar por segmento</div>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Cria prompt, pipeline, base inicial, lembretes e reativacao com um modelo pronto para o seu nicho.
+          </p>
+          <label className="nl-label">Segmento</label>
+          <select className="nl-select" value={templateId} onChange={(e) => setTemplateId(e.target.value)} style={{ marginBottom: 12 }}>
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>{template.nome}</option>
+            ))}
+          </select>
+          <label className="nl-label">Nome do projeto</label>
+          <input
+            className="nl-input"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="ex: Clinica Ana"
+            style={{ marginBottom: 12 }}
+          />
+          <button className="nl-btn nl-btn--ghost" style={{ width: '100%' }} disabled={!nome.trim() || loading || templates.length === 0} onClick={criarPorSegmento}>
+            Aplicar template
+          </button>
+          <div className="nl-onboarding-checklist" style={{ marginTop: 14 }}>
+            <div><b>Checklist real</b></div>
+            <small>1. Escolher segmento</small>
+            <small>2. Conectar WhatsApp</small>
+            <small>3. Configurar IA</small>
+            <small>4. Conectar Google Calendar</small>
+            <small>5. Ativar lembretes e reativacao</small>
+          </div>
+        </div>
+
         <div className="nl-card nl-card--pad">
           <div className="eyebrow" style={{ marginBottom: 12 }}>Nova conexão</div>
           <p className="muted" style={{ marginTop: 0 }}>

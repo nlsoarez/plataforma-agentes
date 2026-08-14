@@ -1,15 +1,35 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { TemplatesService } from './templates.service';
 
 @Controller('templates')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class TemplatesController {
   constructor(private readonly svc: TemplatesService) {}
 
   @Get()
   listar(@Req() req: any) {
     return this.svc.listar(req.user.tenantId);
+  }
+
+  @Get('professions')
+  listarProfissoes() {
+    return this.svc.listarProfissoes();
+  }
+
+  @Get('professions/:id')
+  obterProfissao(@Param('id') id: string) {
+    return this.svc.templateProfissao(id) || null;
+  }
+
+  @Post('professions/:id/importar')
+  importarProfissao(@Param('id') id: string, @Body() body: { nomeProjeto?: string; organizacao?: string }, @Req() req: any) {
+    const template = this.svc.templateProfissao(id);
+    return template
+      ? this.svc.importar(req.user.tenantId, template, { nomeProjeto: body.nomeProjeto || template.nome, organizacao: body.organizacao })
+      : { ok: false, message: 'Template nao encontrado' };
   }
 
   @Post()

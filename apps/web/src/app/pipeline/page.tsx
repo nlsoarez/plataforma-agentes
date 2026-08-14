@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Shell from '../../components/Shell';
 import { SessionLoading, SessionRequired, useStoredToken } from '../../components/SessionState';
+import { openAuthenticatedSse } from '../../lib/authenticated-sse';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -21,9 +22,9 @@ export default function Pipeline() {
   useEffect(() => {
     if (!token) return;
     fetch(`${API}/projetos`, { headers: auth(token) }).then(r => r.json()).then((ps) => { if (ps[0]) setProjetoId(ps[0].id); });
-    const es = new EventSource(`${API}/inbox/stream?token=${token}`);
-    es.onmessage = (e) => { try { if (JSON.parse(e.data).tipo === 'card') carregar(); } catch {} };
-    return () => es.close();
+    return openAuthenticatedSse(`${API}/inbox/stream`, token, (data) => {
+      try { if (JSON.parse(data).tipo === 'card') carregar(); } catch {}
+    });
   }, [token]);
 
   useEffect(() => { if (projetoId) carregar(); }, [projetoId]);

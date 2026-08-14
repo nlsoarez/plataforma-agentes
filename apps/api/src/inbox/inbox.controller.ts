@@ -5,7 +5,7 @@ import { assinar } from '@plataforma/bus';
 @Controller('inbox')
 @UseGuards(AuthGuard)
 export class InboxController {
-  // Stream SSE do inbox ao vivo. O painel consome com EventSource(`/inbox/stream?token=JWT`).
+  // Stream SSE do inbox ao vivo. O painel consome com fetch + Authorization.
   // O tenant vem da SESSAO autenticada — nunca de query param. Sem vazamento entre agencias.
   @Get('stream')
   stream(@Req() req: any, @Res() res: any) {

@@ -104,23 +104,6 @@ const TOURS: Record<string, TourConfig> = {
       },
     ],
   },
-  '/templates': {
-    section: 'Templates',
-    steps: [
-      {
-        title: 'Modelos de configuracao',
-        what: 'Templates aceleram a criacao de projetos com estruturas reutilizaveis.',
-        how: 'Importe ou edite JSON com configuracoes padrao e aplique ao projeto certo.',
-        why: 'Isso padroniza operacoes repetidas sem recriar tudo manualmente a cada cliente.',
-      },
-      {
-        title: 'Edicao com cuidado',
-        what: 'O JSON precisa estar valido para ser salvo e aplicado.',
-        how: 'Altere campos pequenos, valide a estrutura e salve antes de aplicar.',
-        why: 'Um template malformado pode impedir importacao ou criar uma operacao incompleta.',
-      },
-    ],
-  },
   '/ai-settings': {
     section: 'IA e Custos',
     steps: [
@@ -223,23 +206,6 @@ const TOURS: Record<string, TourConfig> = {
       },
     ],
   },
-  '/automacoes': {
-    section: 'Automacoes',
-    steps: [
-      {
-        title: 'Gatilhos e acoes',
-        what: 'Automacoes executam tarefas quando algo acontece na operacao.',
-        how: 'Defina gatilho, filtros e acoes. Ative somente depois de revisar o comportamento esperado.',
-        why: 'Automacao boa economiza tempo; automacao mal configurada cria mensagens erradas em escala.',
-      },
-      {
-        title: 'Teste antes de escalar',
-        what: 'Toda automacao deve ser validada com um caso pequeno.',
-        how: 'Use um contato de teste e acompanhe Inbox, eventos e logs antes de usar em campanhas reais.',
-        why: 'Isso evita disparos indevidos e protege a reputacao do numero WhatsApp.',
-      },
-    ],
-  },
   '/campanhas': {
     section: 'Campanhas',
     steps: [
@@ -274,23 +240,6 @@ const TOURS: Record<string, TourConfig> = {
       },
     ],
   },
-  '/api-docs': {
-    section: 'API Docs',
-    steps: [
-      {
-        title: 'Documentacao da API',
-        what: 'Esta tela mostra endpoints para integrar sistemas externos.',
-        how: 'Leia metodo, rota, payload e headers antes de chamar a API.',
-        why: 'Integracao correta evita dados duplicados, mensagens fora de ordem e falhas silenciosas.',
-      },
-      {
-        title: 'Autenticacao',
-        what: 'Chamadas publicas exigem credenciais validas.',
-        how: 'Use a chave gerada no painel e envie no header esperado.',
-        why: 'Isso protege a API contra uso indevido e separa dados por cliente.',
-      },
-    ],
-  },
   '/configuracoes': {
     section: 'Configurações',
     steps: [
@@ -310,7 +259,7 @@ const TOURS: Record<string, TourConfig> = {
         title: 'Assinatura e preferências',
         what: 'A tela mostra status da assinatura e preferências básicas da sua conta.',
         how: 'Revise o plano, acesse a página de assinatura e ajuste notificações por e-mail.',
-        why: 'Configuração de usuário deve ser separada da Marca, que controla o white-label da empresa.',
+        why: 'Isso concentra dados pessoais, acesso e cobranca no mesmo lugar sem expor configuracoes tecnicas ao usuario final.',
       },
     ],
   },
@@ -328,23 +277,6 @@ const TOURS: Record<string, TourConfig> = {
         what: 'Membros da equipe podem assumir conversas no Inbox.',
         how: 'Defina quem atende, quem administra e quem apenas acompanha indicadores.',
         why: 'Isso separa operacao diaria de configuracoes sensiveis.',
-      },
-    ],
-  },
-  '/settings': {
-    section: 'Marca',
-    steps: [
-      {
-        title: 'White-label',
-        what: 'Marca permite ajustar identidade visual da plataforma para o tenant.',
-        how: 'Configure nome, logo, cores, favicon, dominio e CSS com cuidado.',
-        why: 'Clientes podem operar com identidade propria sem quebrar o padrao Comunora.',
-      },
-      {
-        title: 'Dominio e assets',
-        what: 'Logo e dominio precisam estar consistentes.',
-        how: 'Use imagens leves, com boa resolucao, e confira DNS antes de divulgar o link.',
-        why: 'Uma marca mal configurada passa inseguranca e pode quebrar OAuth, callbacks e links.',
       },
     ],
   },

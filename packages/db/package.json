@@ -9,6 +9,7 @@
   },
   "scripts": {
     "migrate": "dotenv -e ../../.env -- tsx migrate.ts",
+    "provision:runtime-role": "dotenv -e ../../.env -- tsx provision-runtime-role.ts",
     "build": "tsc",
     "test": "tsx --test src/**/*.spec.ts"
   },

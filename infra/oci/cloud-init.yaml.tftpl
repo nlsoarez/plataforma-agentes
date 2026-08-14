@@ -1,0 +1,83 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+ssh_pwauth: false
+disable_root: true
+timezone: America/Sao_Paulo
+
+packages:
+  - ca-certificates
+  - curl
+  - fail2ban
+  - git
+  - gnupg
+  - jq
+  - restic
+  - unzip
+  - unattended-upgrades
+
+write_files:
+  - path: /usr/local/sbin/comunora-bootstrap.sh
+    permissions: '0750'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      install -m 0755 -d /etc/apt/keyrings
+      if [[ ! -f /etc/apt/keyrings/docker.asc ]]; then
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+      fi
+      . /etc/os-release
+      arch="$(dpkg --print-architecture)"
+      echo "deb [arch=$arch signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" > /etc/apt/sources.list.d/docker.list
+      apt-get update
+      DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+      usermod -aG docker ubuntu
+      systemctl enable --now docker fail2ban unattended-upgrades
+      ufw default deny incoming
+      ufw default allow outgoing
+      ufw allow 22/tcp
+      ufw --force enable
+
+      device="${data_device}"
+      for _ in $(seq 1 60); do
+        [[ -b "$device" ]] && break
+        sleep 5
+      done
+      if [[ ! -b "$device" ]]; then
+        echo "Volume de dados nao apareceu em $device" >&2
+        exit 1
+      fi
+
+      if ! blkid "$device" >/dev/null 2>&1; then
+        mkfs.ext4 -F -L comunora-data "$device"
+      fi
+      uuid="$(blkid -s UUID -o value "$device")"
+      install -d -m 0755 /srv/comunora
+      if ! grep -q "UUID=$uuid" /etc/fstab; then
+        echo "UUID=$uuid /srv/comunora ext4 defaults,nofail 0 2" >> /etc/fstab
+      fi
+      mountpoint -q /srv/comunora || mount /srv/comunora
+
+      install -d -m 0755 /srv/comunora/{data,state,cache,tmp,backups,app}
+      install -d -m 0755 /srv/comunora/data/{platform-postgres,platform-redis,evolution-postgres,evolution-redis}
+      install -d -m 0700 /etc/comunora/env
+      chown -R ubuntu:docker /srv/comunora/app /srv/comunora/state /srv/comunora/tmp /srv/comunora/backups
+      chmod 0750 /srv/comunora/app /srv/comunora/state /srv/comunora/tmp /srv/comunora/backups
+
+      cat >/etc/docker/daemon.json <<'JSON'
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "5" },
+        "live-restore": true
+      }
+      JSON
+      systemctl restart docker
+
+runcmd:
+  - [bash, /usr/local/sbin/comunora-bootstrap.sh]
+
+final_message: "Comunora OCI bootstrap concluido."

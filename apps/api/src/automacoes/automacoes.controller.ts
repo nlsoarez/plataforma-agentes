@@ -1,10 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { comTenant } from '@plataforma/db';
 import { AuthGuard } from '../auth/auth.guard';
+import { Roles, RolesGuard } from '../auth/roles';
 import { assertLimit } from '../billing/entitlements';
 
 @Controller('automacoes')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('owner', 'admin')
 export class AutomacoesController {
   @Get()
   listar(@Query('projetoId') projetoId: string | undefined, @Req() req: any) {

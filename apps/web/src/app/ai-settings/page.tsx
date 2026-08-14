@@ -117,13 +117,36 @@ export default function AiSettingsPage() {
         {active && <span className={`nl-badge ${active.ativo ? 'nl-badge--ok' : 'nl-badge--warn'}`}>chave ****{active.key_last4 || '----'}</span>}
       </div>
 
-      <section className="nl-card nl-card--pad" style={{ maxWidth: 820 }}>
-        <label className="nl-label">Provider</label>
-        <select className="nl-select" value={provider} onChange={(e) => setProvider(e.target.value as any)} style={{ marginBottom: 14 }}>
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="google">Google Gemini</option>
-        </select>
+      <div className="nl-tabs nl-tabs--page" role="tablist" aria-label="Providers de IA">
+        {(['openai', 'anthropic', 'google'] as const).map((item) => {
+          const saved = settings.find((s) => s.provider === item);
+          return (
+            <button
+              key={item}
+              type="button"
+              id={`ai-tab-${item}`}
+              role="tab"
+              aria-selected={provider === item}
+              aria-controls="ai-panel-provider"
+              className={`nl-tab ${provider === item ? 'active' : ''}`}
+              onClick={() => setProvider(item)}
+            >
+              {DEFAULTS[item].label}
+              <span>{saved?.ativo ? 'ativo' : 'sem chave'}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <section className="nl-card nl-card--pad nl-tab-panel" id="ai-panel-provider" role="tabpanel" aria-labelledby={`ai-tab-${provider}`} style={{ maxWidth: 860 }}>
+        <div className="nl-panel-head" style={{ marginBottom: 16 }}>
+          <div>
+            <div className="eyebrow">Provider selecionado</div>
+            <h2>{DEFAULTS[provider].label}</h2>
+            <p className="muted" style={{ marginTop: 4 }}>Configure a chave, modelo padrao e custos para este provedor.</p>
+          </div>
+          <span className={`nl-badge ${active?.ativo ? 'nl-badge--ok' : 'nl-badge--warn'}`}>{active?.ativo ? `****${active.key_last4 || '----'}` : 'sem chave'}</span>
+        </div>
 
         <label className="nl-label">API Key</label>
         <input

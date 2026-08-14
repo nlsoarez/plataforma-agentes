@@ -1,4 +1,5 @@
 import type { QueryFn } from '@plataforma/db';
+import { safeWebhookPost } from '@plataforma/transport';
 import { createHmac } from 'crypto';
 
 function assinarWebhook(secret: string, payload: string) {
@@ -16,17 +17,17 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function enviarComRetry(url: string, init: RequestInit) {
+async function enviarComRetry(url: string, headers: Record<string, string>, body: string) {
   const cfg = retryConfig();
   let lastError = '';
   let lastStatus: number | null = null;
 
   for (let attempt = 1; attempt <= cfg.attempts; attempt++) {
     try {
-      const response = await fetch(url, init);
+      const response = await safeWebhookPost(url, headers, body);
       lastStatus = response.status;
       if (response.ok) return { ok: true, status: response.status, attempts: attempt, error: null };
-      lastError = `HTTP ${response.status}: ${await response.text().catch(() => '')}`;
+      lastError = `HTTP ${response.status}: ${response.body}`;
     } catch (err: any) {
       lastError = err?.message || 'erro desconhecido';
     }
@@ -62,7 +63,7 @@ export async function dispararWebhooks(q: QueryFn, tenantId: string, evento: str
       headers['x-attende-signature'] = signature;
     }
 
-    const result = await enviarComRetry(sub.url, { method: 'POST', headers, body });
+    const result = await enviarComRetry(sub.url, headers, body);
     await q(
       `update webhook_deliveries
        set status=$2,
