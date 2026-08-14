@@ -4,7 +4,8 @@ USER root
 WORKDIR /evolution
 RUN apk upgrade --no-cache \
     && apk add --no-cache git \
-    && npm update --omit=dev \
+    && npm update --omit=dev --ignore-scripts \
+    && npm rebuild esbuild \
     && npm prune --omit=dev \
     && npm cache clean --force \
     && apk del git \
