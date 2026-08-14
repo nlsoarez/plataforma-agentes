@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22.22.0-bookworm-slim AS base
+FROM node:22.22.0-alpine3.22 AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
@@ -46,22 +46,25 @@ RUN pnpm --filter @plataforma/api deploy --prod --legacy /prod/api
 FROM build AS worker-production
 RUN pnpm --filter @plataforma/worker deploy --prod --legacy /prod/worker
 
-FROM node:22.22.0-bookworm-slim AS migration-runtime
+FROM node:22.22.0-alpine3.22 AS migration-runtime
 ENV NODE_ENV=production
 WORKDIR /app
-RUN groupmod --gid 10001 node && usermod --uid 10001 --gid 10001 node
+RUN apk upgrade --no-cache
 
-FROM gcr.io/distroless/nodejs22-debian12:nonroot AS node-runtime
+FROM node:22.22.0-alpine3.22 AS node-runtime
 ENV NODE_ENV=production
 WORKDIR /app
+RUN apk upgrade --no-cache \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-*
+USER node
 
 FROM node-runtime AS api
-COPY --from=api-production --chown=65532:65532 /prod/api ./
+COPY --from=api-production --chown=node:node /prod/api ./
 EXPOSE 3000
 CMD ["dist/main.js"]
 
 FROM node-runtime AS worker
-COPY --from=worker-production --chown=65532:65532 /prod/worker ./
+COPY --from=worker-production --chown=node:node /prod/worker ./
 CMD ["dist/main.js"]
 
 FROM migration-runtime AS migration
@@ -76,13 +79,13 @@ FROM node-runtime AS web
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
-COPY --from=build --chown=65532:65532 /workspace/apps/web/.next/standalone ./
-COPY --from=build --chown=65532:65532 /workspace/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build --chown=65532:65532 /workspace/apps/web/public ./apps/web/public
+COPY --from=build --chown=node:node /workspace/apps/web/.next/standalone ./
+COPY --from=build --chown=node:node /workspace/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=node:node /workspace/apps/web/public ./apps/web/public
 EXPOSE 3001
 CMD ["apps/web/server.js"]
 
 FROM node-runtime AS relay
-COPY --from=build --chown=65532:65532 /workspace/apps/embratel-relay ./apps/embratel-relay
+COPY --from=build --chown=node:node /workspace/apps/embratel-relay ./apps/embratel-relay
 EXPOSE 8788
 CMD ["apps/embratel-relay/server.js"]

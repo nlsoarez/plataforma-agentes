@@ -1,0 +1,12 @@
+FROM evoapicloud/evolution-api:v2.3.7
+
+USER root
+WORKDIR /evolution
+RUN apk upgrade --no-cache \
+    && npm update --omit=dev \
+    && npm prune --omit=dev \
+    && npm cache clean --force \
+    && sed -i 's/echo "Database URL: \$DATABASE_URL"/echo "Database URL: [redacted]"/' Docker/scripts/deploy_database.sh \
+    && chown -R node:node /evolution
+USER node
+

@@ -20,7 +20,10 @@ x-build: &app-build
 
 services:
   platform-postgres:
-    image: pgvector/pgvector:0.8.2-pg18-bookworm
+    image: comunora-pgvector-hardened:0.8.2-pg18
+    build:
+      context: .
+      dockerfile: infra/hostinger/hardened/Dockerfile.pgvector
     container_name: comunora-postgres
     env_file: /opt/comunora/secrets/platform-db.env
     volumes:
@@ -36,7 +39,10 @@ services:
     networks: [data]
 
   platform-redis:
-    image: redis:8.2.1-alpine
+    image: comunora-redis-hardened:8.2.1
+    build:
+      context: .
+      dockerfile: infra/hostinger/hardened/Dockerfile.redis
     container_name: comunora-redis
     env_file: /opt/comunora/secrets/platform-redis.env
     command: >-
@@ -64,7 +70,7 @@ services:
       platform-postgres: { condition: service_healthy }
       platform-redis: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "/nodejs/bin/node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "/usr/local/bin/node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 15
@@ -85,7 +91,7 @@ services:
     depends_on:
       api: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "/nodejs/bin/node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "/usr/local/bin/node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 15
@@ -104,7 +110,7 @@ services:
       platform-postgres: { condition: service_healthy }
       platform-redis: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "/nodejs/bin/node", "-e", "process.exit(0)"]
+      test: ["CMD", "/usr/local/bin/node", "-e", "process.exit(0)"]
       interval: 20s
       timeout: 5s
       retries: 8

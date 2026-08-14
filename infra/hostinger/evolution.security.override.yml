@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: comunora-postgres17-hardened:17
+    build:
+      context: ${COMUNORA_REPO_ROOT:-/opt/comunora/app}
+      dockerfile: infra/hostinger/hardened/Dockerfile.postgres
+
+  redis:
+    image: comunora-redis-hardened:8.2.1
+    build:
+      context: ${COMUNORA_REPO_ROOT:-/opt/comunora/app}
+      dockerfile: infra/hostinger/hardened/Dockerfile.redis
+
+  evolution:
+    image: comunora-evolution-hardened:2.3.7
+    build:
+      context: ${COMUNORA_REPO_ROOT:-/opt/comunora/app}
+      dockerfile: infra/hostinger/hardened/Dockerfile.evolution
+
+  relay:
+    image: comunora-embratel-relay-hardened:1
+    build:
+      context: ${EVOLUTION_RELAY_CONTEXT:-/opt/evolution/relay}
+      dockerfile: ${COMUNORA_REPO_ROOT:-/opt/comunora/app}/infra/hostinger/hardened/Dockerfile.relay
+
+  caddy:
+    image: comunora-caddy-hardened:2.11.4
+    build:
+      context: ${COMUNORA_REPO_ROOT:-/opt/comunora/app}
+      dockerfile: infra/hostinger/hardened/Dockerfile.caddy
+

@@ -25,7 +25,7 @@ curl -fsS -H 'Host: staging-app.comunora.com.br' http://127.0.0.1:8080/gateway-h
 if [[ "$mode" == "production" ]]; then
   for service in worker evolution-api embratel-relay; do wait_for_service "$service" 3; done
   compose exec -T evolution-api node -e "fetch('http://127.0.0.1:8080').then(r=>{if(!r.ok)process.exit(1)})"
-  compose exec -T embratel-relay /nodejs/bin/node -e "fetch('http://127.0.0.1:8788/health').then(r=>{if(!r.ok)process.exit(1)})"
+  compose exec -T embratel-relay /usr/local/bin/node -e "fetch('http://127.0.0.1:8788/health').then(r=>{if(!r.ok)process.exit(1)})"
 fi
 
 if [[ "${CHECK_PUBLIC:-0}" == "1" ]]; then
