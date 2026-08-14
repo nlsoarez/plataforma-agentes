@@ -1,8 +1,7 @@
 FROM golang:1.26.5-alpine3.24 AS gosu-builder
-RUN CGO_ENABLED=0 go install github.com/tianon/gosu@v1.19
+RUN CGO_ENABLED=0 go install github.com/tianon/gosu@1.19
 
 FROM postgres:17-alpine
 USER root
 RUN apk upgrade --no-cache
 COPY --from=gosu-builder /go/bin/gosu /usr/local/bin/gosu
-
