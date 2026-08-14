@@ -22,5 +22,9 @@ RUN apk upgrade --no-cache \
     && npm cache clean --force \
     && apk del git \
     && sed -i 's/echo "Database URL: \$DATABASE_URL"/echo "Database URL: [redacted]"/' Docker/scripts/deploy_database.sh \
+    && sed -i 's#npm run db:deploy#node runWithProvider.js "rm -rf ./prisma/migrations \&\& cp -r ./prisma/DATABASE_PROVIDER-migrations ./prisma/migrations \&\& ./node_modules/.bin/prisma migrate deploy --schema ./prisma/DATABASE_PROVIDER-schema.prisma"#' Docker/scripts/deploy_database.sh \
+    && sed -i 's#npm run db:generate#node runWithProvider.js "./node_modules/.bin/prisma generate --schema ./prisma/DATABASE_PROVIDER-schema.prisma"#' Docker/scripts/deploy_database.sh \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
     && chown -R node:node /evolution
 USER node
+ENTRYPOINT ["/bin/bash", "-c", ". ./Docker/scripts/deploy_database.sh && exec node dist/main"]
